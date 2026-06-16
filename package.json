@@ -8,7 +8,7 @@
     "format": "prettier --write \"*.js\" \"src/**/*.js\" \"scripts/**/*.js\"",
     "lint": "prettier --check \"*.js\" \"src/**/*.js\" \"scripts/**/*.js\"",
     "start": "node .\\main.js",
-    "dev": "powershell -NoProfile -Command Clear-Host; git fetch origin; git pull --ff-only origin main; npm run format; npm run start",
+    "dev": "powershell -NoProfile -Command Clear-Host; git fetch origin; git pull --ff-only origin main; npm run start",
     "test:hana": "node scripts/test-hana.js"
   },
   "dependencies": {
