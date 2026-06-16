@@ -97,11 +97,18 @@ function createPrestaClient(log) {
 
 function parseProductSummary(productXml) {
   return {
+    id: Number(xmlText(productXml, "id") || 0),
     reference: xmlText(productXml, "reference"),
     active: xmlText(productXml, "active"),
     defaultCategory: xmlText(productXml, "id_category_default"),
     productPrice: Number(xmlText(productXml, "price") || 0),
   };
+}
+
+function parseProductSummaryList(xml) {
+  return parseXmlBlocks(xml, "product").map((block) =>
+    parseProductSummary(block),
+  );
 }
 
 function parseCombinationList(xml) {
@@ -252,9 +259,11 @@ async function enrichCombinations(client, baseCombinations) {
 
 async function inspectProductByReference(client, article, log) {
   const searchXml = await client.get("products", {
+    display: "[id,reference,active,id_category_default,price]",
     "filter[reference]": article.itemCode,
   });
   const productIds = parseIdList(searchXml, "product");
+  const productSummaries = parseProductSummaryList(searchXml);
 
   log("info", "Busqueda producto PrestaShop", {
     reference: article.itemCode,
@@ -277,8 +286,14 @@ async function inspectProductByReference(client, article, log) {
   }
 
   const productId = productIds[0];
-  const productXml = await client.get("products/" + productId);
-  const product = parseProductSummary(productXml);
+  const product =
+    productSummaries.find((item) => item.id === productId) || null;
+
+  if (!product) {
+    throw new Error(
+      "No se pudo obtener el resumen del producto PrestaShop id=" + productId,
+    );
+  }
 
   const combinationsXml = await client.get("combinations", {
     display: "full",
