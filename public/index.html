@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAP → PrestaShop Sync</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f1f5f9;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1e293b;
+      color: #f8fafc;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: 0.02em; }
+    header span { font-size: 0.8rem; color: #94a3b8; }
+
+    main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+
+    /* Stats cards */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 16px;
+      border-top: 3px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .card.blue  { border-top-color: #3b82f6; }
+    .card.green { border-top-color: #22c55e; }
+    .card.amber { border-top-color: #f59e0b; }
+    .card.red   { border-top-color: #ef4444; }
+    .card.purple{ border-top-color: #a855f7; }
+    .card.slate { border-top-color: #64748b; }
+
+    .card-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #64748b; margin-bottom: 6px; }
+    .card-value { font-size: 2rem; font-weight: 700; line-height: 1; }
+
+    /* Controls */
+    .controls {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field label { font-size: 0.78rem; font-weight: 600; color: #475569; }
+    .field input {
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-size: 0.9rem;
+      outline: none;
+      width: 160px;
+      transition: border-color .15s;
+    }
+    .field input:focus { border-color: #3b82f6; }
+
+    .toggle-group {
+      display: flex;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      overflow: hidden;
+      height: 34px;
+    }
+    .toggle-group button {
+      padding: 0 16px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      border: none;
+      background: #f8fafc;
+      cursor: pointer;
+      color: #475569;
+      transition: background .15s, color .15s;
+    }
+    .toggle-group button.active {
+      background: #3b82f6;
+      color: #fff;
+    }
+    .toggle-group button.active.danger {
+      background: #ef4444;
+    }
+
+    .btn-run {
+      padding: 8px 24px;
+      background: #1e293b;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+      height: 34px;
+    }
+    .btn-run:hover:not(:disabled) { background: #334155; }
+    .btn-run:disabled { background: #94a3b8; cursor: not-allowed; }
+
+    /* Log output */
+    .log-box {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 16px;
+      font-family: 'Menlo', 'Consolas', monospace;
+      font-size: 0.78rem;
+      height: 320px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+
+    .log-line { margin-bottom: 2px; white-space: pre-wrap; word-break: break-all; }
+    .log-line.info  { color: #94a3b8; }
+    .log-line.warn  { color: #fbbf24; }
+    .log-line.error { color: #f87171; }
+    .log-line.done-ok  { color: #4ade80; font-weight: bold; }
+    .log-line.done-err { color: #f87171; font-weight: bold; }
+    .log-placeholder { color: #475569; padding: 8px 0; }
+
+    /* History */
+    .section-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 10px;
+    }
+
+    .history-table {
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th {
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: #64748b;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    td { padding: 9px 14px; border-bottom: 1px solid #f1f5f9; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8fafc; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 99px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+    .badge.green { background: #dcfce7; color: #15803d; }
+    .badge.red   { background: #fee2e2; color: #dc2626; }
+    .badge.amber { background: #fef3c7; color: #b45309; }
+    .badge.slate { background: #f1f5f9; color: #475569; }
+
+    #running-banner {
+      display: none;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>SAP → PrestaShop Sync</h1>
+  <span id="last-run-label">Sin reportes</span>
+</header>
+
+<main>
+  <!-- Stats cards -->
+  <div class="cards">
+    <div class="card blue">
+      <div class="card-label">Total SAP</div>
+      <div class="card-value" id="stat-total">—</div>
+    </div>
+    <div class="card green">
+      <div class="card-label">Sin cambio</div>
+      <div class="card-value" id="stat-ok">—</div>
+    </div>
+    <div class="card amber">
+      <div class="card-label">Crear</div>
+      <div class="card-value" id="stat-create">—</div>
+    </div>
+    <div class="card amber">
+      <div class="card-label">Actualizar</div>
+      <div class="card-value" id="stat-update">—</div>
+    </div>
+    <div class="card purple">
+      <div class="card-label">Revisión</div>
+      <div class="card-value" id="stat-review">—</div>
+    </div>
+    <div class="card red">
+      <div class="card-label">Errores</div>
+      <div class="card-value" id="stat-errors">—</div>
+    </div>
+  </div>
+
+  <!-- Running banner -->
+  <div id="running-banner">⏳ Sync en curso...</div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="field">
+      <label for="item-code">Item Code (vacío = todos)</label>
+      <input type="text" id="item-code" placeholder="ej. 72111012">
+    </div>
+    <div class="field">
+      <label for="limit">Límite de artículos</label>
+      <input type="number" id="limit" placeholder="sin límite" min="1">
+    </div>
+    <div class="field">
+      <label>Modo</label>
+      <div class="toggle-group">
+        <button id="btn-dryrun" class="active" onclick="setMode('dry')">Dry-run</button>
+        <button id="btn-write" onclick="setMode('write')">Ejecutar</button>
+      </div>
+    </div>
+    <button class="btn-run" id="btn-run" onclick="runSync()">▶ Iniciar</button>
+  </div>
+
+  <!-- Log output -->
+  <div class="log-box" id="log-box">
+    <div class="log-placeholder">Los logs del sync aparecen aquí en tiempo real.</div>
+  </div>
+
+  <!-- History -->
+  <div class="section-title">Historial de corridas</div>
+  <div class="history-table">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha/hora</th>
+          <th>Total</th>
+          <th>Crear</th>
+          <th>Actualizar</th>
+          <th>Sin cambio</th>
+          <th>Revisión</th>
+          <th>Ejecutados</th>
+          <th>Errores</th>
+        </tr>
+      </thead>
+      <tbody id="history-body">
+        <tr><td colspan="8" style="color:#94a3b8;text-align:center;padding:20px">Cargando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+  let writeMode = false;
+  let syncRunning = false;
+
+  function setMode(mode) {
+    writeMode = mode === 'write';
+    document.getElementById('btn-dryrun').classList.toggle('active', !writeMode);
+    document.getElementById('btn-write').classList.toggle('active', writeMode);
+    document.getElementById('btn-write').classList.toggle('danger', writeMode);
+  }
+
+  function log(text, cls) {
+    const box = document.getElementById('log-box');
+    const firstChild = box.querySelector('.log-placeholder');
+    if (firstChild) firstChild.remove();
+    const line = document.createElement('div');
+    line.className = 'log-line ' + (cls || '');
+    line.textContent = text;
+    box.appendChild(line);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function logJson(raw) {
+    try {
+      const obj = JSON.parse(raw);
+      const ts = obj.ts ? new Date(obj.ts).toLocaleTimeString('es') : '';
+      const text = `[${ts}] ${obj.level?.toUpperCase() || ''} ${obj.message || raw}`;
+      const cls = obj.level === 'error' ? 'error' : obj.level === 'warn' ? 'warn' : 'info';
+      log(text, cls);
+    } catch {
+      log(raw, 'info');
+    }
+  }
+
+  function runSync() {
+    if (syncRunning) return;
+    syncRunning = true;
+
+    document.getElementById('btn-run').disabled = true;
+    document.getElementById('running-banner').style.display = 'block';
+
+    const box = document.getElementById('log-box');
+    box.innerHTML = '';
+    log('— Iniciando sync —', 'info');
+
+    const itemCode = document.getElementById('item-code').value.trim();
+    const limit = document.getElementById('limit').value.trim();
+    const params = new URLSearchParams();
+    if (itemCode) params.set('itemCode', itemCode);
+    if (limit) params.set('limit', limit);
+    params.set('write', writeMode ? 'true' : 'false');
+
+    const es = new EventSource('/api/sync?' + params.toString());
+
+    es.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'log') {
+        logJson(msg.line);
+      } else if (msg.type === 'done') {
+        const ok = msg.code === 0;
+        log(ok ? '✓ Sync completado.' : `✗ Sync terminó con código ${msg.code}`, ok ? 'done-ok' : 'done-err');
+        es.close();
+        syncRunning = false;
+        document.getElementById('btn-run').disabled = false;
+        document.getElementById('running-banner').style.display = 'none';
+        loadReports();
+      }
+    };
+
+    es.onerror = () => {
+      log('✗ Error de conexión con el servidor.', 'error');
+      es.close();
+      syncRunning = false;
+      document.getElementById('btn-run').disabled = false;
+      document.getElementById('running-banner').style.display = 'none';
+    };
+  }
+
+  function fmt(n) { return n === undefined || n === null ? '—' : Number(n).toLocaleString('es'); }
+
+  function loadReports() {
+    fetch('/api/reports')
+      .then(r => r.json())
+      .then(reports => {
+        if (reports.length === 0) return;
+
+        const latest = reports[0];
+        const ra = latest.recommendedActions || {};
+        const s  = latest.summary || {};
+
+        document.getElementById('stat-total').textContent   = fmt(s.total);
+        document.getElementById('stat-ok').textContent      = fmt(ra.skipNoChange);
+        document.getElementById('stat-create').textContent  = fmt(ra.createProduct);
+        document.getElementById('stat-update').textContent  = fmt((ra.updateProductPrice || 0) + (ra.updateProductStock || 0) + (ra.updateProductPriceAndStock || 0));
+        document.getElementById('stat-review').textContent  = fmt((ra.reviewCombinationMapping || 0) + (ra.reviewError || 0));
+        document.getElementById('stat-errors').textContent  = fmt(s.errors);
+
+        if (latest.generatedAt) {
+          document.getElementById('last-run-label').textContent =
+            'Último reporte: ' + new Date(latest.generatedAt).toLocaleString('es');
+        }
+
+        const tbody = document.getElementById('history-body');
+        tbody.innerHTML = reports.map(r => {
+          const a = r.recommendedActions || {};
+          const sm = r.summary || {};
+          const upd = (a.updateProductPrice || 0) + (a.updateProductStock || 0) + (a.updateProductPriceAndStock || 0);
+          const rev = (a.reviewCombinationMapping || 0) + (a.reviewError || 0);
+          const errBadge = sm.errors > 0
+            ? `<span class="badge red">${sm.errors}</span>`
+            : `<span class="badge slate">0</span>`;
+          const execBadge = a.executed > 0
+            ? `<span class="badge green">${a.executed}</span>`
+            : `<span class="badge slate">0</span>`;
+          return `<tr>
+            <td>${r.generatedAt ? new Date(r.generatedAt).toLocaleString('es') : '—'}</td>
+            <td>${fmt(sm.total)}</td>
+            <td>${fmt(a.createProduct)}</td>
+            <td>${fmt(upd)}</td>
+            <td>${fmt(a.skipNoChange)}</td>
+            <td>${rev > 0 ? `<span class="badge amber">${rev}</span>` : fmt(rev)}</td>
+            <td>${execBadge}</td>
+            <td>${errBadge}</td>
+          </tr>`;
+        }).join('');
+      })
+      .catch(() => {});
+  }
+
+  loadReports();
+</script>
+</body>
+</html>

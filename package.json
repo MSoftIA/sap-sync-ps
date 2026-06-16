@@ -7,12 +7,15 @@
   "scripts": {
     "format": "prettier --write \"*.js\" \"src/**/*.js\" \"scripts/**/*.js\"",
     "lint": "prettier --check \"*.js\" \"src/**/*.js\" \"scripts/**/*.js\"",
-    "start": "node .\\main.js",
-    "dev": "powershell -NoProfile -Command Clear-Host; git fetch origin; git pull --ff-only origin main; npm run start",
+    "sync": "node .\\main.js",
+    "ui": "node .\\server.js",
+    "start": "node .\\server.js",
+    "dev": "powershell -NoProfile -Command Clear-Host; git fetch origin; git pull --ff-only origin main; npm run ui",
     "test:hana": "node scripts/test-hana.js"
   },
   "dependencies": {
-    "@sap/hana-client": "^2.25.29"
+    "@sap/hana-client": "^2.25.29",
+    "express": "^4.22.2"
   },
   "devDependencies": {
     "prettier": "^3.8.4"
