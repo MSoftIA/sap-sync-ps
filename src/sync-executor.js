@@ -222,6 +222,7 @@ async function findStockAvailableId(client, productId, productAttributeId = 0) {
 function buildPutProductXml(existingXml, payload = {}) {
   let xml = existingXml;
   xml = removeTag(xml, "manufacturer_name");
+  xml = removeTag(xml, "quantity");
 
   if (payload.reference) {
     xml = setTagValue(xml, "reference", payload.reference);
