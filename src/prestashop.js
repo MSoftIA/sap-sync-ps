@@ -1,5 +1,6 @@
 const { env, requiredEnv } = require("./env");
 const {
+  parseAnyIdList,
   parseIdList,
   parseXmlBlocks,
   xmlLanguageText,
@@ -104,7 +105,7 @@ async function findProductIdsByReference(client, reference) {
     "filter[reference]": reference,
   });
 
-  return parseIdList(searchXml, "product");
+  return parseAnyIdList(searchXml, "product");
 }
 
 function parseProductSummary(productXml) {
@@ -165,7 +166,7 @@ async function countPrestaResources(
       limit: `${offset},${batchSize}`,
       ...params,
     });
-    const ids = parseIdList(xml, resource.slice(0, -1));
+    const ids = parseAnyIdList(xml, resource.slice(0, -1));
     total += ids.length;
 
     if (ids.length < batchSize) {
