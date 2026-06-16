@@ -118,13 +118,6 @@ function buildCreateProductXml(payload) {
     <link_rewrite>
       <language id="${escapeXml(payload.product.languageId)}">${cdata(safeSlug)}</language>
     </link_rewrite>
-    <associations>
-      <categories>
-        <category>
-          <id>${cdata(payload.product.defaultCategoryId)}</id>
-        </category>
-      </categories>
-    </associations>
   </product>
 </prestashop>`;
 }
