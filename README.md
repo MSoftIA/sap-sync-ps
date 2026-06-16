@@ -31,6 +31,8 @@ SAP_ITEM_CODE=61072505
 SAP_LIMIT=5
 PRESTASHOP_ENDPOINT=https://carballo.com.do
 PRESTASHOP_API_KEY=API_KEY
+PRESTASHOP_DEFAULT_CATEGORY_ID=
+PRESTASHOP_LANGUAGE_ID=1
 REPORT_DIR=reports
 REPORT_BASENAME=sap-prestashop-diagnostic
 LOG_LEVEL=info
@@ -119,5 +121,9 @@ El reporte tambien propone un plan de accion por fila, por ejemplo:
 - `update_product_price_and_stock`
 - `skip_no_change`
 - `review_combination_mapping`
+
+Para los candidatos a creacion, el dry-run arma un payload propuesto. Si falta
+`PRESTASHOP_DEFAULT_CATEGORY_ID`, la fila queda bloqueada para revision antes de
+crear el producto.
 
 Todos los archivos quedan en la carpeta configurada por `REPORT_DIR`.

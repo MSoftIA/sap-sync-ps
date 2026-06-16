@@ -7,6 +7,7 @@ const {
 } = require("./prestashop");
 const { writeRunReports } = require("./report");
 const { readSapArticles } = require("./sap");
+const { buildActionPayload } = require("./sync-plan");
 
 function logEnvLoad() {
   const result = loadEnvFile();
@@ -149,6 +150,19 @@ function buildResultRow(article, inspection) {
       ? "matched_product_ok"
       : "matched_product_diff";
   const syncPlan = buildSyncPlan(status, metrics, isCombination);
+  const actionPayload = buildActionPayload(
+    {
+      action: syncPlan.action,
+      productId: inspection.productId,
+      productReference: inspection.reference,
+      selectedCombinationId: isCombination
+        ? inspection.bestMatch.combination.id
+        : null,
+      sapPrice: article.price,
+      sapStock: article.stock,
+    },
+    article,
+  );
 
   return {
     status,
@@ -157,6 +171,9 @@ function buildResultRow(article, inspection) {
     syncPrice: syncPlan.syncPrice,
     syncStock: syncPlan.syncStock,
     syncName: syncPlan.syncName,
+    blockedReason: actionPayload.blockedReason,
+    payloadSummary: actionPayload.payloadSummary,
+    actionPayload: actionPayload.payload,
     needsReview,
     itemCode: article.itemCode,
     itemName: article.itemName,
@@ -225,6 +242,9 @@ async function run() {
           syncPrice: true,
           syncStock: true,
           syncName: true,
+          blockedReason: "",
+          payloadSummary: "",
+          actionPayload: {},
           needsReview: false,
           itemCode: article.itemCode,
           itemName: article.itemName,
@@ -246,6 +266,14 @@ async function run() {
           matchCount: 0,
           error: "",
         });
+        const createdRow = results[results.length - 1];
+        const actionPayload = buildActionPayload(createdRow, article);
+        createdRow.blockedReason = actionPayload.blockedReason;
+        createdRow.payloadSummary = actionPayload.payloadSummary;
+        createdRow.actionPayload = actionPayload.payload;
+        if (actionPayload.blockedReason) {
+          createdRow.needsReview = true;
+        }
         continue;
       }
 
@@ -278,6 +306,9 @@ async function run() {
         syncPrice: false,
         syncStock: false,
         syncName: false,
+        blockedReason: "",
+        payloadSummary: "",
+        actionPayload: {},
         needsReview: true,
         itemCode: article.itemCode,
         itemName: article.itemName,
