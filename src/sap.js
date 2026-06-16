@@ -72,6 +72,65 @@ function mapSapRow(row) {
   };
 }
 
+function readSapOverview(log) {
+  const config = getSapConfig();
+  const conn = hana.createConnection();
+  const sql =
+    "SELECT " +
+    'COUNT(*) AS "TotalProducts", ' +
+    'SUM(CASE WHEN I."validFor" = \'Y\' THEN 1 ELSE 0 END) AS "ActiveProducts", ' +
+    'SUM(CASE WHEN I."validFor" <> \'Y\' THEN 1 ELSE 0 END) AS "InactiveProducts", ' +
+    'SUM(CASE WHEN C."OnHand" > 0 THEN 1 ELSE 0 END) AS "ProductsWithStock", ' +
+    'SUM(CASE WHEN C."OnHand" <= 0 THEN 1 ELSE 0 END) AS "ProductsWithoutStock", ' +
+    'SUM(COALESCE(C."OnHand", 0)) AS "TotalStock", ' +
+    'SUM(COALESCE(P."AddPrice1", 0)) AS "TotalPriceListValue" ' +
+    'FROM "' +
+    config.query.schema +
+    '"."OITM" I ' +
+    'INNER JOIN "' +
+    config.query.schema +
+    '"."ITM1" P ON P."ItemCode" = I."ItemCode" ' +
+    'INNER JOIN "' +
+    config.query.schema +
+    '"."OITW" C ON C."ItemCode" = I."ItemCode" ' +
+    "WHERE I.\"frozenFor\" = 'N' " +
+    'AND P."PriceList" = ? ' +
+    'AND C."WhsCode" = ?';
+
+  try {
+    log("info", "Consultando resumen SAP", {
+      schema: config.query.schema,
+      priceList: config.query.priceList,
+      warehouse: config.query.warehouse,
+    });
+
+    conn.connect(config.connection);
+    const rows = conn.exec(sql, [
+      config.query.priceList,
+      config.query.warehouse,
+    ]);
+    const row = rows[0] || {};
+
+    return {
+      source: "sap",
+      schema: config.query.schema,
+      warehouse: config.query.warehouse,
+      priceList: config.query.priceList,
+      totalProducts: Number(row.TotalProducts || 0),
+      activeProducts: Number(row.ActiveProducts || 0),
+      inactiveProducts: Number(row.InactiveProducts || 0),
+      productsWithStock: Number(row.ProductsWithStock || 0),
+      productsWithoutStock: Number(row.ProductsWithoutStock || 0),
+      totalStock: Number(row.TotalStock || 0),
+      totalPriceListValue: Number(row.TotalPriceListValue || 0),
+    };
+  } finally {
+    try {
+      conn.disconnect();
+    } catch {}
+  }
+}
+
 function readSapArticles(log) {
   const config = getSapConfig();
   const conn = hana.createConnection();
@@ -120,4 +179,5 @@ module.exports = {
   buildArticleQuery,
   getSapConfig,
   readSapArticles,
+  readSapOverview,
 };

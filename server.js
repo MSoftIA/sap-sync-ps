@@ -7,14 +7,93 @@ const express = require("express");
 const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
+const {
+  createPrestaClient,
+  hasPrestaConfig,
+  readPrestaOverview,
+} = require("./src/prestashop");
+const { readSapOverview } = require("./src/sap");
+const { log } = require("./src/logger");
 
 const app = express();
 const PORT = env("UI_PORT", "3000");
 
 let activeSync = null;
+let overviewCache = {
+  updatedAt: 0,
+  payload: null,
+};
 
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.json());
+
+function buildContrast(sap, prestashop) {
+  if (!sap || !prestashop || sap.error || prestashop.error) {
+    return null;
+  }
+
+  return {
+    productGap: sap.totalProducts - prestashop.totalProducts,
+    activeGap: sap.activeProducts - prestashop.activeProducts,
+    inactiveGap: sap.inactiveProducts - prestashop.inactiveProducts,
+    sapHasMoreProducts: sap.totalProducts > prestashop.totalProducts,
+    sapHasFewerProducts: sap.totalProducts < prestashop.totalProducts,
+  };
+}
+
+function buildUnavailableOverview(source, error) {
+  return {
+    source,
+    error: error.message,
+  };
+}
+
+async function getCatalogOverview(forceRefresh = false) {
+  const ttlMs = 60 * 1000;
+  if (
+    !forceRefresh &&
+    overviewCache.payload &&
+    Date.now() - overviewCache.updatedAt < ttlMs
+  ) {
+    return overviewCache.payload;
+  }
+
+  let sap;
+  let prestashop;
+
+  try {
+    sap = readSapOverview(log);
+  } catch (error) {
+    sap = buildUnavailableOverview("sap", error);
+  }
+
+  if (hasPrestaConfig()) {
+    try {
+      prestashop = await readPrestaOverview(createPrestaClient(log), log);
+    } catch (error) {
+      prestashop = buildUnavailableOverview("prestashop", error);
+    }
+  } else {
+    prestashop = {
+      source: "prestashop",
+      error: "PRESTASHOP_ENDPOINT o PRESTASHOP_API_KEY no configurados",
+    };
+  }
+
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    sap,
+    prestashop,
+    contrast: buildContrast(sap, prestashop),
+  };
+
+  overviewCache = {
+    updatedAt: Date.now(),
+    payload,
+  };
+
+  return payload;
+}
 
 app.get("/api/reports", (req, res) => {
   const reportDir = path.join(process.cwd(), env("REPORT_DIR", "reports"));
@@ -42,6 +121,12 @@ app.get("/api/reports", (req, res) => {
 
 app.get("/api/status", (req, res) => {
   res.json({ running: !!activeSync });
+});
+
+app.get("/api/catalog-overview", async (req, res) => {
+  const forceRefresh = req.query.refresh === "true";
+  const payload = await getCatalogOverview(forceRefresh);
+  res.json(payload);
 });
 
 app.get("/api/sync", (req, res) => {
@@ -93,9 +178,11 @@ app.get("/api/sync", (req, res) => {
   proc.stderr.on("data", handleChunk("log"));
 
   proc.on("close", (code) => {
+    overviewCache = { updatedAt: 0, payload: null };
     send({ type: "done", code });
     activeSync = null;
-    res.end();
+    // No llamamos res.end() aqui. El cliente cierra con es.close()
+    // lo que dispara req.on('close') y limpia el socket
   });
 
   req.on("close", () => {

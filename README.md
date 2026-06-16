@@ -69,6 +69,12 @@ Ejecutar el flujo actual completo:
 npm run dev
 ```
 
+Levantar el panel web:
+
+```powershell
+npm run ui
+```
+
 Para ver mas detalle tecnico en consola durante una corrida:
 
 ```text
@@ -84,6 +90,7 @@ SYNC_WRITE=true
 ## Estructura
 
 - `main.js`: punto de entrada
+- `server.js`: servidor Express del panel web
 - `src/app.js`: orquestacion del flujo
 - `src/sap.js`: lectura desde SAP HANA
 - `src/prestashop.js`: cliente y parsing de PrestaShop
@@ -154,3 +161,27 @@ directas del producto padre. Las combinaciones siguen quedando en revision para
 evitar decisiones incorrectas sobre variantes.
 
 Todos los archivos quedan en la carpeta configurada por `REPORT_DIR`.
+
+## Panel web
+
+El panel web sirve para operar y contrastar el estado del catalogo:
+
+- lanzar el sync en modo `dry run` o `write`
+- ver el log en tiempo real
+- revisar el historial de corridas
+- consultar un snapshot agregado de SAP
+- consultar un snapshot agregado de PrestaShop
+- comparar ambas fuentes con un bloque de contraste
+
+Actualmente el panel muestra, como minimo:
+
+- SAP: schema, warehouse, price list, total de productos, activos, inactivos,
+  productos con stock, productos sin stock y stock total
+- PrestaShop: total de productos, activos, inactivos y total de combinaciones
+- contraste: gap de productos, activos e inactivos entre SAP y PrestaShop
+
+El endpoint interno que alimenta ese bloque es:
+
+```text
+GET /api/catalog-overview
+```

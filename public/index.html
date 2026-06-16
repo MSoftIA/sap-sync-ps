@@ -3,419 +3,647 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SAP → PrestaShop Sync</title>
+  <title>SAP to PrestaShop Sync</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+    * { box-sizing: border-box; }
     body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: #f1f5f9;
-      color: #1e293b;
-      min-height: 100vh;
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
     }
-
     header {
-      background: #1e293b;
-      color: #f8fafc;
-      padding: 16px 24px;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 20px 24px;
       display: flex;
-      align-items: center;
       justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
     }
-
-    header h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: 0.02em; }
-    header span { font-size: 0.8rem; color: #94a3b8; }
-
-    main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
-
-    /* Stats cards */
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 12px;
+    header h1 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+    header .meta {
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+    .section {
       margin-bottom: 24px;
     }
-
-    .card {
-      background: #fff;
-      border-radius: 10px;
-      padding: 16px;
-      border-top: 3px solid #e2e8f0;
-      box-shadow: 0 1px 3px rgba(0,0,0,.06);
-    }
-    .card.blue  { border-top-color: #3b82f6; }
-    .card.green { border-top-color: #22c55e; }
-    .card.amber { border-top-color: #f59e0b; }
-    .card.red   { border-top-color: #ef4444; }
-    .card.purple{ border-top-color: #a855f7; }
-    .card.slate { border-top-color: #64748b; }
-
-    .card-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #64748b; margin-bottom: 6px; }
-    .card-value { font-size: 2rem; font-weight: 700; line-height: 1; }
-
-    /* Controls */
-    .controls {
-      background: #fff;
-      border-radius: 10px;
-      padding: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,.06);
-      margin-bottom: 20px;
+    .section-header {
       display: flex;
-      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
       gap: 12px;
-      align-items: flex-end;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
     }
-
-    .field { display: flex; flex-direction: column; gap: 4px; }
-    .field label { font-size: 0.78rem; font-weight: 600; color: #475569; }
-    .field input {
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      padding: 7px 10px;
-      font-size: 0.9rem;
-      outline: none;
-      width: 160px;
-      transition: border-color .15s;
+    .section-title {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #334155;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
-    .field input:focus { border-color: #3b82f6; }
-
-    .toggle-group {
+    .section-note {
+      font-size: 0.82rem;
+      color: #64748b;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    }
+    .card.sap { border-top: 4px solid #2563eb; }
+    .card.presta { border-top: 4px solid #7c3aed; }
+    .card.report { border-top: 4px solid #0f766e; }
+    .card.contrast { border-top: 4px solid #ea580c; }
+    .card-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    .card-value {
+      font-size: 1.9rem;
+      font-weight: 700;
+      line-height: 1.05;
+    }
+    .card-subvalue {
+      margin-top: 8px;
+      font-size: 0.82rem;
+      color: #475569;
+    }
+    .controls {
       display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: end;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .field label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #475569;
+    }
+    .field input {
+      min-width: 170px;
       border: 1px solid #cbd5e1;
-      border-radius: 6px;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.92rem;
+    }
+    .toggle-group {
+      display: inline-flex;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
       overflow: hidden;
-      height: 34px;
+      height: 38px;
+    }
+    .toggle-group button,
+    .btn {
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
     }
     .toggle-group button {
       padding: 0 16px;
-      font-size: 0.85rem;
-      font-weight: 500;
-      border: none;
       background: #f8fafc;
-      cursor: pointer;
-      color: #475569;
-      transition: background .15s, color .15s;
+      color: #334155;
     }
     .toggle-group button.active {
-      background: #3b82f6;
-      color: #fff;
+      background: #2563eb;
+      color: #ffffff;
     }
     .toggle-group button.active.danger {
-      background: #ef4444;
+      background: #dc2626;
     }
-
-    .btn-run {
-      padding: 8px 24px;
-      background: #1e293b;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
+    .btn {
+      background: #0f172a;
+      color: #ffffff;
+      border-radius: 8px;
+      padding: 9px 18px;
+      height: 38px;
+    }
+    .btn.secondary {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    #running-banner,
+    #overview-banner {
+      display: none;
+      padding: 10px 14px;
+      border-radius: 10px;
       font-size: 0.9rem;
       font-weight: 600;
-      cursor: pointer;
-      transition: background .15s;
-      height: 34px;
+      margin-bottom: 12px;
     }
-    .btn-run:hover:not(:disabled) { background: #334155; }
-    .btn-run:disabled { background: #94a3b8; cursor: not-allowed; }
-
-    /* Log output */
-    .log-box {
-      background: #0f172a;
-      color: #e2e8f0;
-      border-radius: 10px;
+    #running-banner {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+    }
+    #overview-banner {
+      background: #faf5ff;
+      color: #7c3aed;
+      border: 1px solid #ddd6fe;
+    }
+    .two-columns {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+    }
+    .panel {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
       padding: 16px;
-      font-family: 'Menlo', 'Consolas', monospace;
-      font-size: 0.78rem;
-      height: 320px;
-      overflow-y: auto;
-      margin-bottom: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
     }
-
-    .log-line { margin-bottom: 2px; white-space: pre-wrap; word-break: break-all; }
-    .log-line.info  { color: #94a3b8; }
-    .log-line.warn  { color: #fbbf24; }
+    .panel h3 {
+      margin: 0 0 12px;
+      font-size: 1rem;
+    }
+    .metric-list {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px 12px;
+      font-size: 0.92rem;
+    }
+    .metric-list dt {
+      color: #475569;
+    }
+    .metric-list dd {
+      margin: 0;
+      font-weight: 700;
+    }
+    .log-box {
+      background: #020617;
+      color: #e2e8f0;
+      border-radius: 12px;
+      min-height: 320px;
+      max-height: 420px;
+      overflow-y: auto;
+      padding: 16px;
+      font-family: Consolas, monospace;
+      font-size: 0.78rem;
+      border: 1px solid #1e293b;
+    }
+    .log-line { margin-bottom: 4px; white-space: pre-wrap; word-break: break-word; }
+    .log-line.info { color: #cbd5e1; }
+    .log-line.warn { color: #fbbf24; }
     .log-line.error { color: #f87171; }
-    .log-line.done-ok  { color: #4ade80; font-weight: bold; }
-    .log-line.done-err { color: #f87171; font-weight: bold; }
-    .log-placeholder { color: #475569; padding: 8px 0; }
-
-    /* History */
-    .section-title {
-      font-size: 0.85rem;
+    .log-line.done-ok { color: #4ade80; font-weight: 700; }
+    .log-line.done-err { color: #f87171; font-weight: 700; }
+    .history-table {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+    }
+    th {
+      background: #f8fafc;
+      font-size: 0.74rem;
       font-weight: 700;
       color: #475569;
       text-transform: uppercase;
-      letter-spacing: .05em;
-      margin-bottom: 10px;
+      letter-spacing: 0.04em;
     }
-
-    .history-table {
-      background: #fff;
-      border-radius: 10px;
-      overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    tr:last-child td {
+      border-bottom: none;
     }
-
-    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-    th {
-      text-align: left;
-      padding: 10px 14px;
-      font-size: 0.72rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .04em;
-      color: #64748b;
-      background: #f8fafc;
-      border-bottom: 1px solid #e2e8f0;
-    }
-    td { padding: 9px 14px; border-bottom: 1px solid #f1f5f9; }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #f8fafc; }
-
     .badge {
       display: inline-block;
-      padding: 2px 7px;
-      border-radius: 99px;
-      font-size: 0.72rem;
-      font-weight: 600;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.75rem;
+      font-weight: 700;
     }
-    .badge.green { background: #dcfce7; color: #15803d; }
-    .badge.red   { background: #fee2e2; color: #dc2626; }
-    .badge.amber { background: #fef3c7; color: #b45309; }
-    .badge.slate { background: #f1f5f9; color: #475569; }
-
-    #running-banner {
-      display: none;
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      color: #1d4ed8;
-      border-radius: 8px;
-      padding: 10px 16px;
-      font-size: 0.85rem;
-      font-weight: 500;
-      margin-bottom: 12px;
+    .badge.green { background: #dcfce7; color: #166534; }
+    .badge.red { background: #fee2e2; color: #b91c1c; }
+    .badge.amber { background: #fef3c7; color: #92400e; }
+    .badge.slate { background: #e2e8f0; color: #334155; }
+    .muted {
+      color: #64748b;
+      font-size: 0.82rem;
     }
   </style>
 </head>
 <body>
+  <header>
+    <h1>SAP to PrestaShop Sync</h1>
+    <div class="meta">
+      <div id="last-run-label">Sin reportes todavia</div>
+      <div id="overview-label">Sin snapshot de catalogo todavia</div>
+    </div>
+  </header>
 
-<header>
-  <h1>SAP → PrestaShop Sync</h1>
-  <span id="last-run-label">Sin reportes</span>
-</header>
-
-<main>
-  <!-- Stats cards -->
-  <div class="cards">
-    <div class="card blue">
-      <div class="card-label">Total SAP</div>
-      <div class="card-value" id="stat-total">—</div>
-    </div>
-    <div class="card green">
-      <div class="card-label">Sin cambio</div>
-      <div class="card-value" id="stat-ok">—</div>
-    </div>
-    <div class="card amber">
-      <div class="card-label">Crear</div>
-      <div class="card-value" id="stat-create">—</div>
-    </div>
-    <div class="card amber">
-      <div class="card-label">Actualizar</div>
-      <div class="card-value" id="stat-update">—</div>
-    </div>
-    <div class="card purple">
-      <div class="card-label">Revisión</div>
-      <div class="card-value" id="stat-review">—</div>
-    </div>
-    <div class="card red">
-      <div class="card-label">Errores</div>
-      <div class="card-value" id="stat-errors">—</div>
-    </div>
-  </div>
-
-  <!-- Running banner -->
-  <div id="running-banner">⏳ Sync en curso...</div>
-
-  <!-- Controls -->
-  <div class="controls">
-    <div class="field">
-      <label for="item-code">Item Code (vacío = todos)</label>
-      <input type="text" id="item-code" placeholder="ej. 72111012">
-    </div>
-    <div class="field">
-      <label for="limit">Límite de artículos</label>
-      <input type="number" id="limit" placeholder="sin límite" min="1">
-    </div>
-    <div class="field">
-      <label>Modo</label>
-      <div class="toggle-group">
-        <button id="btn-dryrun" class="active" onclick="setMode('dry')">Dry-run</button>
-        <button id="btn-write" onclick="setMode('write')">Ejecutar</button>
+  <main>
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Ultima corrida</h2>
+        <div class="section-note">Resumen del ultimo reporte generado por el sync</div>
       </div>
-    </div>
-    <button class="btn-run" id="btn-run" onclick="runSync()">▶ Iniciar</button>
-  </div>
+      <div class="cards">
+        <div class="card report">
+          <div class="card-label">Total SAP leidos</div>
+          <div class="card-value" id="stat-total">-</div>
+        </div>
+        <div class="card report">
+          <div class="card-label">Sin cambio</div>
+          <div class="card-value" id="stat-ok">-</div>
+        </div>
+        <div class="card report">
+          <div class="card-label">Crear</div>
+          <div class="card-value" id="stat-create">-</div>
+        </div>
+        <div class="card report">
+          <div class="card-label">Actualizar</div>
+          <div class="card-value" id="stat-update">-</div>
+        </div>
+        <div class="card report">
+          <div class="card-label">Revision</div>
+          <div class="card-value" id="stat-review">-</div>
+        </div>
+        <div class="card report">
+          <div class="card-label">Errores</div>
+          <div class="card-value" id="stat-errors">-</div>
+        </div>
+      </div>
+    </section>
 
-  <!-- Log output -->
-  <div class="log-box" id="log-box">
-    <div class="log-placeholder">Los logs del sync aparecen aquí en tiempo real.</div>
-  </div>
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Panel operativo</h2>
+        <div class="section-note">Ejecucion manual y refresco del estado de catalogo</div>
+      </div>
 
-  <!-- History -->
-  <div class="section-title">Historial de corridas</div>
-  <div class="history-table">
-    <table>
-      <thead>
-        <tr>
-          <th>Fecha/hora</th>
-          <th>Total</th>
-          <th>Crear</th>
-          <th>Actualizar</th>
-          <th>Sin cambio</th>
-          <th>Revisión</th>
-          <th>Ejecutados</th>
-          <th>Errores</th>
-        </tr>
-      </thead>
-      <tbody id="history-body">
-        <tr><td colspan="8" style="color:#94a3b8;text-align:center;padding:20px">Cargando...</td></tr>
-      </tbody>
-    </table>
-  </div>
-</main>
+      <div id="running-banner">Sync en curso...</div>
+      <div id="overview-banner">Actualizando snapshot de SAP y PrestaShop...</div>
 
-<script>
-  let writeMode = false;
-  let syncRunning = false;
+      <div class="controls">
+        <div class="field">
+          <label for="item-code">Item code</label>
+          <input type="text" id="item-code" placeholder="vacio = lote">
+        </div>
+        <div class="field">
+          <label for="limit">Limite</label>
+          <input type="number" id="limit" min="1" placeholder="ej. 50">
+        </div>
+        <div class="field">
+          <label>Modo</label>
+          <div class="toggle-group">
+            <button id="btn-dryrun" class="active" type="button" onclick="setMode('dry')">Dry run</button>
+            <button id="btn-write" type="button" onclick="setMode('write')">Write</button>
+          </div>
+        </div>
+        <button class="btn" id="btn-run" type="button" onclick="runSync()">Iniciar sync</button>
+        <button class="btn secondary" id="btn-refresh-overview" type="button" onclick="loadCatalogOverview(true)">Refrescar panel SAP vs Presta</button>
+      </div>
+    </section>
 
-  function setMode(mode) {
-    writeMode = mode === 'write';
-    document.getElementById('btn-dryrun').classList.toggle('active', !writeMode);
-    document.getElementById('btn-write').classList.toggle('active', writeMode);
-    document.getElementById('btn-write').classList.toggle('danger', writeMode);
-  }
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Snapshot de catalogo</h2>
+        <div class="section-note">Metricas agregadas para contrastar SAP con PrestaShop</div>
+      </div>
 
-  function log(text, cls) {
-    const box = document.getElementById('log-box');
-    const firstChild = box.querySelector('.log-placeholder');
-    if (firstChild) firstChild.remove();
-    const line = document.createElement('div');
-    line.className = 'log-line ' + (cls || '');
-    line.textContent = text;
-    box.appendChild(line);
-    box.scrollTop = box.scrollHeight;
-  }
+      <div class="two-columns">
+        <div class="panel">
+          <h3>SAP</h3>
+          <dl class="metric-list">
+            <dt>Schema</dt><dd id="sap-schema">-</dd>
+            <dt>Warehouse</dt><dd id="sap-warehouse">-</dd>
+            <dt>Price list</dt><dd id="sap-pricelist">-</dd>
+            <dt>Total productos</dt><dd id="sap-total-products">-</dd>
+            <dt>Activos</dt><dd id="sap-active-products">-</dd>
+            <dt>Inactivos</dt><dd id="sap-inactive-products">-</dd>
+            <dt>Con stock</dt><dd id="sap-products-with-stock">-</dd>
+            <dt>Sin stock</dt><dd id="sap-products-without-stock">-</dd>
+            <dt>Stock total</dt><dd id="sap-total-stock">-</dd>
+          </dl>
+        </div>
 
-  function logJson(raw) {
-    try {
-      const obj = JSON.parse(raw);
-      const ts = obj.ts ? new Date(obj.ts).toLocaleTimeString('es') : '';
-      const text = `[${ts}] ${obj.level?.toUpperCase() || ''} ${obj.message || raw}`;
-      const cls = obj.level === 'error' ? 'error' : obj.level === 'warn' ? 'warn' : 'info';
-      log(text, cls);
-    } catch {
-      log(raw, 'info');
+        <div class="panel">
+          <h3>PrestaShop</h3>
+          <dl class="metric-list">
+            <dt>Total productos</dt><dd id="presta-total-products">-</dd>
+            <dt>Activos</dt><dd id="presta-active-products">-</dd>
+            <dt>Inactivos</dt><dd id="presta-inactive-products">-</dd>
+            <dt>Total combinaciones</dt><dd id="presta-total-combinations">-</dd>
+            <dt>Estado</dt><dd id="presta-status">-</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="cards" style="margin-top: 16px;">
+        <div class="card contrast">
+          <div class="card-label">Gap productos</div>
+          <div class="card-value" id="contrast-product-gap">-</div>
+          <div class="card-subvalue">SAP total - Presta total</div>
+        </div>
+        <div class="card contrast">
+          <div class="card-label">Gap activos</div>
+          <div class="card-value" id="contrast-active-gap">-</div>
+          <div class="card-subvalue">SAP activos - Presta activos</div>
+        </div>
+        <div class="card contrast">
+          <div class="card-label">Gap inactivos</div>
+          <div class="card-value" id="contrast-inactive-gap">-</div>
+          <div class="card-subvalue">SAP inactivos - Presta inactivos</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Log en tiempo real</h2>
+        <div class="section-note">Salida estructurada del proceso</div>
+      </div>
+      <div class="log-box" id="log-box">
+        <div class="log-line info">Los logs del sync apareceran aqui.</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Historial de corridas</h2>
+        <div class="section-note">Ultimos reportes disponibles</div>
+      </div>
+      <div class="history-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Total</th>
+              <th>Crear</th>
+              <th>Actualizar</th>
+              <th>Sin cambio</th>
+              <th>Revision</th>
+              <th>Ejecutados</th>
+              <th>Errores</th>
+            </tr>
+          </thead>
+          <tbody id="history-body">
+            <tr>
+              <td colspan="8" class="muted">Cargando...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    let writeMode = false;
+    let syncRunning = false;
+
+    function fmt(value) {
+      if (value === undefined || value === null || value === "") return "-";
+      if (typeof value === "number") return value.toLocaleString("es");
+      return String(value);
     }
-  }
 
-  function runSync() {
-    if (syncRunning) return;
-    syncRunning = true;
+    function setText(id, value) {
+      document.getElementById(id).textContent = fmt(value);
+    }
 
-    document.getElementById('btn-run').disabled = true;
-    document.getElementById('running-banner').style.display = 'block';
+    function setMode(mode) {
+      writeMode = mode === "write";
+      document.getElementById("btn-dryrun").classList.toggle("active", !writeMode);
+      document.getElementById("btn-write").classList.toggle("active", writeMode);
+      document.getElementById("btn-write").classList.toggle("danger", writeMode);
+    }
 
-    const box = document.getElementById('log-box');
-    box.innerHTML = '';
-    log('— Iniciando sync —', 'info');
+    function appendLog(text, cls) {
+      const box = document.getElementById("log-box");
+      const line = document.createElement("div");
+      line.className = "log-line " + (cls || "info");
+      line.textContent = text;
+      box.appendChild(line);
+      box.scrollTop = box.scrollHeight;
+    }
 
-    const itemCode = document.getElementById('item-code').value.trim();
-    const limit = document.getElementById('limit').value.trim();
-    const params = new URLSearchParams();
-    if (itemCode) params.set('itemCode', itemCode);
-    if (limit) params.set('limit', limit);
-    params.set('write', writeMode ? 'true' : 'false');
-
-    const es = new EventSource('/api/sync?' + params.toString());
-
-    es.onmessage = (e) => {
-      const msg = JSON.parse(e.data);
-      if (msg.type === 'log') {
-        logJson(msg.line);
-      } else if (msg.type === 'done') {
-        const ok = msg.code === 0;
-        log(ok ? '✓ Sync completado.' : `✗ Sync terminó con código ${msg.code}`, ok ? 'done-ok' : 'done-err');
-        es.close();
-        syncRunning = false;
-        document.getElementById('btn-run').disabled = false;
-        document.getElementById('running-banner').style.display = 'none';
-        loadReports();
+    function logJson(raw) {
+      try {
+        const obj = JSON.parse(raw);
+        const time = obj.ts ? new Date(obj.ts).toLocaleTimeString("es") : "";
+        const text = `[${time}] ${obj.level ? obj.level.toUpperCase() : "INFO"} ${obj.message || raw}`;
+        const cls = obj.level === "error" ? "error" : obj.level === "warn" ? "warn" : "info";
+        appendLog(text, cls);
+      } catch {
+        appendLog(raw, "info");
       }
-    };
+    }
 
-    es.onerror = () => {
-      log('✗ Error de conexión con el servidor.', 'error');
-      es.close();
-      syncRunning = false;
-      document.getElementById('btn-run').disabled = false;
-      document.getElementById('running-banner').style.display = 'none';
-    };
-  }
+    function runSync() {
+      if (syncRunning) return;
 
-  function fmt(n) { return n === undefined || n === null ? '—' : Number(n).toLocaleString('es'); }
+      syncRunning = true;
+      document.getElementById("btn-run").disabled = true;
+      document.getElementById("running-banner").style.display = "block";
+      document.getElementById("log-box").innerHTML = "";
+      appendLog("Iniciando sync...", "info");
 
-  function loadReports() {
-    fetch('/api/reports')
-      .then(r => r.json())
-      .then(reports => {
-        if (reports.length === 0) return;
+      const itemCode = document.getElementById("item-code").value.trim();
+      const limit = document.getElementById("limit").value.trim();
+      const params = new URLSearchParams();
 
-        const latest = reports[0];
-        const ra = latest.recommendedActions || {};
-        const s  = latest.summary || {};
+      if (itemCode) params.set("itemCode", itemCode);
+      if (limit) params.set("limit", limit);
+      params.set("write", writeMode ? "true" : "false");
 
-        document.getElementById('stat-total').textContent   = fmt(s.total);
-        document.getElementById('stat-ok').textContent      = fmt(ra.skipNoChange);
-        document.getElementById('stat-create').textContent  = fmt(ra.createProduct);
-        document.getElementById('stat-update').textContent  = fmt((ra.updateProductPrice || 0) + (ra.updateProductStock || 0) + (ra.updateProductPriceAndStock || 0));
-        document.getElementById('stat-review').textContent  = fmt((ra.reviewCombinationMapping || 0) + (ra.reviewError || 0));
-        document.getElementById('stat-errors').textContent  = fmt(s.errors);
+      const es = new EventSource("/api/sync?" + params.toString());
 
-        if (latest.generatedAt) {
-          document.getElementById('last-run-label').textContent =
-            'Último reporte: ' + new Date(latest.generatedAt).toLocaleString('es');
+      es.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+
+        if (msg.type === "log") {
+          logJson(msg.line);
+          return;
         }
 
-        const tbody = document.getElementById('history-body');
-        tbody.innerHTML = reports.map(r => {
-          const a = r.recommendedActions || {};
-          const sm = r.summary || {};
-          const upd = (a.updateProductPrice || 0) + (a.updateProductStock || 0) + (a.updateProductPriceAndStock || 0);
-          const rev = (a.reviewCombinationMapping || 0) + (a.reviewError || 0);
-          const errBadge = sm.errors > 0
-            ? `<span class="badge red">${sm.errors}</span>`
-            : `<span class="badge slate">0</span>`;
-          const execBadge = a.executed > 0
-            ? `<span class="badge green">${a.executed}</span>`
-            : `<span class="badge slate">0</span>`;
-          return `<tr>
-            <td>${r.generatedAt ? new Date(r.generatedAt).toLocaleString('es') : '—'}</td>
-            <td>${fmt(sm.total)}</td>
-            <td>${fmt(a.createProduct)}</td>
-            <td>${fmt(upd)}</td>
-            <td>${fmt(a.skipNoChange)}</td>
-            <td>${rev > 0 ? `<span class="badge amber">${rev}</span>` : fmt(rev)}</td>
-            <td>${execBadge}</td>
-            <td>${errBadge}</td>
-          </tr>`;
-        }).join('');
-      })
-      .catch(() => {});
-  }
+        if (msg.type === "done") {
+          const ok = msg.code === 0;
+          appendLog(ok ? "Sync completado." : `Sync finalizo con codigo ${msg.code}.`, ok ? "done-ok" : "done-err");
+          es.close();
+          syncRunning = false;
+          document.getElementById("btn-run").disabled = false;
+          document.getElementById("running-banner").style.display = "none";
+          loadReports();
+          loadCatalogOverview(true);
+        }
+      };
 
-  loadReports();
-</script>
+      es.onerror = () => {
+        appendLog("Error de conexion con el servidor.", "error");
+        es.close();
+        syncRunning = false;
+        document.getElementById("btn-run").disabled = false;
+        document.getElementById("running-banner").style.display = "none";
+      };
+    }
+
+    function loadReports() {
+      fetch("/api/reports")
+        .then((response) => response.json())
+        .then((reports) => {
+          if (!reports.length) {
+            return;
+          }
+
+          const latest = reports[0];
+          const actions = latest.recommendedActions || {};
+          const summary = latest.summary || {};
+          const updates =
+            (actions.updateProductPrice || 0) +
+            (actions.updateProductStock || 0) +
+            (actions.updateProductPriceAndStock || 0);
+          const review =
+            (actions.reviewCombinationMapping || 0) +
+            (actions.reviewError || 0);
+
+          setText("stat-total", summary.total);
+          setText("stat-ok", actions.skipNoChange);
+          setText("stat-create", actions.createProduct);
+          setText("stat-update", updates);
+          setText("stat-review", review);
+          setText("stat-errors", summary.errors);
+
+          if (latest.generatedAt) {
+            document.getElementById("last-run-label").textContent =
+              "Ultimo reporte: " + new Date(latest.generatedAt).toLocaleString("es");
+          }
+
+          const tbody = document.getElementById("history-body");
+          tbody.innerHTML = reports.map((report) => {
+            const a = report.recommendedActions || {};
+            const s = report.summary || {};
+            const upd =
+              (a.updateProductPrice || 0) +
+              (a.updateProductStock || 0) +
+              (a.updateProductPriceAndStock || 0);
+            const rev =
+              (a.reviewCombinationMapping || 0) +
+              (a.reviewError || 0);
+            const executed = a.executed || 0;
+            const errors = s.errors || 0;
+
+            return `
+              <tr>
+                <td>${report.generatedAt ? new Date(report.generatedAt).toLocaleString("es") : "-"}</td>
+                <td>${fmt(s.total)}</td>
+                <td>${fmt(a.createProduct)}</td>
+                <td>${fmt(upd)}</td>
+                <td>${fmt(a.skipNoChange)}</td>
+                <td>${rev > 0 ? `<span class="badge amber">${fmt(rev)}</span>` : fmt(rev)}</td>
+                <td>${executed > 0 ? `<span class="badge green">${fmt(executed)}</span>` : `<span class="badge slate">0</span>`}</td>
+                <td>${errors > 0 ? `<span class="badge red">${fmt(errors)}</span>` : `<span class="badge slate">0</span>`}</td>
+              </tr>
+            `;
+          }).join("");
+        })
+        .catch(() => {});
+    }
+
+    function loadCatalogOverview(forceRefresh) {
+      document.getElementById("overview-banner").style.display = "block";
+
+      const url = "/api/catalog-overview" + (forceRefresh ? "?refresh=true" : "");
+
+      fetch(url)
+        .then((response) => response.json())
+        .then((data) => {
+          const sap = data.sap || {};
+          const presta = data.prestashop || {};
+          const contrast = data.contrast || {};
+
+          setText("sap-schema", sap.schema);
+          setText("sap-warehouse", sap.warehouse);
+          setText("sap-pricelist", sap.priceList);
+          setText("sap-total-products", sap.totalProducts);
+          setText("sap-active-products", sap.activeProducts);
+          setText("sap-inactive-products", sap.inactiveProducts);
+          setText("sap-products-with-stock", sap.productsWithStock);
+          setText("sap-products-without-stock", sap.productsWithoutStock);
+          setText("sap-total-stock", sap.totalStock);
+
+          setText("presta-total-products", presta.totalProducts);
+          setText("presta-active-products", presta.activeProducts);
+          setText("presta-inactive-products", presta.inactiveProducts);
+          setText("presta-total-combinations", presta.totalCombinations);
+          if (presta.error) {
+            setText("presta-status", "No disponible");
+          } else {
+            setText("presta-status", "Disponible");
+          }
+
+          setText("contrast-product-gap", contrast.productGap);
+          setText("contrast-active-gap", contrast.activeGap);
+          setText("contrast-inactive-gap", contrast.inactiveGap);
+
+          if (data.generatedAt) {
+            document.getElementById("overview-label").textContent =
+              "Snapshot de catalogo: " + new Date(data.generatedAt).toLocaleString("es");
+          }
+
+          const problems = [sap.error, presta.error].filter(Boolean);
+          if (problems.length > 0) {
+            document.getElementById("overview-label").textContent =
+              "Snapshot parcial: " + problems.join(" | ");
+          }
+        })
+        .finally(() => {
+          document.getElementById("overview-banner").style.display = "none";
+        });
+    }
+
+    loadReports();
+    loadCatalogOverview(false);
+  </script>
 </body>
 </html>

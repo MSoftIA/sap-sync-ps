@@ -150,6 +150,54 @@ function parseStockAvailables(xml) {
   }));
 }
 
+async function countPrestaResources(
+  client,
+  resource,
+  params = {},
+  batchSize = 250,
+) {
+  let offset = 0;
+  let total = 0;
+
+  while (true) {
+    const xml = await client.get(resource, {
+      display: "[id]",
+      limit: `${offset},${batchSize}`,
+      ...params,
+    });
+    const ids = parseIdList(xml, resource.slice(0, -1));
+    total += ids.length;
+
+    if (ids.length < batchSize) {
+      break;
+    }
+
+    offset += batchSize;
+  }
+
+  return total;
+}
+
+async function readPrestaOverview(client, log) {
+  log("info", "Consultando resumen PrestaShop");
+
+  const [totalProducts, activeProducts, inactiveProducts, totalCombinations] =
+    await Promise.all([
+      countPrestaResources(client, "products"),
+      countPrestaResources(client, "products", { "filter[active]": 1 }),
+      countPrestaResources(client, "products", { "filter[active]": 0 }),
+      countPrestaResources(client, "combinations"),
+    ]);
+
+  return {
+    source: "prestashop",
+    totalProducts,
+    activeProducts,
+    inactiveProducts,
+    totalCombinations,
+  };
+}
+
 function findBestPrestaMatch(article, combinations, stockAvailables) {
   const exactReference = combinations.find(
     (combination) => combination.reference === article.itemCode,
@@ -337,10 +385,12 @@ async function inspectProductByReference(client, article, log) {
 }
 
 module.exports = {
+  countPrestaResources,
   createPrestaClient,
   findBestPrestaMatch,
   findProductIdsByReference,
   getPrestaConfig,
   hasPrestaConfig,
   inspectProductByReference,
+  readPrestaOverview,
 };
