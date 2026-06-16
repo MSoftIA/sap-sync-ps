@@ -173,6 +173,18 @@ function buildCreateProductXmlFromSchema(schemaXml, payload) {
     payload.product.languageId,
   );
   xml = setTagValue(xml, "id", "");
+  xml = removeTag(xml, "associations");
+  xml = xml.replace(
+    /<\/product>/,
+    "  <associations>\n" +
+      '      <categories nodeType="category" api="categories">\n' +
+      "        <category><id>" +
+      cdata(payload.product.defaultCategoryId) +
+      "</id></category>\n" +
+      "      </categories>\n" +
+      "    </associations>\n" +
+      "  </product>",
+  );
 
   return xml;
 }
