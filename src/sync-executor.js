@@ -63,6 +63,14 @@ function setTagValue(xml, tagName, value) {
   return xml.replace(tagPattern, `$1${cdata(value)}$3`);
 }
 
+function removeTag(xml, tagName) {
+  const tagPattern = new RegExp(
+    `\\s*<${tagName}(?:\\s[^>]*)?>[\\s\\S]*?</${tagName}>`,
+    "g",
+  );
+  return xml.replace(tagPattern, "");
+}
+
 function setLanguageTagValue(xml, tagName, value, fallbackLanguageId = 1) {
   const tagPattern = new RegExp(
     `(<${tagName}(?:\\s[^>]*)?>)([\\s\\S]*?)(</${tagName}>)`,
@@ -122,6 +130,52 @@ function buildCreateProductXml(payload) {
 </prestashop>`;
 }
 
+function buildCreateProductXmlFromSchema(schemaXml, payload) {
+  const safeName = sanitizeAsciiProductName(
+    payload.product.name,
+    payload.product.reference,
+  );
+  const safeSlug = slugify(safeName || payload.product.reference);
+
+  let xml = schemaXml;
+  xml = setTagValue(
+    xml,
+    "id_category_default",
+    payload.product.defaultCategoryId,
+  );
+  xml = setTagValue(xml, "id_tax_rules_group", 1);
+  xml = setTagValue(xml, "id_shop_default", 1);
+  xml = setTagValue(xml, "reference", payload.product.reference);
+  xml = setTagValue(xml, "state", 1);
+  xml = setTagValue(xml, "price", payload.product.price);
+  xml = setTagValue(xml, "active", payload.product.active);
+  xml = setTagValue(xml, "available_for_order", 1);
+  xml = setTagValue(xml, "show_price", 1);
+  xml = setTagValue(xml, "minimal_quantity", 1);
+  xml = setLanguageTagValue(xml, "name", safeName, payload.product.languageId);
+  xml = setLanguageTagValue(
+    xml,
+    "link_rewrite",
+    safeSlug,
+    payload.product.languageId,
+  );
+  xml = setLanguageTagValue(
+    xml,
+    "description",
+    safeName,
+    payload.product.languageId,
+  );
+  xml = setLanguageTagValue(
+    xml,
+    "description_short",
+    safeName,
+    payload.product.languageId,
+  );
+  xml = setTagValue(xml, "id", "");
+
+  return xml;
+}
+
 function buildPatchProductXml(productId, payload = {}) {
   const fields = ["<id>" + cdata(productId) + "</id>"];
 
@@ -167,6 +221,7 @@ async function findStockAvailableId(client, productId, productAttributeId = 0) {
 
 function buildPutProductXml(existingXml, payload = {}) {
   let xml = existingXml;
+  xml = removeTag(xml, "manufacturer_name");
 
   if (payload.reference) {
     xml = setTagValue(xml, "reference", payload.reference);
@@ -188,7 +243,11 @@ function buildPutStockXml(existingXml, quantity) {
 }
 
 async function createProductWithFallbackName(client, row) {
-  const createXml = buildCreateProductXml(row.actionPayload);
+  const schemaXml = await client.getSchema("products");
+  const createXml = buildCreateProductXmlFromSchema(
+    schemaXml,
+    row.actionPayload,
+  );
 
   try {
     return await client.post("products", createXml);
@@ -213,7 +272,10 @@ async function createProductWithFallbackName(client, row) {
       },
     };
 
-    const fallbackXml = buildCreateProductXml(fallbackPayload);
+    const fallbackXml = buildCreateProductXmlFromSchema(
+      schemaXml,
+      fallbackPayload,
+    );
     return client.post("products", fallbackXml);
   }
 }

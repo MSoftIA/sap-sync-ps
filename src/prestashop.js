@@ -76,6 +76,10 @@ function createPrestaClient(log) {
     return request("GET", resource, { params });
   }
 
+  async function getSchema(resource, schema = "blank") {
+    return request("GET", resource, { params: { schema } });
+  }
+
   async function post(resource, body, params = {}) {
     return request("POST", resource, { params, body });
   }
@@ -88,7 +92,7 @@ function createPrestaClient(log) {
     return request("PATCH", resource, { params, body });
   }
 
-  return { get, post, put, patch };
+  return { get, getSchema, post, put, patch };
 }
 
 function parseProductSummary(productXml) {
