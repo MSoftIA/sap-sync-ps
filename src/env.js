@@ -34,7 +34,7 @@ function loadEnvFile(filename = ".env.local", options = {}) {
 }
 
 function env(name, fallback = "") {
-  return process.env[name] || fallback;
+  return process.env[name] === undefined ? fallback : process.env[name];
 }
 
 function requiredEnv(name) {
@@ -46,7 +46,12 @@ function requiredEnv(name) {
 }
 
 function numberEnv(name, fallback) {
-  const value = Number(env(name, String(fallback)));
+  const raw = process.env[name];
+  if (raw === undefined || raw === "") {
+    return fallback;
+  }
+
+  const value = Number(raw);
   if (!Number.isFinite(value)) {
     throw new Error("Variable numerica invalida: " + name);
   }
