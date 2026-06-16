@@ -96,7 +96,11 @@ function createPrestaClient(log) {
     return request("PATCH", resource, { params, body });
   }
 
-  return { get, getSchema, post, put, patch };
+  async function deleteResource(resource) {
+    return request("DELETE", resource);
+  }
+
+  return { get, getSchema, post, put, patch, delete: deleteResource };
 }
 
 async function findProductIdsByReference(client, reference) {
@@ -151,6 +155,21 @@ function parseStockAvailables(xml) {
   }));
 }
 
+function setXmlTagValue(xml, tagName, value) {
+  const pattern = new RegExp(
+    `(<${tagName}(?:\\s[^>]*)?>)([\\s\\S]*?)(</${tagName}>)`,
+  );
+  return xml.replace(pattern, `$1<![CDATA[${String(value ?? "")}]]>$3`);
+}
+
+function removeXmlTag(xml, tagName) {
+  const pattern = new RegExp(
+    `\\s*<${tagName}(?:\\s[^>]*)?>[\\s\\S]*?</${tagName}>`,
+    "g",
+  );
+  return xml.replace(pattern, "");
+}
+
 async function countPrestaResources(
   client,
   resource,
@@ -197,6 +216,75 @@ async function readPrestaOverview(client, log) {
     inactiveProducts,
     totalCombinations,
   };
+}
+
+async function inspectProductByReferenceValue(client, reference, log) {
+  const searchXml = await client.get("products", {
+    display: "[id,reference,active,id_category_default,price]",
+    "filter[reference]": reference,
+  });
+  const productIds = parseAnyIdList(searchXml, "product");
+  const productSummaries = parseProductSummaryList(searchXml);
+
+  if (log) {
+    log("info", "Busqueda producto PrestaShop", {
+      reference,
+      productIds,
+      matches: productIds.length,
+    });
+  }
+
+  if (productIds.length === 0) {
+    if (log) {
+      log("warn", "Producto no encontrado en PrestaShop", { reference });
+    }
+    return null;
+  }
+
+  const productId = productIds[0];
+  const product =
+    productSummaries.find((item) => item.id === productId) || null;
+
+  if (!product) {
+    throw new Error(
+      "No se pudo obtener el resumen del producto PrestaShop id=" + productId,
+    );
+  }
+
+  const combinationsXml = await client.get("combinations", {
+    display: "full",
+    "filter[id_product]": productId,
+  });
+  const combinations = await enrichCombinations(
+    client,
+    parseCombinationList(combinationsXml),
+  );
+
+  const stockXml = await client.get("stock_availables", {
+    display: "full",
+    "filter[id_product]": productId,
+  });
+  const stockAvailables = parseStockAvailables(stockXml);
+
+  return {
+    productId,
+    ...product,
+    matchCount: productIds.length,
+    combinationIds: combinations.map((item) => item.id),
+    stockIds: stockAvailables.map((item) => item.id),
+    combinations,
+    stockAvailables,
+  };
+}
+
+async function updatePrestaProductActive(client, productId, active) {
+  const existingProductXml = await client.get("products/" + productId);
+  let updatedXml = existingProductXml;
+  updatedXml = removeXmlTag(updatedXml, "manufacturer_name");
+  updatedXml = removeXmlTag(updatedXml, "quantity");
+  updatedXml = setXmlTagValue(updatedXml, "active", active ? 1 : 0);
+  await client.put("products/" + productId, updatedXml);
+  return { productId, active: active ? 1 : 0 };
 }
 
 function findBestPrestaMatch(article, combinations, stockAvailables) {
@@ -319,69 +407,30 @@ async function enrichCombinations(client, baseCombinations) {
 }
 
 async function inspectProductByReference(client, article, log) {
-  const searchXml = await client.get("products", {
-    display: "[id,reference,active,id_category_default,price]",
-    "filter[reference]": article.itemCode,
-  });
-  const productIds = parseIdList(searchXml, "product");
-  const productSummaries = parseProductSummaryList(searchXml);
+  const inspection = await inspectProductByReferenceValue(
+    client,
+    article.itemCode,
+    log,
+  );
 
-  log("info", "Busqueda producto PrestaShop", {
-    reference: article.itemCode,
-    productIds,
-    matches: productIds.length,
-  });
-
-  if (productIds.length === 0) {
-    log("warn", "Producto no encontrado en PrestaShop", {
-      reference: article.itemCode,
-    });
+  if (!inspection) {
     return null;
   }
 
-  if (productIds.length > 1) {
+  if (inspection.matchCount > 1) {
     log("warn", "Referencia duplicada en PrestaShop", {
       reference: article.itemCode,
-      productIds,
+      productIds: [inspection.productId],
     });
   }
 
-  const productId = productIds[0];
-  const product =
-    productSummaries.find((item) => item.id === productId) || null;
-
-  if (!product) {
-    throw new Error(
-      "No se pudo obtener el resumen del producto PrestaShop id=" + productId,
-    );
-  }
-
-  const combinationsXml = await client.get("combinations", {
-    display: "full",
-    "filter[id_product]": productId,
-  });
-  const combinations = await enrichCombinations(
-    client,
-    parseCombinationList(combinationsXml),
-  );
-
-  const stockXml = await client.get("stock_availables", {
-    display: "full",
-    "filter[id_product]": productId,
-  });
-  const stockAvailables = parseStockAvailables(stockXml);
-
-  const bestMatch = findBestPrestaMatch(article, combinations, stockAvailables);
-
   return {
-    productId,
-    ...product,
-    matchCount: productIds.length,
-    combinationIds: combinations.map((item) => item.id),
-    stockIds: stockAvailables.map((item) => item.id),
-    combinations,
-    stockAvailables,
-    bestMatch,
+    ...inspection,
+    bestMatch: findBestPrestaMatch(
+      article,
+      inspection.combinations,
+      inspection.stockAvailables,
+    ),
   };
 }
 
@@ -393,5 +442,7 @@ module.exports = {
   getPrestaConfig,
   hasPrestaConfig,
   inspectProductByReference,
+  inspectProductByReferenceValue,
   readPrestaOverview,
+  updatePrestaProductActive,
 };

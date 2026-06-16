@@ -3,362 +3,607 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SAP to PrestaShop Sync</title>
+  <title>Tablero SAP y PrestaShop</title>
   <style>
-    * { box-sizing: border-box; }
+    :root {
+      color-scheme: light;
+      --bg: #f4f7fb;
+      --surface: #ffffff;
+      --surface-soft: #f8fbff;
+      --text: #172033;
+      --muted: #667085;
+      --border: #dbe4f0;
+      --primary: #3659e3;
+      --primary-strong: #2236a8;
+      --success: #15803d;
+      --success-soft: #dcfce7;
+      --warning: #b45309;
+      --warning-soft: #fef3c7;
+      --danger: #b91c1c;
+      --danger-soft: #fee2e2;
+      --info: #155eef;
+      --info-soft: #dbeafe;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f8fafc;
-      color: #0f172a;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #f4f7fb 0%, #edf4fb 100%);
+      color: var(--text);
     }
-    header {
-      background: #0f172a;
-      color: #e2e8f0;
-      padding: 20px 24px;
-      display: flex;
-      justify-content: space-between;
-      gap: 16px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    header h1 {
-      margin: 0;
-      font-size: 1.2rem;
-    }
-    header .meta {
-      font-size: 0.85rem;
-      color: #94a3b8;
-    }
-    main {
-      max-width: 1280px;
+
+    .page {
+      max-width: 1400px;
       margin: 0 auto;
-      padding: 24px 16px 48px;
+      padding: 24px 18px 48px;
     }
+
+    .hero {
+      background: linear-gradient(135deg, #172033 0%, #202d4a 100%);
+      color: white;
+      border-radius: 24px;
+      padding: 26px 28px;
+      box-shadow: var(--shadow);
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 1.8rem;
+    }
+
+    .hero p {
+      margin: 0;
+      color: #d4ddf1;
+      line-height: 1.5;
+      max-width: 760px;
+    }
+
+    .hero-meta {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .meta-box {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 14px 16px;
+    }
+
+    .meta-label {
+      display: block;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #afbddf;
+      margin-bottom: 6px;
+    }
+
+    .meta-value {
+      font-size: 0.98rem;
+      font-weight: 700;
+    }
+
     .section {
       margin-bottom: 24px;
     }
+
     .section-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: end;
       gap: 12px;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
       flex-wrap: wrap;
     }
+
     .section-title {
       margin: 0;
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: #334155;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
+      font-size: 1.05rem;
+      font-weight: 800;
     }
+
     .section-note {
-      font-size: 0.82rem;
-      color: #64748b;
+      color: var(--muted);
+      font-size: 0.9rem;
     }
-    .cards {
+
+    .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-      gap: 12px;
+      gap: 16px;
     }
+
+    .grid-4 {
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    }
+
     .card {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
     }
-    .card.sap { border-top: 4px solid #2563eb; }
-    .card.presta { border-top: 4px solid #7c3aed; }
-    .card.report { border-top: 4px solid #0f766e; }
-    .card.contrast { border-top: 4px solid #ea580c; }
-    .card-label {
-      font-size: 0.75rem;
-      font-weight: 700;
+
+    .card-soft {
+      background: var(--surface-soft);
+    }
+
+    .metric-card .label {
+      font-size: 0.78rem;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #64748b;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 8px;
+      font-weight: 800;
+    }
+
+    .metric-card .value {
+      font-size: 2rem;
+      font-weight: 800;
+      line-height: 1;
       margin-bottom: 8px;
     }
-    .card-value {
-      font-size: 1.9rem;
+
+    .metric-card .hint {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 0.9rem;
       font-weight: 700;
-      line-height: 1.05;
     }
-    .card-subvalue {
-      margin-top: 8px;
-      font-size: 0.82rem;
-      color: #475569;
+
+    .status-ok {
+      background: var(--success-soft);
+      color: var(--success);
     }
-    .controls {
+
+    .status-attention {
+      background: var(--warning-soft);
+      color: var(--warning);
+    }
+
+    .status-error {
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+
+    .banner {
+      display: none;
+      padding: 12px 14px;
+      border-radius: 14px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    .banner.info {
+      display: block;
+      background: var(--info-soft);
+      color: var(--info);
+      border: 1px solid #bfdbfe;
+    }
+
+    .controls-panel {
+      display: grid;
+      gap: 14px;
+    }
+
+    .controls-row {
       display: flex;
       gap: 12px;
       flex-wrap: wrap;
       align-items: end;
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
     }
+
     .field {
       display: flex;
       flex-direction: column;
       gap: 6px;
-    }
-    .field label {
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: #475569;
-    }
-    .field input {
       min-width: 170px;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 8px 10px;
-      font-size: 0.92rem;
+      flex: 1 1 170px;
     }
-    .toggle-group {
-      display: inline-flex;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      overflow: hidden;
-      height: 38px;
+
+    .field label {
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: #344054;
     }
-    .toggle-group button,
-    .btn {
+
+    .field input {
+      border: 1px solid #cfd8e3;
+      border-radius: 12px;
+      padding: 11px 12px;
+      font-size: 0.96rem;
+      background: white;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
       border: none;
+      border-radius: 12px;
+      padding: 11px 16px;
+      font-size: 0.95rem;
+      font-weight: 800;
       cursor: pointer;
-      font-size: 0.9rem;
-      font-weight: 600;
+      transition: transform 0.12s ease, opacity 0.12s ease;
     }
-    .toggle-group button {
-      padding: 0 16px;
-      background: #f8fafc;
-      color: #334155;
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
     }
-    .toggle-group button.active {
-      background: #2563eb;
-      color: #ffffff;
-    }
-    .toggle-group button.active.danger {
-      background: #dc2626;
-    }
-    .btn {
-      background: #0f172a;
-      color: #ffffff;
-      border-radius: 8px;
-      padding: 9px 18px;
-      height: 38px;
-    }
-    .btn.secondary {
-      background: #e2e8f0;
-      color: #0f172a;
-    }
-    .btn:disabled {
+
+    button:disabled {
       opacity: 0.6;
       cursor: not-allowed;
+      transform: none;
     }
-    #running-banner,
-    #overview-banner {
-      display: none;
-      padding: 10px 14px;
-      border-radius: 10px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      margin-bottom: 12px;
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
     }
-    #running-banner {
+
+    .btn-secondary {
+      background: #eef2ff;
+      color: #243b9c;
+    }
+
+    .btn-dark {
+      background: #172033;
+      color: white;
+    }
+
+    .btn-danger {
+      background: #b42318;
+      color: white;
+    }
+
+    .btn-success {
+      background: #067647;
+      color: white;
+    }
+
+    .toggle-group {
+      display: inline-flex;
+      border: 1px solid #ccd6e3;
+      border-radius: 14px;
+      overflow: hidden;
+      background: white;
+    }
+
+    .toggle-group button {
+      border-radius: 0;
+      background: white;
+      color: #475467;
+      min-width: 128px;
+    }
+
+    .toggle-group button.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .toggle-group button.active.danger {
+      background: #b42318;
+    }
+
+    .data-list {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px 12px;
+      margin: 0;
+    }
+
+    .data-list dt {
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .data-list dd {
+      margin: 0;
+      font-weight: 800;
+      text-align: right;
+    }
+
+    .message-box {
+      border-radius: 14px;
+      padding: 14px 16px;
+      line-height: 1.5;
+      font-size: 0.95rem;
+    }
+
+    .message-info {
       background: #eff6ff;
       color: #1d4ed8;
       border: 1px solid #bfdbfe;
     }
-    #overview-banner {
-      background: #faf5ff;
-      color: #7c3aed;
-      border: 1px solid #ddd6fe;
+
+    .message-warn {
+      background: #fff7ed;
+      color: #c2410c;
+      border: 1px solid #fdba74;
     }
-    .two-columns {
+
+    .message-error {
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+
+    .microcopy {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    .comparison-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin-top: 14px;
     }
-    .panel {
-      background: #ffffff;
+
+    .comparison-item {
+      border-radius: 14px;
+      padding: 14px;
+      background: #f8fafc;
       border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
     }
-    .panel h3 {
-      margin: 0 0 12px;
-      font-size: 1rem;
+
+    .comparison-item .title {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 800;
     }
-    .metric-list {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 10px 12px;
-      font-size: 0.92rem;
+
+    .comparison-item .big {
+      font-size: 1.6rem;
+      font-weight: 800;
     }
-    .metric-list dt {
-      color: #475569;
-    }
-    .metric-list dd {
-      margin: 0;
-      font-weight: 700;
-    }
+
     .log-box {
-      background: #020617;
-      color: #e2e8f0;
-      border-radius: 12px;
-      min-height: 320px;
+      background: #04111f;
+      color: #e5eefc;
+      border-radius: var(--radius);
+      min-height: 260px;
       max-height: 420px;
       overflow-y: auto;
       padding: 16px;
       font-family: Consolas, monospace;
-      font-size: 0.78rem;
-      border: 1px solid #1e293b;
+      font-size: 0.8rem;
+      box-shadow: var(--shadow);
     }
-    .log-line { margin-bottom: 4px; white-space: pre-wrap; word-break: break-word; }
-    .log-line.info { color: #cbd5e1; }
-    .log-line.warn { color: #fbbf24; }
-    .log-line.error { color: #f87171; }
-    .log-line.done-ok { color: #4ade80; font-weight: 700; }
-    .log-line.done-err { color: #f87171; font-weight: 700; }
+
+    .log-line {
+      margin-bottom: 5px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .log-line.info { color: #dbeafe; }
+    .log-line.warn { color: #fde68a; }
+    .log-line.error { color: #fecaca; }
+    .log-line.done-ok { color: #86efac; font-weight: 700; }
+    .log-line.done-err { color: #fca5a5; font-weight: 700; }
+
     .history-table {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
       overflow: hidden;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+      box-shadow: var(--shadow);
     }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.84rem;
+      font-size: 0.9rem;
     }
+
     th, td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #edf2f7;
       text-align: left;
-      padding: 10px 12px;
-      border-bottom: 1px solid #f1f5f9;
       vertical-align: top;
     }
+
     th {
       background: #f8fafc;
-      font-size: 0.74rem;
-      font-weight: 700;
-      color: #475569;
+      font-size: 0.76rem;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.05em;
+      color: var(--muted);
     }
+
     tr:last-child td {
       border-bottom: none;
     }
-    .badge {
-      display: inline-block;
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
       border-radius: 999px;
-      padding: 2px 8px;
-      font-size: 0.75rem;
-      font-weight: 700;
+      padding: 3px 9px;
+      font-size: 0.78rem;
+      font-weight: 800;
     }
-    .badge.green { background: #dcfce7; color: #166534; }
-    .badge.red { background: #fee2e2; color: #b91c1c; }
-    .badge.amber { background: #fef3c7; color: #92400e; }
-    .badge.slate { background: #e2e8f0; color: #334155; }
-    .muted {
-      color: #64748b;
-      font-size: 0.82rem;
+
+    .tag.green { background: var(--success-soft); color: var(--success); }
+    .tag.amber { background: var(--warning-soft); color: var(--warning); }
+    .tag.red { background: var(--danger-soft); color: var(--danger); }
+    .tag.gray { background: #eef2f6; color: #475467; }
+
+    .empty {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 960px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
-  <header>
-    <h1>SAP to PrestaShop Sync</h1>
-    <div class="meta">
-      <div id="last-run-label">Sin reportes todavia</div>
-      <div id="overview-label">Sin snapshot de catalogo todavia</div>
-    </div>
-  </header>
-
-  <main>
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">Ultima corrida</h2>
-        <div class="section-note">Resumen del ultimo reporte generado por el sync</div>
+  <div class="page">
+    <section class="hero">
+      <div>
+        <h1>Tablero de sincronizacion SAP y PrestaShop</h1>
+        <p>
+          Este tablero resume el estado del catalogo, muestra si SAP y la tienda
+          estan alineados, y permite operar la sincronizacion sin tener que
+          leer logs tecnicos todo el tiempo.
+        </p>
       </div>
-      <div class="cards">
-        <div class="card report">
-          <div class="card-label">Total SAP leidos</div>
-          <div class="card-value" id="stat-total">-</div>
+
+      <div class="hero-meta">
+        <div class="meta-box">
+          <span class="meta-label">Ultimo reporte</span>
+          <div class="meta-value" id="last-run-label">Sin reportes todavia</div>
         </div>
-        <div class="card report">
-          <div class="card-label">Sin cambio</div>
-          <div class="card-value" id="stat-ok">-</div>
-        </div>
-        <div class="card report">
-          <div class="card-label">Crear</div>
-          <div class="card-value" id="stat-create">-</div>
-        </div>
-        <div class="card report">
-          <div class="card-label">Actualizar</div>
-          <div class="card-value" id="stat-update">-</div>
-        </div>
-        <div class="card report">
-          <div class="card-label">Revision</div>
-          <div class="card-value" id="stat-review">-</div>
-        </div>
-        <div class="card report">
-          <div class="card-label">Errores</div>
-          <div class="card-value" id="stat-errors">-</div>
+        <div class="meta-box">
+          <span class="meta-label">Snapshot de catalogo</span>
+          <div class="meta-value" id="overview-label">Sin snapshot todavia</div>
         </div>
       </div>
     </section>
 
     <section class="section">
       <div class="section-header">
-        <h2 class="section-title">Panel operativo</h2>
-        <div class="section-note">Ejecucion manual y refresco del estado de catalogo</div>
+        <h2 class="section-title">Resumen ejecutivo</h2>
+        <div class="section-note">Lectura rapida para alguien no tecnico</div>
       </div>
 
-      <div id="running-banner">Sync en curso...</div>
-      <div id="overview-banner">Actualizando snapshot de SAP y PrestaShop...</div>
-
-      <div class="controls">
-        <div class="field">
-          <label for="item-code">Item code</label>
-          <input type="text" id="item-code" placeholder="vacio = lote">
-        </div>
-        <div class="field">
-          <label for="limit">Limite</label>
-          <input type="number" id="limit" min="1" placeholder="ej. 50">
-        </div>
-        <div class="field">
-          <label>Modo</label>
-          <div class="toggle-group">
-            <button id="btn-dryrun" class="active" type="button" onclick="setMode('dry')">Dry run</button>
-            <button id="btn-write" type="button" onclick="setMode('write')">Write</button>
+      <div class="grid grid-4">
+        <div class="card metric-card">
+          <div class="label">Estado general</div>
+          <div id="executive-status-pill" class="status-pill status-ok">Sin alertas</div>
+          <div class="hint" id="executive-headline">
+            El tablero todavia no tiene suficiente informacion para resumir la situacion.
           </div>
         </div>
-        <button class="btn" id="btn-run" type="button" onclick="runSync()">Iniciar sync</button>
-        <button class="btn secondary" id="btn-refresh-overview" type="button" onclick="loadCatalogOverview(true)">Refrescar panel SAP vs Presta</button>
+
+        <div class="card metric-card">
+          <div class="label">Catalogo SAP</div>
+          <div class="value" id="hero-sap-products">-</div>
+          <div class="hint">Productos totales informados por SAP</div>
+        </div>
+
+        <div class="card metric-card">
+          <div class="label">Catalogo tienda</div>
+          <div class="value" id="hero-presta-products">-</div>
+          <div class="hint">Productos visibles via webservice de PrestaShop</div>
+        </div>
+
+        <div class="card metric-card">
+          <div class="label">Pendientes</div>
+          <div class="value" id="hero-pending-items">-</div>
+          <div class="hint">Crear, actualizar o revisar segun la ultima corrida</div>
+        </div>
       </div>
     </section>
 
     <section class="section">
       <div class="section-header">
-        <h2 class="section-title">Snapshot de catalogo</h2>
-        <div class="section-note">Metricas agregadas para contrastar SAP con PrestaShop</div>
+        <h2 class="section-title">Que hacer ahora</h2>
+        <div class="section-note">Traduccion operativa del tablero</div>
+      </div>
+      <div class="card card-soft">
+        <div id="action-summary" class="message-box message-info">
+          Todavia no hay suficiente informacion para recomendar una accion.
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Operacion de sincronizacion</h2>
+        <div class="section-note">Usa dry run para analizar. Usa write solo cuando quieras aplicar cambios.</div>
       </div>
 
-      <div class="two-columns">
-        <div class="panel">
+      <div id="running-banner" class="banner">Sync en curso...</div>
+
+      <div class="card">
+        <div class="controls-panel">
+          <div class="controls-row">
+            <div class="field">
+              <label for="item-code">Codigo de articulo</label>
+              <input type="text" id="item-code" placeholder="Dejalo vacio para procesar un lote">
+            </div>
+
+            <div class="field">
+              <label for="limit">Cantidad maxima</label>
+              <input type="number" id="limit" min="1" placeholder="Ej. 50">
+            </div>
+
+            <div class="field">
+              <label>Modo de ejecucion</label>
+              <div class="toggle-group">
+                <button id="btn-dryrun" class="active" type="button" onclick="setMode('dry')">Solo analizar</button>
+                <button id="btn-write" type="button" onclick="setMode('write')">Aplicar cambios</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="button-row">
+            <button class="btn-primary" id="btn-run" type="button" onclick="runSync()">Iniciar sincronizacion</button>
+            <button class="btn-secondary" id="btn-refresh-overview" type="button" onclick="loadDashboard(true)">Actualizar tablero</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Foto del catalogo</h2>
+        <div class="section-note">Comparacion global entre la fuente SAP y la tienda online</div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card">
           <h3>SAP</h3>
-          <dl class="metric-list">
+          <dl class="data-list">
             <dt>Schema</dt><dd id="sap-schema">-</dd>
             <dt>Warehouse</dt><dd id="sap-warehouse">-</dd>
-            <dt>Price list</dt><dd id="sap-pricelist">-</dd>
+            <dt>Lista de precios</dt><dd id="sap-pricelist">-</dd>
             <dt>Total productos</dt><dd id="sap-total-products">-</dd>
             <dt>Activos</dt><dd id="sap-active-products">-</dd>
             <dt>Inactivos</dt><dd id="sap-inactive-products">-</dd>
@@ -368,33 +613,106 @@
           </dl>
         </div>
 
-        <div class="panel">
+        <div class="card">
           <h3>PrestaShop</h3>
-          <dl class="metric-list">
+          <dl class="data-list">
             <dt>Total productos</dt><dd id="presta-total-products">-</dd>
             <dt>Activos</dt><dd id="presta-active-products">-</dd>
             <dt>Inactivos</dt><dd id="presta-inactive-products">-</dd>
             <dt>Total combinaciones</dt><dd id="presta-total-combinations">-</dd>
-            <dt>Estado</dt><dd id="presta-status">-</dd>
+            <dt>Estado del webservice</dt><dd id="presta-status">-</dd>
           </dl>
         </div>
       </div>
 
-      <div class="cards" style="margin-top: 16px;">
-        <div class="card contrast">
-          <div class="card-label">Gap productos</div>
-          <div class="card-value" id="contrast-product-gap">-</div>
-          <div class="card-subvalue">SAP total - Presta total</div>
+      <div class="comparison-grid">
+        <div class="comparison-item">
+          <div class="title">Brecha de productos</div>
+          <div class="big" id="contrast-product-gap">-</div>
+          <div class="empty">SAP total menos PrestaShop total</div>
         </div>
-        <div class="card contrast">
-          <div class="card-label">Gap activos</div>
-          <div class="card-value" id="contrast-active-gap">-</div>
-          <div class="card-subvalue">SAP activos - Presta activos</div>
+        <div class="comparison-item">
+          <div class="title">Brecha de activos</div>
+          <div class="big" id="contrast-active-gap">-</div>
+          <div class="empty">Activos en SAP menos activos en tienda</div>
         </div>
-        <div class="card contrast">
-          <div class="card-label">Gap inactivos</div>
-          <div class="card-value" id="contrast-inactive-gap">-</div>
-          <div class="card-subvalue">SAP inactivos - Presta inactivos</div>
+        <div class="comparison-item">
+          <div class="title">Brecha de inactivos</div>
+          <div class="big" id="contrast-inactive-gap">-</div>
+          <div class="empty">Inactivos en SAP menos inactivos en tienda</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Control puntual de PrestaShop</h2>
+        <div class="section-note">Busca un producto por referencia y revisa su estado por webservice</div>
+      </div>
+
+      <div class="card">
+        <div class="controls-row">
+          <div class="field" style="flex: 2 1 280px;">
+            <label for="control-reference">Referencia o item code</label>
+            <input type="text" id="control-reference" placeholder="Ej. 61072505">
+          </div>
+          <div class="button-row">
+            <button class="btn-dark" type="button" onclick="lookupReference()">Consultar producto</button>
+          </div>
+        </div>
+
+        <div id="control-message" class="message-box message-info" style="margin-top: 14px;">
+          Todavia no consultaste ningun producto.
+        </div>
+
+        <div class="grid grid-2" style="margin-top: 14px;">
+          <div class="card card-soft">
+            <h3>Dato en SAP</h3>
+            <dl class="data-list">
+              <dt>Item code</dt><dd id="control-sap-item">-</dd>
+              <dt>Nombre</dt><dd id="control-sap-name">-</dd>
+              <dt>Precio</dt><dd id="control-sap-price">-</dd>
+              <dt>Stock</dt><dd id="control-sap-stock">-</dd>
+              <dt>Estado</dt><dd id="control-sap-status">-</dd>
+            </dl>
+          </div>
+
+          <div class="card card-soft">
+            <h3>Dato en PrestaShop</h3>
+            <dl class="data-list">
+              <dt>Product ID</dt><dd id="control-presta-id">-</dd>
+              <dt>Referencia</dt><dd id="control-presta-reference">-</dd>
+              <dt>Activo</dt><dd id="control-presta-active">-</dd>
+              <dt>Precio</dt><dd id="control-presta-price">-</dd>
+              <dt>Combinaciones</dt><dd id="control-presta-combinations">-</dd>
+              <dt>Stocks encontrados</dt><dd id="control-presta-stock-records">-</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="button-row" style="margin-top: 14px;">
+          <button class="btn-success" id="btn-activate-product" type="button" onclick="changeProductStatus(true)" disabled>Activar en PrestaShop</button>
+          <button class="btn-danger" id="btn-deactivate-product" type="button" onclick="changeProductStatus(false)" disabled>Desactivar en PrestaShop</button>
+        </div>
+
+        <div class="microcopy">
+          Este control usa el webservice oficial de PrestaShop para consultar el producto y cambiar
+          su estado activo o inactivo. No elimina productos desde este tablero.
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Cuidado operativo</h2>
+        <div class="section-note">Indicaciones de seguridad para operar el tablero sin riesgos innecesarios</div>
+      </div>
+
+      <div class="card card-soft">
+        <div class="message-box message-info">
+          Para mantener la operacion segura, este tablero no borra productos ni resuelve duplicados
+          automaticamente. La intervencion disponible por webservice se limita a consulta y
+          activacion o desactivacion puntual.
         </div>
       </div>
     </section>
@@ -402,7 +720,7 @@
     <section class="section">
       <div class="section-header">
         <h2 class="section-title">Log en tiempo real</h2>
-        <div class="section-note">Salida estructurada del proceso</div>
+        <div class="section-note">Salida tecnica para seguimiento del proceso</div>
       </div>
       <div class="log-box" id="log-box">
         <div class="log-line info">Los logs del sync apareceran aqui.</div>
@@ -412,8 +730,9 @@
     <section class="section">
       <div class="section-header">
         <h2 class="section-title">Historial de corridas</h2>
-        <div class="section-note">Ultimos reportes disponibles</div>
+        <div class="section-note">Ultimos reportes generados por el proceso</div>
       </div>
+
       <div class="history-table">
         <table>
           <thead>
@@ -430,22 +749,28 @@
           </thead>
           <tbody id="history-body">
             <tr>
-              <td colspan="8" class="muted">Cargando...</td>
+              <td colspan="8" class="empty">Cargando...</td>
             </tr>
           </tbody>
         </table>
       </div>
     </section>
-  </main>
+  </div>
 
   <script>
     let writeMode = false;
     let syncRunning = false;
+    let currentLookup = null;
 
     function fmt(value) {
       if (value === undefined || value === null || value === "") return "-";
       if (typeof value === "number") return value.toLocaleString("es");
       return String(value);
+    }
+
+    function money(value) {
+      if (value === undefined || value === null || value === "") return "-";
+      return Number(value).toLocaleString("es", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
     function setText(id, value) {
@@ -480,12 +805,194 @@
       }
     }
 
+    function setStatusPill(status, text) {
+      const el = document.getElementById("executive-status-pill");
+      el.className = "status-pill";
+      if (status === "error") {
+        el.classList.add("status-error");
+      } else if (status === "attention") {
+        el.classList.add("status-attention");
+      } else {
+        el.classList.add("status-ok");
+      }
+      el.textContent = text;
+    }
+
+    function renderExecutive(data) {
+      const overview = data.overview || {};
+      const executive = data.executive || {};
+      const latestReport = data.latestReport || {};
+      const latestActions = latestReport.recommendedActions || {};
+
+      const pending =
+        (executive.createCount || 0) +
+        (executive.updateCount || 0) +
+        (executive.reviewCount || 0);
+
+      setText("hero-sap-products", overview.sap ? overview.sap.totalProducts : null);
+      setText("hero-presta-products", overview.prestashop ? overview.prestashop.totalProducts : null);
+      setText("hero-pending-items", pending);
+
+      if (latestReport.generatedAt) {
+        document.getElementById("last-run-label").textContent =
+          new Date(latestReport.generatedAt).toLocaleString("es");
+      }
+
+      setStatusPill(
+        executive.overallStatus,
+        executive.overallStatus === "error"
+          ? "Atencion inmediata"
+          : executive.overallStatus === "attention"
+            ? "Requiere seguimiento"
+            : "Sin alertas criticas",
+      );
+
+      document.getElementById("executive-headline").textContent =
+        executive.headline || "No hay resumen ejecutivo disponible.";
+
+      const actionText = [];
+      if ((latestActions.createProduct || 0) > 0) {
+        actionText.push(`hay ${latestActions.createProduct} productos que SAP tiene y la tienda todavia no`);
+      }
+      if ((latestActions.updateProductPrice || 0) + (latestActions.updateProductStock || 0) + (latestActions.updateProductPriceAndStock || 0) > 0) {
+        actionText.push("hay productos existentes que requieren actualizacion");
+      }
+      if ((latestActions.reviewCombinationMapping || 0) + (latestActions.reviewError || 0) > 0) {
+        actionText.push("hay casos que conviene revisar manualmente");
+      }
+      if ((latestReport.summary || {}).errors > 0) {
+        actionText.push("la ultima corrida tuvo errores");
+      }
+
+      const actionSummary = document.getElementById("action-summary");
+      if (actionText.length === 0) {
+        actionSummary.className = "message-box message-info";
+        actionSummary.textContent =
+          "No veo alertas urgentes en la ultima lectura. Si queres confirmar el estado actual, corre un dry run.";
+      } else {
+        actionSummary.className =
+          (latestReport.summary || {}).errors > 0
+            ? "message-box message-error"
+            : "message-box message-warn";
+        actionSummary.textContent =
+          "En lenguaje simple: " + actionText.join(", ") + ".";
+      }
+    }
+
+    function renderOverview(overview) {
+      const sap = overview.sap || {};
+      const presta = overview.prestashop || {};
+      const contrast = overview.contrast || {};
+
+      setText("sap-schema", sap.schema);
+      setText("sap-warehouse", sap.warehouse);
+      setText("sap-pricelist", sap.priceList);
+      setText("sap-total-products", sap.totalProducts);
+      setText("sap-active-products", sap.activeProducts);
+      setText("sap-inactive-products", sap.inactiveProducts);
+      setText("sap-products-with-stock", sap.productsWithStock);
+      setText("sap-products-without-stock", sap.productsWithoutStock);
+      setText("sap-total-stock", sap.totalStock);
+
+      setText("presta-total-products", presta.totalProducts);
+      setText("presta-active-products", presta.activeProducts);
+      setText("presta-inactive-products", presta.inactiveProducts);
+      setText("presta-total-combinations", presta.totalCombinations);
+      setText("presta-status", presta.error ? "No disponible" : "Disponible");
+
+      setText("contrast-product-gap", contrast.productGap);
+      setText("contrast-active-gap", contrast.activeGap);
+      setText("contrast-inactive-gap", contrast.inactiveGap);
+
+      const problems = [sap.error, presta.error].filter(Boolean);
+      if (problems.length > 0) {
+        document.getElementById("overview-label").textContent =
+          "Snapshot parcial: " + problems.join(" | ");
+      } else if (overview.generatedAt) {
+        document.getElementById("overview-label").textContent =
+          "Snapshot de catalogo: " + new Date(overview.generatedAt).toLocaleString("es");
+      }
+    }
+
+    function renderReports(reports) {
+      if (!reports.length) {
+        return;
+      }
+
+      const latest = reports[0];
+      const actions = latest.recommendedActions || {};
+      const summary = latest.summary || {};
+      const updates =
+        (actions.updateProductPrice || 0) +
+        (actions.updateProductStock || 0) +
+        (actions.updateProductPriceAndStock || 0);
+      const review =
+        (actions.reviewCombinationMapping || 0) +
+        (actions.reviewError || 0);
+
+      if (latest.generatedAt) {
+        document.getElementById("last-run-label").textContent =
+          new Date(latest.generatedAt).toLocaleString("es");
+      }
+
+      const tbody = document.getElementById("history-body");
+      tbody.innerHTML = reports.map((report) => {
+        const a = report.recommendedActions || {};
+        const s = report.summary || {};
+        const upd =
+          (a.updateProductPrice || 0) +
+          (a.updateProductStock || 0) +
+          (a.updateProductPriceAndStock || 0);
+        const rev =
+          (a.reviewCombinationMapping || 0) +
+          (a.reviewError || 0);
+        const executed = a.executed || 0;
+        const errors = s.errors || 0;
+
+        return `
+          <tr>
+            <td>${report.generatedAt ? new Date(report.generatedAt).toLocaleString("es") : "-"}</td>
+            <td>${fmt(s.total)}</td>
+            <td>${fmt(a.createProduct)}</td>
+            <td>${fmt(upd)}</td>
+            <td>${fmt(a.skipNoChange)}</td>
+            <td>${rev > 0 ? `<span class="tag amber">${fmt(rev)}</span>` : `<span class="tag gray">0</span>`}</td>
+            <td>${executed > 0 ? `<span class="tag green">${fmt(executed)}</span>` : `<span class="tag gray">0</span>`}</td>
+            <td>${errors > 0 ? `<span class="tag red">${fmt(errors)}</span>` : `<span class="tag gray">0</span>`}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    async function loadReports() {
+      const response = await fetch("/api/reports");
+      const reports = await response.json();
+      renderReports(reports);
+      return reports;
+    }
+
+    async function loadDashboard(forceRefresh) {
+      document.getElementById("overview-label").textContent = "Actualizando...";
+
+      const summaryUrl = "/api/dashboard-summary" + (forceRefresh ? "?refresh=true" : "");
+      const summaryResponse = await fetch(summaryUrl);
+      const summaryData = await summaryResponse.json();
+      renderExecutive(summaryData);
+
+      const url = "/api/catalog-overview" + (forceRefresh ? "?refresh=true" : "");
+      const overviewResponse = await fetch(url);
+      const overviewData = await overviewResponse.json();
+      renderOverview(overviewData);
+
+      await loadReports();
+    }
+
     function runSync() {
       if (syncRunning) return;
 
       syncRunning = true;
       document.getElementById("btn-run").disabled = true;
-      document.getElementById("running-banner").style.display = "block";
+      document.getElementById("running-banner").classList.add("info");
       document.getElementById("log-box").innerHTML = "";
       appendLog("Iniciando sync...", "info");
 
@@ -509,13 +1016,15 @@
 
         if (msg.type === "done") {
           const ok = msg.code === 0;
-          appendLog(ok ? "Sync completado." : `Sync finalizo con codigo ${msg.code}.`, ok ? "done-ok" : "done-err");
+          appendLog(
+            ok ? "Sync completado." : `Sync finalizo con codigo ${msg.code}.`,
+            ok ? "done-ok" : "done-err",
+          );
           es.close();
           syncRunning = false;
           document.getElementById("btn-run").disabled = false;
-          document.getElementById("running-banner").style.display = "none";
-          loadReports();
-          loadCatalogOverview(true);
+          document.getElementById("running-banner").classList.remove("info");
+          loadDashboard(true);
         }
       };
 
@@ -524,126 +1033,120 @@
         es.close();
         syncRunning = false;
         document.getElementById("btn-run").disabled = false;
-        document.getElementById("running-banner").style.display = "none";
+        document.getElementById("running-banner").classList.remove("info");
       };
     }
 
-    function loadReports() {
-      fetch("/api/reports")
-        .then((response) => response.json())
-        .then((reports) => {
-          if (!reports.length) {
-            return;
-          }
-
-          const latest = reports[0];
-          const actions = latest.recommendedActions || {};
-          const summary = latest.summary || {};
-          const updates =
-            (actions.updateProductPrice || 0) +
-            (actions.updateProductStock || 0) +
-            (actions.updateProductPriceAndStock || 0);
-          const review =
-            (actions.reviewCombinationMapping || 0) +
-            (actions.reviewError || 0);
-
-          setText("stat-total", summary.total);
-          setText("stat-ok", actions.skipNoChange);
-          setText("stat-create", actions.createProduct);
-          setText("stat-update", updates);
-          setText("stat-review", review);
-          setText("stat-errors", summary.errors);
-
-          if (latest.generatedAt) {
-            document.getElementById("last-run-label").textContent =
-              "Ultimo reporte: " + new Date(latest.generatedAt).toLocaleString("es");
-          }
-
-          const tbody = document.getElementById("history-body");
-          tbody.innerHTML = reports.map((report) => {
-            const a = report.recommendedActions || {};
-            const s = report.summary || {};
-            const upd =
-              (a.updateProductPrice || 0) +
-              (a.updateProductStock || 0) +
-              (a.updateProductPriceAndStock || 0);
-            const rev =
-              (a.reviewCombinationMapping || 0) +
-              (a.reviewError || 0);
-            const executed = a.executed || 0;
-            const errors = s.errors || 0;
-
-            return `
-              <tr>
-                <td>${report.generatedAt ? new Date(report.generatedAt).toLocaleString("es") : "-"}</td>
-                <td>${fmt(s.total)}</td>
-                <td>${fmt(a.createProduct)}</td>
-                <td>${fmt(upd)}</td>
-                <td>${fmt(a.skipNoChange)}</td>
-                <td>${rev > 0 ? `<span class="badge amber">${fmt(rev)}</span>` : fmt(rev)}</td>
-                <td>${executed > 0 ? `<span class="badge green">${fmt(executed)}</span>` : `<span class="badge slate">0</span>`}</td>
-                <td>${errors > 0 ? `<span class="badge red">${fmt(errors)}</span>` : `<span class="badge slate">0</span>`}</td>
-              </tr>
-            `;
-          }).join("");
-        })
-        .catch(() => {});
+    function setControlMessage(text, kind) {
+      const el = document.getElementById("control-message");
+      el.className = "message-box " + (kind || "message-info");
+      el.textContent = text;
     }
 
-    function loadCatalogOverview(forceRefresh) {
-      document.getElementById("overview-banner").style.display = "block";
+    function renderLookup(data) {
+      currentLookup = data;
 
-      const url = "/api/catalog-overview" + (forceRefresh ? "?refresh=true" : "");
+      const sap = data.sap || {};
+      const presta = data.prestashop || {};
+      const comparison = data.comparison || {};
 
-      fetch(url)
-        .then((response) => response.json())
-        .then((data) => {
-          const sap = data.sap || {};
-          const presta = data.prestashop || {};
-          const contrast = data.contrast || {};
+      setText("control-sap-item", sap.itemCode);
+      setText("control-sap-name", sap.itemName);
+      document.getElementById("control-sap-price").textContent = money(sap.price);
+      setText("control-sap-stock", sap.stock);
+      setText("control-sap-status", sap.status === "Y" ? "Activo" : sap.status ? "Inactivo" : "-");
 
-          setText("sap-schema", sap.schema);
-          setText("sap-warehouse", sap.warehouse);
-          setText("sap-pricelist", sap.priceList);
-          setText("sap-total-products", sap.totalProducts);
-          setText("sap-active-products", sap.activeProducts);
-          setText("sap-inactive-products", sap.inactiveProducts);
-          setText("sap-products-with-stock", sap.productsWithStock);
-          setText("sap-products-without-stock", sap.productsWithoutStock);
-          setText("sap-total-stock", sap.totalStock);
+      setText("control-presta-id", presta.productId);
+      setText("control-presta-reference", presta.reference);
+      setText("control-presta-active", presta.active === "1" ? "Activo" : presta.active === "0" ? "Inactivo" : "-");
+      document.getElementById("control-presta-price").textContent = money(presta.productPrice);
+      setText("control-presta-combinations", presta.combinations ? presta.combinations.length : null);
+      setText("control-presta-stock-records", presta.stockAvailables ? presta.stockAvailables.length : null);
 
-          setText("presta-total-products", presta.totalProducts);
-          setText("presta-active-products", presta.activeProducts);
-          setText("presta-inactive-products", presta.inactiveProducts);
-          setText("presta-total-combinations", presta.totalCombinations);
-          if (presta.error) {
-            setText("presta-status", "No disponible");
-          } else {
-            setText("presta-status", "Disponible");
-          }
+      const canChangeStatus = Boolean(presta && presta.productId);
+      document.getElementById("btn-activate-product").disabled = !canChangeStatus;
+      document.getElementById("btn-deactivate-product").disabled = !canChangeStatus;
 
-          setText("contrast-product-gap", contrast.productGap);
-          setText("contrast-active-gap", contrast.activeGap);
-          setText("contrast-inactive-gap", contrast.inactiveGap);
+      if (presta.error) {
+        setControlMessage("PrestaShop respondio con error: " + presta.error, "message-box message-error");
+        return;
+      }
 
-          if (data.generatedAt) {
-            document.getElementById("overview-label").textContent =
-              "Snapshot de catalogo: " + new Date(data.generatedAt).toLocaleString("es");
-          }
+      if (!comparison.existsInSap && !comparison.existsInPrestashop) {
+        setControlMessage("No encontre esa referencia ni en SAP ni en PrestaShop.", "message-box message-warn");
+        return;
+      }
 
-          const problems = [sap.error, presta.error].filter(Boolean);
-          if (problems.length > 0) {
-            document.getElementById("overview-label").textContent =
-              "Snapshot parcial: " + problems.join(" | ");
-          }
-        })
-        .finally(() => {
-          document.getElementById("overview-banner").style.display = "none";
-        });
+      if (comparison.existsInSap && !comparison.existsInPrestashop) {
+        setControlMessage("El articulo existe en SAP pero no aparece en PrestaShop.", "message-box message-warn");
+        return;
+      }
+
+      if (!comparison.existsInSap && comparison.existsInPrestashop) {
+        setControlMessage("El producto existe en PrestaShop pero no lo pude localizar en SAP con esa referencia.", "message-box message-warn");
+        return;
+      }
+
+      if (comparison.samePrice) {
+        setControlMessage("El producto existe en ambos lados y el precio principal coincide.", "message-box message-info");
+      } else {
+        setControlMessage(
+          "El producto existe en ambos lados pero el precio principal no coincide. SAP: " +
+          money(sap.price) +
+          " | PrestaShop: " +
+          money(presta.productPrice),
+          "message-box message-warn",
+        );
+      }
     }
 
-    loadReports();
-    loadCatalogOverview(false);
+    async function lookupReference() {
+      const reference = document.getElementById("control-reference").value.trim();
+      if (!reference) {
+        setControlMessage("Escribe una referencia antes de consultar.", "message-box message-warn");
+        return;
+      }
+
+      setControlMessage("Consultando SAP y PrestaShop...", "message-box message-info");
+
+      const response = await fetch("/api/prestashop-control?reference=" + encodeURIComponent(reference));
+      const data = await response.json();
+      renderLookup(data);
+    }
+
+    async function changeProductStatus(active) {
+      if (!currentLookup || !currentLookup.prestashop || !currentLookup.prestashop.productId) {
+        setControlMessage("Primero consulta un producto valido de PrestaShop.", "message-box message-warn");
+        return;
+      }
+
+      const response = await fetch("/api/prestashop-control/active", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: currentLookup.prestashop.productId,
+          active,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        setControlMessage("No pude cambiar el estado: " + (data.error || "error desconocido"), "message-box message-error");
+        return;
+      }
+
+      setControlMessage(data.message, "message-box message-info");
+      await lookupReference();
+      await loadDashboard(true);
+    }
+
+    loadDashboard(false).catch((error) => {
+      document.getElementById("overview-label").textContent = "No pude cargar el tablero";
+      document.getElementById("action-summary").className = "message-box message-error";
+      document.getElementById("action-summary").textContent = error.message;
+    });
+
+    /* ─── Duplicados ─────────────────────────────────── */
   </script>
 </body>
 </html>

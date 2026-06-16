@@ -9,10 +9,8 @@ const path = require("path");
 const fs = require("fs");
 const {
   createPrestaClient,
-  deletePrestaProduct,
   hasPrestaConfig,
   inspectProductByReferenceValue,
-  listAllProductsWithReference,
   readPrestaOverview,
   updatePrestaProductActive,
 } = require("./src/prestashop");
@@ -300,62 +298,6 @@ app.post("/api/prestashop-control/active", async (req, res) => {
         : "Producto desactivado en PrestaShop",
       result,
     });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.get("/api/duplicates", async (req, res) => {
-  if (!hasPrestaConfig()) {
-    res.status(400).json({
-      error: "PRESTASHOP_ENDPOINT o PRESTASHOP_API_KEY no configurados",
-    });
-    return;
-  }
-
-  try {
-    const client = createPrestaClient(log);
-    const products = await listAllProductsWithReference(client);
-
-    const groups = {};
-    for (const p of products) {
-      const ref = (p.reference || "").trim();
-      if (!ref) continue;
-      if (!groups[ref]) groups[ref] = [];
-      groups[ref].push(p);
-    }
-
-    const duplicates = Object.entries(groups)
-      .filter(([, list]) => list.length > 1)
-      .map(([reference, list]) => ({ reference, products: list }))
-      .sort((a, b) => a.reference.localeCompare(b.reference));
-
-    res.json({ total: duplicates.length, duplicates });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.delete("/api/products/:id", async (req, res) => {
-  const productId = Number(req.params.id);
-
-  if (!productId) {
-    res.status(400).json({ error: "ID de producto invalido" });
-    return;
-  }
-
-  if (!hasPrestaConfig()) {
-    res.status(400).json({
-      error: "PRESTASHOP_ENDPOINT o PRESTASHOP_API_KEY no configurados",
-    });
-    return;
-  }
-
-  try {
-    const client = createPrestaClient(log);
-    await deletePrestaProduct(client, productId);
-    overviewCache = { updatedAt: 0, payload: null };
-    res.json({ ok: true, message: "Producto eliminado", productId });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

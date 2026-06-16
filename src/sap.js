@@ -59,6 +59,16 @@ function buildArticleQuery({ schema, priceList, warehouse, itemCode, limit }) {
   };
 }
 
+function connectSap(conn, log, config) {
+  if (log) {
+    log("info", "Conectando a SAP HANA");
+  }
+  conn.connect(config.connection);
+  if (log) {
+    log("info", "Conexion SAP HANA exitosa");
+  }
+}
+
 function mapSapRow(row) {
   return {
     itemCode: row.ItemCode,
@@ -146,9 +156,7 @@ function readSapArticles(log) {
   });
 
   try {
-    log("info", "Conectando a SAP HANA");
-    conn.connect(config.connection);
-    log("info", "Conexion SAP HANA exitosa");
+    connectSap(conn, log, config);
 
     const query = buildArticleQuery(config.query);
     log("info", "Ejecutando query SAP", { params: query.params });
@@ -175,9 +183,38 @@ function readSapArticles(log) {
   }
 }
 
+function readSapArticleByCode(log, itemCode) {
+  const config = getSapConfig();
+  const conn = hana.createConnection();
+  const query = buildArticleQuery({
+    ...config.query,
+    itemCode,
+    limit: 1,
+  });
+
+  try {
+    if (log) {
+      log("info", "Consultando articulo puntual en SAP", {
+        itemCode,
+        warehouse: config.query.warehouse,
+        priceList: config.query.priceList,
+      });
+    }
+
+    connectSap(conn, log, config);
+    const rows = conn.exec(query.sql, query.params);
+    return rows.length > 0 ? mapSapRow(rows[0]) : null;
+  } finally {
+    try {
+      conn.disconnect();
+    } catch {}
+  }
+}
+
 module.exports = {
   buildArticleQuery,
   getSapConfig,
+  readSapArticleByCode,
   readSapArticles,
   readSapOverview,
 };
