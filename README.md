@@ -3,12 +3,13 @@
 Este repositorio documenta y construye un reemplazo controlado del
 sincronizador actual entre SAP HANA y PrestaShop.
 
-Hoy el proyecto esta en modo diagnostico y solo lectura:
+Por defecto el proyecto arranca en modo diagnostico y solo lectura:
 
 - lee articulos desde SAP HANA
 - consulta productos, combinaciones y stock en PrestaShop
 - registra comparaciones detalladas en consola
-- no escribe cambios en ninguno de los dos sistemas
+- no escribe cambios en ninguno de los dos sistemas, salvo que se habilite
+  `SYNC_WRITE=true`
 
 ## Requisitos
 
@@ -33,6 +34,7 @@ PRESTASHOP_ENDPOINT=https://carballo.com.do
 PRESTASHOP_API_KEY=API_KEY
 PRESTASHOP_DEFAULT_CATEGORY_ID=
 PRESTASHOP_LANGUAGE_ID=1
+SYNC_WRITE=false
 REPORT_DIR=reports
 REPORT_BASENAME=sap-prestashop-diagnostic
 LOG_LEVEL=info
@@ -71,6 +73,12 @@ Para ver mas detalle tecnico en consola durante una corrida:
 
 ```text
 LOG_LEVEL=debug
+```
+
+Para permitir escrituras reales en PrestaShop:
+
+```text
+SYNC_WRITE=true
 ```
 
 ## Estructura
@@ -125,5 +133,16 @@ El reporte tambien propone un plan de accion por fila, por ejemplo:
 Para los candidatos a creacion, el dry-run arma un payload propuesto. Si falta
 `PRESTASHOP_DEFAULT_CATEGORY_ID`, la fila queda bloqueada para revision antes de
 crear el producto.
+
+Si `SYNC_WRITE=true`, el proceso intenta ejecutar de verdad:
+
+- `create_product`
+- `update_product_stock`
+- `update_product_price`
+- `update_product_price_and_stock`
+
+Por ahora la escritura real se enfoca en productos simples y en actualizaciones
+directas del producto padre. Las combinaciones siguen quedando en revision para
+evitar decisiones incorrectas sobre variantes.
 
 Todos los archivos quedan en la carpeta configurada por `REPORT_DIR`.

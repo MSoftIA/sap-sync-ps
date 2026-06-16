@@ -7,6 +7,7 @@ const {
 } = require("./prestashop");
 const { writeRunReports } = require("./report");
 const { readSapArticles } = require("./sap");
+const { executeSyncAction, isWriteEnabled } = require("./sync-executor");
 const { buildActionPayload } = require("./sync-plan");
 
 function logEnvLoad() {
@@ -20,6 +21,9 @@ function logEnvLoad() {
 }
 
 function logComparison(article, inspection) {
+  const modeNote = isWriteEnabled()
+    ? "Modo escritura activo. Si la accion aplica, el cambio se intentara ejecutar."
+    : "Modo dry-run. No se envio ningun cambio.";
   const selectedTarget =
     inspection.bestMatch.kind === "combination"
       ? {
@@ -47,7 +51,7 @@ function logComparison(article, inspection) {
     prestashopProductPrice: inspection.productPrice,
     sapStock: article.stock,
     selectedTarget,
-    note: "Solo lectura. No se envio ningun cambio.",
+    note: modeNote,
   });
 }
 
@@ -209,6 +213,7 @@ async function run() {
   log("info", "Iniciando main.js", {
     cwd: process.cwd(),
     node: process.version,
+    syncWrite: isWriteEnabled(),
   });
 
   logEnvLoad();
@@ -274,6 +279,11 @@ async function run() {
         if (actionPayload.blockedReason) {
           createdRow.needsReview = true;
         }
+        createdRow.execution = await executeSyncAction(
+          prestaClient,
+          createdRow,
+          log,
+        );
         continue;
       }
 
@@ -290,7 +300,9 @@ async function run() {
       });
 
       logComparison(article, inspection);
-      results.push(buildResultRow(article, inspection));
+      const row = buildResultRow(article, inspection);
+      row.execution = await executeSyncAction(prestaClient, row, log);
+      results.push(row);
     } catch (error) {
       log("error", "Fallo inspeccionando articulo", {
         itemCode: article.itemCode,
@@ -329,6 +341,12 @@ async function run() {
         isStockEqual: false,
         matchCount: 0,
         error: error.message,
+        execution: {
+          mode: isWriteEnabled() ? "write" : "dry_run",
+          executed: false,
+          status: "failed_before_execute",
+          details: error.message,
+        },
       });
     }
   }

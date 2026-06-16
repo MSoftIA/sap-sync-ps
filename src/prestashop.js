@@ -43,15 +43,20 @@ function createPrestaClient(log) {
     return clone.toString();
   }
 
-  async function get(resource, params = {}) {
+  async function request(method, resource, { params = {}, body = null } = {}) {
     const url = buildUrl(resource, params);
-    log("debug", "GET PrestaShop", { url: safeUrl(url) });
+    log("debug", method + " PrestaShop", { url: safeUrl(url) });
 
     const startedAt = Date.now();
-    const response = await fetch(url, { method: "GET" });
+    const response = await fetch(url, {
+      method,
+      headers: body ? { "Content-Type": "application/xml" } : undefined,
+      body,
+    });
     const text = await response.text();
 
     log("debug", "Respuesta PrestaShop", {
+      method,
       status: response.status,
       ok: response.ok,
       elapsedMs: Date.now() - startedAt,
@@ -67,7 +72,19 @@ function createPrestaClient(log) {
     return text;
   }
 
-  return { get };
+  async function get(resource, params = {}) {
+    return request("GET", resource, { params });
+  }
+
+  async function post(resource, body, params = {}) {
+    return request("POST", resource, { params, body });
+  }
+
+  async function patch(resource, body, params = {}) {
+    return request("PATCH", resource, { params, body });
+  }
+
+  return { get, post, patch };
 }
 
 function parseProductSummary(productXml) {
