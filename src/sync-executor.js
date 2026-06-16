@@ -1,4 +1,5 @@
 const { env } = require("./env");
+const { findProductIdsByReference } = require("./prestashop");
 const { parseAnyIdList } = require("./xml");
 
 function isWriteEnabled() {
@@ -281,6 +282,32 @@ async function createProductWithFallbackName(client, row) {
   }
 }
 
+async function recoverCreatedProductId(client, row, log, error) {
+  const productIds = await findProductIdsByReference(client, row.itemCode);
+
+  if (productIds.length === 1) {
+    log(
+      "warn",
+      "PrestaShop devolvio error luego de crear, pero el producto existe",
+      {
+        itemCode: row.itemCode,
+        recoveredProductId: productIds[0],
+        status: error.status || null,
+      },
+    );
+    return productIds[0];
+  }
+
+  if (productIds.length > 1) {
+    throw new Error(
+      "La creacion dejo multiples productos con la misma referencia: " +
+        row.itemCode,
+    );
+  }
+
+  throw error;
+}
+
 async function executeSyncAction(client, row, log) {
   if (!isWriteEnabled()) {
     return {
@@ -314,12 +341,29 @@ async function executeSyncAction(client, row, log) {
   }
 
   if (row.action === "create_product") {
-    const createResponse = await createProductWithFallbackName(client, row);
-    const productIds = parseAnyIdList(createResponse, "product");
-    const productId = productIds[0];
+    let productId = null;
+
+    try {
+      const createResponse = await createProductWithFallbackName(client, row);
+      const productIds = parseAnyIdList(createResponse, "product");
+      productId = productIds[0] || null;
+    } catch (error) {
+      if (error.status === 500) {
+        productId = await recoverCreatedProductId(client, row, log, error);
+      } else {
+        throw error;
+      }
+    }
 
     if (!productId) {
-      throw new Error("No se pudo obtener el id del producto creado");
+      productId = await recoverCreatedProductId(
+        client,
+        row,
+        log,
+        new Error(
+          "No se pudo obtener el id del producto creado desde la respuesta",
+        ),
+      );
     }
 
     const stockId = await findStockAvailableId(client, productId, 0);

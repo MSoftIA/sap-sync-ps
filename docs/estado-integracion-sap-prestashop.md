@@ -609,6 +609,9 @@ Se confirmaron tres fases claras durante la depuracion:
 2. Al pasar a `PUT`, las actualizaciones de stock comenzaron a funcionar.
 3. La creacion de productos nuevos ya no siempre falla, pero varios productos
    quedaron creados en estado inconsistente.
+4. El 2026-06-16 aplique un parche defensivo en la VPS de PrestaShop sobre
+   `classes/Product.php` para que el webservice no rompa cuando un producto no
+   tiene imagen cover asociada.
 
 ### Funcionalidad ya confirmada
 
@@ -653,8 +656,22 @@ Trying to access array offset on value of type bool
 /var/www/html/classes/Product.php line 7184
 ```
 
-Mi interpretacion actual es que parte de esos productos fueron creados con una
-estructura incompleta o inconsistente para esa instalacion de PrestaShop.
+La causa confirmada ya no apunta solamente a una estructura incompleta del
+producto. Tambien existia un problema en el propio webservice de esta
+instalacion: el metodo `getCoverWs()` asumia siempre la existencia de imagen
+cover y devolvia un PHP Notice cuando no la encontraba.
+
+Ese punto ya fue corregido directamente en la VPS con un retorno defensivo:
+
+```php
+if (!$result || !isset($result['id_image'])) {
+    return 0;
+}
+```
+
+Ademas, en el reemplazo Node.js agregue recuperacion post-alta: si PrestaShop
+responde HTTP 500 despues de crear el producto, el script vuelve a buscarlo por
+referencia para confirmar si la alta realmente ocurrio.
 
 #### 3. Revision pendiente sobre productos "rotos"
 
@@ -694,10 +711,10 @@ No recomiendo borrarlos manualmente todavia sin definir primero:
 | Capacidad | Estado actual |
 |---|---|
 | Lectura SAP HANA | Funciona |
-| Lectura PrestaShop | Funciona en productos sanos |
+| Lectura PrestaShop | Funciona y quedo reforzada con parche en webservice |
 | Actualizacion de stock | Funciona en varios productos |
 | Actualizacion de precio | Parcial, todavia en ajuste |
-| Creacion de producto nuevo | Parcial, con casos inconsistentes |
+| Creacion de producto nuevo | Parcial, con recuperacion post-error ya implementada |
 | Manejo de combinaciones | Solo inspeccion y comparacion |
 | Reparacion de productos invalidos | Pendiente |
 

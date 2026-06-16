@@ -64,9 +64,12 @@ function createPrestaClient(log) {
     });
 
     if (!response.ok) {
-      throw new Error(
+      const error = new Error(
         "PrestaShop HTTP " + response.status + ": " + text.slice(0, 300),
       );
+      error.status = response.status;
+      error.responseBody = text;
+      throw error;
     }
 
     return text;
@@ -93,6 +96,15 @@ function createPrestaClient(log) {
   }
 
   return { get, getSchema, post, put, patch };
+}
+
+async function findProductIdsByReference(client, reference) {
+  const searchXml = await client.get("products", {
+    display: "[id,reference]",
+    "filter[reference]": reference,
+  });
+
+  return parseIdList(searchXml, "product");
 }
 
 function parseProductSummary(productXml) {
@@ -327,6 +339,7 @@ async function inspectProductByReference(client, article, log) {
 module.exports = {
   createPrestaClient,
   findBestPrestaMatch,
+  findProductIdsByReference,
   getPrestaConfig,
   hasPrestaConfig,
   inspectProductByReference,

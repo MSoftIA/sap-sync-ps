@@ -203,7 +203,7 @@ Productos nuevos ya visibles por referencia:
 - `22040220` -> `6534`
 - `22040405` -> `6535`
 
-Pero al intentar leer varios de esos productos, PrestaShop responde:
+Pero al intentar leer varios de esos productos, PrestaShop respondia:
 
 - HTTP 500
 - `PHP Notice #8`
@@ -215,6 +215,30 @@ Interpretacion operativa:
 - el alta ya no falla en todos los casos
 - pero varios productos quedaron creados de forma incompleta o inconsistente
 - ahora hace falta reparar o recrear esos productos
+
+Actualizacion 2026-06-16:
+
+- Se valido directamente en la VPS que `getCoverWs()` hacia
+  `return $result['id_image'];` sin comprobar si el producto tenia imagen
+  cover.
+- Se aplico un parche defensivo en
+  `/var/www/carballo.com.do/classes/Product.php`:
+
+```php
+if (!$result || !isset($result['id_image'])) {
+    return 0;
+}
+```
+
+- Backup generado:
+  `/var/www/carballo.com.do/classes/Product.php.codex-bak-20260616`
+- Validacion posterior:
+  `docker exec carballo-web php -l /var/www/html/classes/Product.php`
+- Resultado:
+  `No syntax errors detected in /var/www/html/classes/Product.php`
+
+Ademas, el script Node ahora intenta recuperar el `productId` por referencia si
+PrestaShop devuelve HTTP 500 justo despues del alta.
 
 ## Estado operativo observado en la ultima corrida relevante
 
@@ -279,6 +303,8 @@ Estos archivos son el mejor input para otra IA porque traen:
 3. El servicio Windows `SS_Servicio_SAP` del proveedor estaba detenido por
    credenciales incorrectas y no debe reactivarse a ciegas.
 4. La tienda parece ser sensible a XMLs completos con campos no escribibles.
+5. El parche manual en `Product.php` debe preservarse o reaplicarse si el sitio
+   se actualiza o se reemplaza el contenedor.
 
 ## Recomendaciones concretas para la siguiente IA
 
