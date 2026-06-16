@@ -251,7 +251,7 @@ async function createProductWithFallbackName(client, row) {
   const createXml = buildCreateProductXml(row.actionPayload);
 
   try {
-    return await client.post("products", createXml);
+    return await client.post("products", createXml, { display: "[id]" });
   } catch (error) {
     const isNameValidationError =
       error.message &&
@@ -273,7 +273,7 @@ async function createProductWithFallbackName(client, row) {
       },
     };
 
-    return client.post("products", buildCreateProductXml(fallbackPayload));
+    return client.post("products", buildCreateProductXml(fallbackPayload), { display: "[id]" });
   }
 }
 
