@@ -35,6 +35,9 @@ REPORT_DIR=reports
 REPORT_BASENAME=sap-prestashop-diagnostic
 ```
 
+Cuando existe `.env.local`, sus valores prevalecen sobre variables viejas que
+hayan quedado cargadas en la sesion de PowerShell.
+
 ## Scripts disponibles
 
 Probar solo la lectura desde SAP:

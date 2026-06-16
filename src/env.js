@@ -1,7 +1,8 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-function loadEnvFile(filename = ".env.local") {
+function loadEnvFile(filename = ".env.local", options = {}) {
+  const { override = true } = options;
   const file = path.join(process.cwd(), filename);
   if (!fs.existsSync(file)) {
     return { found: false, file };
@@ -24,7 +25,7 @@ function loadEnvFile(filename = ".env.local") {
       value = value.slice(1, -1);
     }
 
-    if (!process.env[key]) {
+    if (override || process.env[key] === undefined) {
       process.env[key] = value;
     }
   }
