@@ -92,6 +92,14 @@ SYNC_WRITE=true
 - `src/logger.js`: salida JSON estructurada
 - `src/report.js`: generacion de reportes y resumenes
 
+## Documentacion del proyecto
+
+- `docs/inventario-entorno.md`: levantamiento tecnico del servidor y su entorno
+- `docs/estado-integracion-sap-prestashop.md`: estado de la integracion
+  historica y del reemplazo en curso
+- `docs/handoff-ia-sap-prestashop.md`: contexto de continuidad para otra IA o
+  tecnico
+
 ## Estado actual
 
 El script resuelve:

@@ -554,3 +554,169 @@ Lectura SAP
 Cuando complete esa verificacion podre establecer con mayor precision el
 estado real, los errores actuales y el esfuerzo necesario para mantener o
 reemplazar la solucion.
+
+## 14. Estado del reemplazo Node.js al 2026-06-16
+
+Ademas del levantamiento sobre la solucion .NET existente, avance en un
+reemplazo controlado en Node.js para independizar la sincronizacion del
+proveedor anterior.
+
+### Ubicacion del proyecto
+
+Repositorio Git:
+
+```text
+MSoftIA/sap-sync-ps
+```
+
+Ruta local del repositorio de trabajo:
+
+```text
+C:\Users\Administrator\Desktop\msoftia\sap-sync-ps
+```
+
+### Que ya hace este reemplazo
+
+- Conecta directamente a SAP HANA.
+- Lee articulos desde `BD_CARBALLO`.
+- Busca productos por referencia en PrestaShop.
+- Lee producto, combinaciones y stock.
+- Genera reportes JSON y CSV por corrida.
+- Puede ejecutar escrituras reales cuando `SYNC_WRITE=true`.
+
+### Conexion HANA confirmada
+
+El reemplazo ya valida conexion con:
+
+```text
+hanab1:30015
+```
+
+Usuario dedicado:
+
+```text
+PS_SYNC
+```
+
+El objetivo de este usuario es consultar SAP HANA con permisos de solo
+lectura, sin depender del usuario funcional `manager`.
+
+### Estado de la escritura real en PrestaShop
+
+Se confirmaron tres fases claras durante la depuracion:
+
+1. `PATCH` no era aceptado por esta instalacion de PrestaShop.
+2. Al pasar a `PUT`, las actualizaciones de stock comenzaron a funcionar.
+3. La creacion de productos nuevos ya no siempre falla, pero varios productos
+   quedaron creados en estado inconsistente.
+
+### Funcionalidad ya confirmada
+
+Los `PUT` de `stock_available` ya funcionan en varios casos. En consola se
+observaron multiples mensajes:
+
+```text
+Accion aplicada en PrestaShop
+action: update_product_stock
+```
+
+Por tanto, a esta fecha puedo afirmar que el reemplazo propio ya es capaz de
+actualizar existencias en PrestaShop para varios productos simples.
+
+### Problemas aun abiertos
+
+#### 1. Actualizacion de precio
+
+Los cambios de precio todavia presentan fallos intermitentes por campos no
+escribibles del XML completo del producto.
+
+Errores confirmados durante la depuracion:
+
+- `parameter "manufacturer_name" not writable`
+- `parameter "quantity" not writable`
+
+Estos mensajes confirman que la API rechaza ciertos nodos del XML si se envian
+de vuelta mediante `PUT`.
+
+#### 2. Productos creados pero no sanos
+
+Durante la prueba del reemplazo propio, varios productos que no existian en
+PrestaShop pasaron a existir, lo que demuestra que la creacion ya llega a
+ejecutarse.
+
+Sin embargo, al intentar leerlos de nuevo, algunos responden:
+
+```text
+HTTP 500
+PHP Notice #8
+Trying to access array offset on value of type bool
+/var/www/html/classes/Product.php line 7184
+```
+
+Mi interpretacion actual es que parte de esos productos fueron creados con una
+estructura incompleta o inconsistente para esa instalacion de PrestaShop.
+
+#### 3. Revision pendiente sobre productos "rotos"
+
+Estos IDs deben tratarse con cuidado porque parecen haber sido creados por el
+nuevo proceso, pero no se comportan como productos sanos al consultarlos:
+
+- `6515`
+- `6516`
+- `6517`
+- `6518`
+- `6519`
+- `6520`
+- `6521`
+- `6522`
+- `6523`
+- `6524`
+- `6525`
+- `6526`
+- `6527`
+- `6528`
+- `6529`
+- `6530`
+- `6531`
+- `6532`
+- `6533`
+- `6534`
+- `6535`
+
+No recomiendo borrarlos manualmente todavia sin definir primero:
+
+- como distinguirlos de productos historicos validos
+- como recrearlos correctamente
+- que dependencias de categoria, tienda o asociaciones les faltan
+
+### Resumen operativo del reemplazo
+
+| Capacidad | Estado actual |
+|---|---|
+| Lectura SAP HANA | Funciona |
+| Lectura PrestaShop | Funciona en productos sanos |
+| Actualizacion de stock | Funciona en varios productos |
+| Actualizacion de precio | Parcial, todavia en ajuste |
+| Creacion de producto nuevo | Parcial, con casos inconsistentes |
+| Manejo de combinaciones | Solo inspeccion y comparacion |
+| Reparacion de productos invalidos | Pendiente |
+
+### Siguiente linea de trabajo recomendada
+
+1. Terminar de estabilizar el `PUT` de producto para cambios de precio.
+2. Definir una rutina para reparar o recrear productos dados de alta en estado
+   inconsistente.
+3. Mantener las combinaciones fuera de automatizacion agresiva hasta confirmar
+   el mapeo correcto.
+
+### Documentacion de continuidad
+
+Para entregar este estado a otra IA o a otro tecnico, deje un documento
+especifico de handoff en:
+
+```text
+docs/handoff-ia-sap-prestashop.md
+```
+
+Ese archivo resume entorno, query SAP, comportamiento de la API, errores
+confirmados, decisiones tecnicas ya tomadas y los siguientes pasos propuestos.
