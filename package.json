@@ -1,0 +1,19 @@
+{
+  "name": "carballo-sap-prestashop-sync",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Scripts de investigacion para sincronizacion SAP HANA a PrestaShop.",
+  "type": "commonjs",
+  "scripts": {
+    "format": "prettier --write main.js",
+    "start": "node .\\main.js",
+    "dev": "powershell -NoProfile -Command Clear-Host; npm run format; npm run start",
+    "test:hana": "node scripts/test-hana.js"
+  },
+  "dependencies": {
+    "@sap/hana-client": "^2.25.29"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.4"
+  }
+}

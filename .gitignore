@@ -1,0 +1,12 @@
+node_modules/
+.env.local
+*.log
+npm-debug.log*
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Editors
+.vscode/
+.idea/
