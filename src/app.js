@@ -5,6 +5,7 @@ const {
   hasPrestaConfig,
   inspectProductByReference,
 } = require("./prestashop");
+const { writeRunReports } = require("./report");
 const { readSapArticles } = require("./sap");
 
 function logEnvLoad() {
@@ -49,6 +50,37 @@ function logComparison(article, inspection) {
   });
 }
 
+function buildResultRow(article, inspection) {
+  const isCombination = inspection.bestMatch.kind === "combination";
+
+  return {
+    status: isCombination ? "matched_combination" : "matched_product",
+    itemCode: article.itemCode,
+    itemName: article.itemName,
+    sapPrice: article.price,
+    sapStock: article.stock,
+    productId: inspection.productId,
+    productReference: inspection.reference,
+    productPrice: inspection.productPrice,
+    selectedKind: inspection.bestMatch.kind,
+    selectedReason: inspection.bestMatch.reason,
+    selectedCombinationId: isCombination
+      ? inspection.bestMatch.combination.id
+      : null,
+    selectedCombinationReference: isCombination
+      ? inspection.bestMatch.combination.reference
+      : "",
+    selectedCombinationPrice: isCombination
+      ? inspection.bestMatch.combination.price
+      : null,
+    selectedStockQuantity: inspection.bestMatch.stock
+      ? inspection.bestMatch.stock.quantity
+      : null,
+    matchCount: inspection.matchCount,
+    error: "",
+  };
+}
+
 async function run() {
   log("info", "Iniciando main.js", {
     cwd: process.cwd(),
@@ -68,29 +100,82 @@ async function run() {
   }
 
   const prestaClient = createPrestaClient(log);
+  const results = [];
 
   for (const article of articles) {
-    const inspection = await inspectProductByReference(
-      prestaClient,
-      article,
-      log,
-    );
-    if (!inspection) continue;
+    try {
+      const inspection = await inspectProductByReference(
+        prestaClient,
+        article,
+        log,
+      );
 
-    log("data", "Producto PrestaShop", {
-      productId: inspection.productId,
-      reference: inspection.reference,
-      active: inspection.active,
-      defaultCategory: inspection.defaultCategory,
-      productPrice: inspection.productPrice,
-      combinationIds: inspection.combinationIds,
-      stockIds: inspection.stockIds,
-      combinations: inspection.combinations,
-      stockAvailables: inspection.stockAvailables,
-    });
+      if (!inspection) {
+        results.push({
+          status: "not_found",
+          itemCode: article.itemCode,
+          itemName: article.itemName,
+          sapPrice: article.price,
+          sapStock: article.stock,
+          productId: null,
+          productReference: "",
+          productPrice: null,
+          selectedKind: "",
+          selectedReason: "not_found",
+          selectedCombinationId: null,
+          selectedCombinationReference: "",
+          selectedCombinationPrice: null,
+          selectedStockQuantity: null,
+          matchCount: 0,
+          error: "",
+        });
+        continue;
+      }
 
-    logComparison(article, inspection);
+      log("data", "Producto PrestaShop", {
+        productId: inspection.productId,
+        reference: inspection.reference,
+        active: inspection.active,
+        defaultCategory: inspection.defaultCategory,
+        productPrice: inspection.productPrice,
+        combinationIds: inspection.combinationIds,
+        stockIds: inspection.stockIds,
+        combinations: inspection.combinations,
+        stockAvailables: inspection.stockAvailables,
+      });
+
+      logComparison(article, inspection);
+      results.push(buildResultRow(article, inspection));
+    } catch (error) {
+      log("error", "Fallo inspeccionando articulo", {
+        itemCode: article.itemCode,
+        name: error.name,
+        message: error.message,
+        code: error.code || null,
+      });
+
+      results.push({
+        status: "error",
+        itemCode: article.itemCode,
+        itemName: article.itemName,
+        sapPrice: article.price,
+        sapStock: article.stock,
+        productId: null,
+        productReference: "",
+        productPrice: null,
+        selectedKind: "",
+        selectedReason: "error",
+        selectedCombinationId: null,
+        selectedCombinationReference: "",
+        selectedCombinationPrice: null,
+        selectedStockQuantity: null,
+        matchCount: 0,
+        error: error.message,
+      });
+    }
   }
+
+  writeRunReports(log, results);
 }
 
 module.exports = {

@@ -31,6 +31,8 @@ SAP_ITEM_CODE=61072505
 SAP_LIMIT=5
 PRESTASHOP_ENDPOINT=https://carballo.com.do
 PRESTASHOP_API_KEY=API_KEY
+REPORT_DIR=reports
+REPORT_BASENAME=sap-prestashop-diagnostic
 ```
 
 ## Scripts disponibles
@@ -82,3 +84,16 @@ El script resuelve:
 Esto nos permite validar con mas precision como se relaciona un `ItemCode`
 de SAP con una combinacion concreta de PrestaShop antes de automatizar
 escrituras.
+
+## Diagnostico masivo
+
+Para revisar muchos productos, deja `SAP_ITEM_CODE` vacio y ajusta `SAP_LIMIT`
+al lote que quieras analizar.
+
+Al final de cada corrida el script genera:
+
+- un resumen JSON
+- un detalle completo en JSON
+- un CSV facil de abrir en Excel
+
+Todos quedan en la carpeta configurada por `REPORT_DIR`.

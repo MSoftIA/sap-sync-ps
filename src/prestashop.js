@@ -275,6 +275,7 @@ async function inspectProductByReference(client, article, log) {
   return {
     productId,
     ...product,
+    matchCount: productIds.length,
     combinationIds: combinations.map((item) => item.id),
     stockIds: stockAvailables.map((item) => item.id),
     combinations,
