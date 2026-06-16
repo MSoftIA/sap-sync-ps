@@ -154,21 +154,7 @@ function buildResultRow(article, inspection) {
       ? "matched_product_ok"
       : "matched_product_diff";
   const syncPlan = buildSyncPlan(status, metrics, isCombination);
-  const actionPayload = buildActionPayload(
-    {
-      action: syncPlan.action,
-      productId: inspection.productId,
-      productReference: inspection.reference,
-      selectedCombinationId: isCombination
-        ? inspection.bestMatch.combination.id
-        : null,
-      sapPrice: article.price,
-      sapStock: article.stock,
-    },
-    article,
-  );
-
-  return {
+  const baseRow = {
     status,
     action: syncPlan.action,
     actionReason: syncPlan.reason,
@@ -207,16 +193,25 @@ function buildResultRow(article, inspection) {
     matchCount: inspection.matchCount,
     error: "",
   };
+
+  const actionPayload = buildActionPayload(baseRow, article);
+
+  return {
+    ...baseRow,
+    blockedReason: actionPayload.blockedReason,
+    payloadSummary: actionPayload.payloadSummary,
+    actionPayload: actionPayload.payload,
+  };
 }
 
 async function run() {
+  logEnvLoad();
+
   log("info", "Iniciando main.js", {
     cwd: process.cwd(),
     node: process.version,
     syncWrite: isWriteEnabled(),
   });
-
-  logEnvLoad();
 
   const articles = readSapArticles(log);
 
