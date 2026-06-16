@@ -257,11 +257,7 @@ function buildPutStockXml(existingXml, quantity) {
 }
 
 async function createProductWithFallbackName(client, row) {
-  const schemaXml = await client.getSchema("products");
-  const createXml = buildCreateProductXmlFromSchema(
-    schemaXml,
-    row.actionPayload,
-  );
+  const createXml = buildCreateProductXml(row.actionPayload);
 
   try {
     return await client.post("products", createXml);
@@ -286,11 +282,7 @@ async function createProductWithFallbackName(client, row) {
       },
     };
 
-    const fallbackXml = buildCreateProductXmlFromSchema(
-      schemaXml,
-      fallbackPayload,
-    );
-    return client.post("products", fallbackXml);
+    return client.post("products", buildCreateProductXml(fallbackPayload));
   }
 }
 
