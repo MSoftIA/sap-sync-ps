@@ -9,10 +9,14 @@ const path = require("path");
 const fs = require("fs");
 const {
   createPrestaClient,
+  deletePrestaProduct,
   hasPrestaConfig,
+  inspectProductByReferenceValue,
+  listAllProductsWithReference,
   readPrestaOverview,
+  updatePrestaProductActive,
 } = require("./src/prestashop");
-const { readSapOverview } = require("./src/sap");
+const { readSapArticleByCode, readSapOverview } = require("./src/sap");
 const { log } = require("./src/logger");
 
 const app = express();
@@ -38,6 +42,59 @@ function buildContrast(sap, prestashop) {
     inactiveGap: sap.inactiveProducts - prestashop.inactiveProducts,
     sapHasMoreProducts: sap.totalProducts > prestashop.totalProducts,
     sapHasFewerProducts: sap.totalProducts < prestashop.totalProducts,
+  };
+}
+
+function getLatestReport() {
+  const reportDir = path.join(process.cwd(), env("REPORT_DIR", "reports"));
+  const files = fs
+    .readdirSync(reportDir)
+    .filter((f) => f.endsWith(".summary.json"))
+    .sort()
+    .reverse();
+
+  if (files.length === 0) {
+    return null;
+  }
+
+  return JSON.parse(fs.readFileSync(path.join(reportDir, files[0]), "utf8"));
+}
+
+function buildExecutiveSummary(overview, latestReport) {
+  const summary = latestReport ? latestReport.summary || {} : {};
+  const actions = latestReport ? latestReport.recommendedActions || {} : {};
+  const contrast = overview ? overview.contrast : null;
+
+  const createCount = actions.createProduct || 0;
+  const updateCount =
+    (actions.updateProductPrice || 0) +
+    (actions.updateProductStock || 0) +
+    (actions.updateProductPriceAndStock || 0);
+  const reviewCount =
+    (actions.reviewCombinationMapping || 0) + (actions.reviewError || 0);
+  const errorCount = summary.errors || 0;
+
+  let overallStatus = "ok";
+  let headline = "El tablero no muestra alertas criticas.";
+
+  if (errorCount > 0) {
+    overallStatus = "error";
+    headline =
+      "Hay errores en la ultima corrida y conviene revisarlos antes de seguir.";
+  } else if (createCount > 0 || updateCount > 0 || reviewCount > 0) {
+    overallStatus = "attention";
+    headline =
+      "Hay diferencias entre SAP y PrestaShop. El tablero recomienda revisar o sincronizar cambios.";
+  }
+
+  return {
+    overallStatus,
+    headline,
+    createCount,
+    updateCount,
+    reviewCount,
+    errorCount,
+    productGap: contrast ? contrast.productGap : null,
   };
 }
 
@@ -127,6 +184,181 @@ app.get("/api/catalog-overview", async (req, res) => {
   const forceRefresh = req.query.refresh === "true";
   const payload = await getCatalogOverview(forceRefresh);
   res.json(payload);
+});
+
+app.get("/api/dashboard-summary", async (req, res) => {
+  const forceRefresh = req.query.refresh === "true";
+  const overview = await getCatalogOverview(forceRefresh);
+  let latestReport = null;
+
+  try {
+    latestReport = getLatestReport();
+  } catch {}
+
+  res.json({
+    generatedAt: new Date().toISOString(),
+    latestReport,
+    overview,
+    executive: buildExecutiveSummary(overview, latestReport),
+  });
+});
+
+app.get("/api/prestashop-control", async (req, res) => {
+  const reference = String(req.query.reference || "").trim();
+
+  if (!reference) {
+    res.status(400).json({ error: "Falta reference" });
+    return;
+  }
+
+  const result = {
+    reference,
+    sap: null,
+    prestashop: null,
+    comparison: null,
+  };
+
+  try {
+    result.sap = readSapArticleByCode(log, reference);
+  } catch (error) {
+    result.sap = { error: error.message };
+  }
+
+  if (!hasPrestaConfig()) {
+    result.prestashop = {
+      error: "PRESTASHOP_ENDPOINT o PRESTASHOP_API_KEY no configurados",
+    };
+  } else {
+    try {
+      const client = createPrestaClient(log);
+      result.prestashop = await inspectProductByReferenceValue(
+        client,
+        reference,
+        log,
+      );
+    } catch (error) {
+      result.prestashop = { error: error.message };
+    }
+  }
+
+  if (
+    result.sap &&
+    !result.sap.error &&
+    result.prestashop &&
+    !result.prestashop.error &&
+    result.prestashop
+  ) {
+    result.comparison = {
+      existsInSap: true,
+      existsInPrestashop: true,
+      samePrice:
+        Number(result.sap.price) === Number(result.prestashop.productPrice),
+      stockRecords: result.prestashop.stockAvailables
+        ? result.prestashop.stockAvailables.length
+        : 0,
+    };
+  } else {
+    result.comparison = {
+      existsInSap: Boolean(
+        result.sap && !result.sap.error && result.sap.itemCode,
+      ),
+      existsInPrestashop: Boolean(
+        result.prestashop &&
+        !result.prestashop.error &&
+        result.prestashop.productId,
+      ),
+    };
+  }
+
+  res.json(result);
+});
+
+app.post("/api/prestashop-control/active", async (req, res) => {
+  const productId = Number(req.body.productId || 0);
+  const active = Boolean(req.body.active);
+
+  if (!productId) {
+    res.status(400).json({ error: "Falta productId" });
+    return;
+  }
+
+  if (!hasPrestaConfig()) {
+    res.status(400).json({
+      error: "PRESTASHOP_ENDPOINT o PRESTASHOP_API_KEY no configurados",
+    });
+    return;
+  }
+
+  try {
+    const client = createPrestaClient(log);
+    const result = await updatePrestaProductActive(client, productId, active);
+    overviewCache = { updatedAt: 0, payload: null };
+    res.json({
+      ok: true,
+      message: active
+        ? "Producto activado en PrestaShop"
+        : "Producto desactivado en PrestaShop",
+      result,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/duplicates", async (req, res) => {
+  if (!hasPrestaConfig()) {
+    res.status(400).json({
+      error: "PRESTASHOP_ENDPOINT o PRESTASHOP_API_KEY no configurados",
+    });
+    return;
+  }
+
+  try {
+    const client = createPrestaClient(log);
+    const products = await listAllProductsWithReference(client);
+
+    const groups = {};
+    for (const p of products) {
+      const ref = (p.reference || "").trim();
+      if (!ref) continue;
+      if (!groups[ref]) groups[ref] = [];
+      groups[ref].push(p);
+    }
+
+    const duplicates = Object.entries(groups)
+      .filter(([, list]) => list.length > 1)
+      .map(([reference, list]) => ({ reference, products: list }))
+      .sort((a, b) => a.reference.localeCompare(b.reference));
+
+    res.json({ total: duplicates.length, duplicates });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete("/api/products/:id", async (req, res) => {
+  const productId = Number(req.params.id);
+
+  if (!productId) {
+    res.status(400).json({ error: "ID de producto invalido" });
+    return;
+  }
+
+  if (!hasPrestaConfig()) {
+    res.status(400).json({
+      error: "PRESTASHOP_ENDPOINT o PRESTASHOP_API_KEY no configurados",
+    });
+    return;
+  }
+
+  try {
+    const client = createPrestaClient(log);
+    await deletePrestaProduct(client, productId);
+    overviewCache = { updatedAt: 0, payload: null };
+    res.json({ ok: true, message: "Producto eliminado", productId });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.get("/api/sync", (req, res) => {
