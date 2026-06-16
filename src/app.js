@@ -83,6 +83,58 @@ function buildMetrics(article, inspection) {
   };
 }
 
+function buildSyncPlan(status, metrics, isCombination) {
+  if (status === "create_from_sap") {
+    return {
+      action: "create_product",
+      syncPrice: true,
+      syncStock: true,
+      syncName: true,
+      reason: "missing_in_prestashop",
+    };
+  }
+
+  if (status === "matched_combination_review" || isCombination) {
+    return {
+      action: "review_combination_mapping",
+      syncPrice: metrics.isPriceEqual === false,
+      syncStock: metrics.isStockEqual === false,
+      syncName: false,
+      reason: "combination_requires_review",
+    };
+  }
+
+  if (status === "matched_product_ok") {
+    return {
+      action: "skip_no_change",
+      syncPrice: false,
+      syncStock: false,
+      syncName: false,
+      reason: "already_in_sync",
+    };
+  }
+
+  const syncPrice = metrics.isPriceEqual === false;
+  const syncStock = metrics.isStockEqual === false;
+
+  let action = "update_product";
+  if (syncPrice && syncStock) {
+    action = "update_product_price_and_stock";
+  } else if (syncPrice) {
+    action = "update_product_price";
+  } else if (syncStock) {
+    action = "update_product_stock";
+  }
+
+  return {
+    action,
+    syncPrice,
+    syncStock,
+    syncName: false,
+    reason: "existing_product_diff",
+  };
+}
+
 function buildResultRow(article, inspection) {
   const isCombination = inspection.bestMatch.kind === "combination";
   const metrics = buildMetrics(article, inspection);
@@ -96,10 +148,15 @@ function buildResultRow(article, inspection) {
     : metrics.isPriceEqual && metrics.isStockEqual
       ? "matched_product_ok"
       : "matched_product_diff";
+  const syncPlan = buildSyncPlan(status, metrics, isCombination);
 
   return {
     status,
-    action: "update_existing",
+    action: syncPlan.action,
+    actionReason: syncPlan.reason,
+    syncPrice: syncPlan.syncPrice,
+    syncStock: syncPlan.syncStock,
+    syncName: syncPlan.syncName,
     needsReview,
     itemCode: article.itemCode,
     itemName: article.itemName,
@@ -163,7 +220,11 @@ async function run() {
       if (!inspection) {
         results.push({
           status: "create_from_sap",
-          action: "create_in_prestashop",
+          action: "create_product",
+          actionReason: "missing_in_prestashop",
+          syncPrice: true,
+          syncStock: true,
+          syncName: true,
           needsReview: false,
           itemCode: article.itemCode,
           itemName: article.itemName,
@@ -213,6 +274,10 @@ async function run() {
       results.push({
         status: "error",
         action: "review_error",
+        actionReason: "inspection_error",
+        syncPrice: false,
+        syncStock: false,
+        syncName: false,
         needsReview: true,
         itemCode: article.itemCode,
         itemName: article.itemName,

@@ -73,6 +73,7 @@ npm run dev
 - `src/xml.js`: utilidades XML
 - `src/env.js`: carga y validacion de entorno
 - `src/logger.js`: salida JSON estructurada
+- `src/report.js`: generacion de reportes y resumenes
 
 ## Estado actual
 
@@ -100,7 +101,16 @@ Al final de cada corrida el script genera:
 - un CSV facil de abrir en Excel
 
 Cuando un producto existe en SAP y no existe en PrestaShop, el reporte lo
-marca como `create_from_sap`. Esa es la señal para crearlo en la tienda, ya que
+marca como `create_from_sap`. Esa es la senal para crearlo en la tienda, ya que
 SAP se considera la fuente de verdad.
 
-Todos quedan en la carpeta configurada por `REPORT_DIR`.
+El reporte tambien propone un plan de accion por fila, por ejemplo:
+
+- `create_product`
+- `update_product_price`
+- `update_product_stock`
+- `update_product_price_and_stock`
+- `skip_no_change`
+- `review_combination_mapping`
+
+Todos los archivos quedan en la carpeta configurada por `REPORT_DIR`.

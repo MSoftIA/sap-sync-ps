@@ -64,6 +64,10 @@ function toCsvRows(results) {
   const headers = [
     "status",
     "action",
+    "actionReason",
+    "syncPrice",
+    "syncStock",
+    "syncName",
     "needsReview",
     "itemCode",
     "itemName",
@@ -91,6 +95,10 @@ function toCsvRows(results) {
     const row = [
       result.status,
       result.action,
+      result.actionReason,
+      result.syncPrice,
+      result.syncStock,
+      result.syncName,
       result.needsReview,
       result.itemCode,
       result.itemName,
@@ -127,6 +135,28 @@ function writeRunReports(log, results) {
     JSON.stringify(
       {
         generatedAt: new Date().toISOString(),
+        recommendedActions: {
+          createProduct: results.filter(
+            (item) => item.action === "create_product",
+          ).length,
+          updateProductPrice: results.filter(
+            (item) => item.action === "update_product_price",
+          ).length,
+          updateProductStock: results.filter(
+            (item) => item.action === "update_product_stock",
+          ).length,
+          updateProductPriceAndStock: results.filter(
+            (item) => item.action === "update_product_price_and_stock",
+          ).length,
+          skipNoChange: results.filter(
+            (item) => item.action === "skip_no_change",
+          ).length,
+          reviewCombinationMapping: results.filter(
+            (item) => item.action === "review_combination_mapping",
+          ).length,
+          reviewError: results.filter((item) => item.action === "review_error")
+            .length,
+        },
         summary,
       },
       null,
