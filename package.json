@@ -5,7 +5,8 @@
   "description": "Scripts de investigacion para sincronizacion SAP HANA a PrestaShop.",
   "type": "commonjs",
   "scripts": {
-    "format": "prettier --write main.js",
+    "format": "prettier --write \"*.js\" \"src/**/*.js\" \"scripts/**/*.js\"",
+    "lint": "prettier --check \"*.js\" \"src/**/*.js\" \"scripts/**/*.js\"",
     "start": "node .\\main.js",
     "dev": "powershell -NoProfile -Command Clear-Host; npm run format; npm run start",
     "test:hana": "node scripts/test-hana.js"
