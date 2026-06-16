@@ -104,7 +104,7 @@ function readSapArticles(log) {
     });
 
     for (const article of articles) {
-      log("data", "Articulo SAP", article);
+      log("debug", "Articulo SAP", article);
     }
 
     return articles;

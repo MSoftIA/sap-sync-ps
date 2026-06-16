@@ -45,13 +45,13 @@ function createPrestaClient(log) {
 
   async function get(resource, params = {}) {
     const url = buildUrl(resource, params);
-    log("info", "GET PrestaShop", { url: safeUrl(url) });
+    log("debug", "GET PrestaShop", { url: safeUrl(url) });
 
     const startedAt = Date.now();
     const response = await fetch(url, { method: "GET" });
     const text = await response.text();
 
-    log("info", "Respuesta PrestaShop", {
+    log("debug", "Respuesta PrestaShop", {
       status: response.status,
       ok: response.ok,
       elapsedMs: Date.now() - startedAt,

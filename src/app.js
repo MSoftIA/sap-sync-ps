@@ -249,7 +249,7 @@ async function run() {
         continue;
       }
 
-      log("data", "Producto PrestaShop", {
+      log("debug", "Producto PrestaShop", {
         productId: inspection.productId,
         reference: inspection.reference,
         active: inspection.active,

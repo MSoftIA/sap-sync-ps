@@ -33,6 +33,7 @@ PRESTASHOP_ENDPOINT=https://carballo.com.do
 PRESTASHOP_API_KEY=API_KEY
 REPORT_DIR=reports
 REPORT_BASENAME=sap-prestashop-diagnostic
+LOG_LEVEL=info
 ```
 
 Cuando existe `.env.local`, sus valores prevalecen sobre variables viejas que
@@ -62,6 +63,12 @@ Ejecutar el flujo actual completo:
 
 ```powershell
 npm run dev
+```
+
+Para ver mas detalle tecnico en consola durante una corrida:
+
+```text
+LOG_LEVEL=debug
 ```
 
 ## Estructura
