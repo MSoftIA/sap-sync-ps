@@ -38,17 +38,22 @@ function createRunReportPaths() {
 function buildSummary(results) {
   const summary = {
     total: results.length,
-    matchedCombination: 0,
-    matchedProduct: 0,
-    notFound: 0,
+    matchedProductOk: 0,
+    matchedProductDiff: 0,
+    matchedCombinationReview: 0,
+    createFromSap: 0,
+    needsReview: 0,
     errors: 0,
   };
 
   for (const result of results) {
-    if (result.status === "matched_combination")
-      summary.matchedCombination += 1;
-    else if (result.status === "matched_product") summary.matchedProduct += 1;
-    else if (result.status === "not_found") summary.notFound += 1;
+    if (result.needsReview) summary.needsReview += 1;
+    if (result.status === "matched_product_ok") summary.matchedProductOk += 1;
+    else if (result.status === "matched_product_diff")
+      summary.matchedProductDiff += 1;
+    else if (result.status === "matched_combination_review")
+      summary.matchedCombinationReview += 1;
+    else if (result.status === "create_from_sap") summary.createFromSap += 1;
     else if (result.status === "error") summary.errors += 1;
   }
 
@@ -58,6 +63,8 @@ function buildSummary(results) {
 function toCsvRows(results) {
   const headers = [
     "status",
+    "action",
+    "needsReview",
     "itemCode",
     "itemName",
     "sapPrice",
@@ -71,6 +78,10 @@ function toCsvRows(results) {
     "selectedCombinationReference",
     "selectedCombinationPrice",
     "selectedStockQuantity",
+    "priceDiff",
+    "stockDiff",
+    "isPriceEqual",
+    "isStockEqual",
     "error",
   ];
 
@@ -79,6 +90,8 @@ function toCsvRows(results) {
   for (const result of results) {
     const row = [
       result.status,
+      result.action,
+      result.needsReview,
       result.itemCode,
       result.itemName,
       result.sapPrice,
@@ -92,6 +105,10 @@ function toCsvRows(results) {
       result.selectedCombinationReference,
       result.selectedCombinationPrice,
       result.selectedStockQuantity,
+      result.priceDiff,
+      result.stockDiff,
+      result.isPriceEqual,
+      result.isStockEqual,
       result.error,
     ].map(csvEscape);
 

@@ -99,4 +99,8 @@ Al final de cada corrida el script genera:
 - un detalle completo en JSON
 - un CSV facil de abrir en Excel
 
+Cuando un producto existe en SAP y no existe en PrestaShop, el reporte lo
+marca como `create_from_sap`. Esa es la señal para crearlo en la tienda, ya que
+SAP se considera la fuente de verdad.
+
 Todos quedan en la carpeta configurada por `REPORT_DIR`.

@@ -50,11 +50,57 @@ function logComparison(article, inspection) {
   });
 }
 
-function buildResultRow(article, inspection) {
-  const isCombination = inspection.bestMatch.kind === "combination";
+function roundDiff(value) {
+  return Math.round(value * 10000) / 10000;
+}
+
+function buildMetrics(article, inspection) {
+  const selectedPrice =
+    inspection.bestMatch.kind === "combination"
+      ? inspection.bestMatch.combination.price
+      : inspection.productPrice;
+  const selectedStock = inspection.bestMatch.stock
+    ? inspection.bestMatch.stock.quantity
+    : null;
+  const priceDiff =
+    selectedPrice === null || selectedPrice === undefined
+      ? null
+      : roundDiff(article.price - selectedPrice);
+  const stockDiff =
+    selectedStock === null || selectedStock === undefined
+      ? null
+      : roundDiff(article.stock - selectedStock);
+  const isPriceEqual = priceDiff === 0;
+  const isStockEqual = stockDiff === 0;
 
   return {
-    status: isCombination ? "matched_combination" : "matched_product",
+    selectedPrice,
+    selectedStock,
+    priceDiff,
+    stockDiff,
+    isPriceEqual,
+    isStockEqual,
+  };
+}
+
+function buildResultRow(article, inspection) {
+  const isCombination = inspection.bestMatch.kind === "combination";
+  const metrics = buildMetrics(article, inspection);
+  const needsReview =
+    isCombination ||
+    !metrics.isPriceEqual ||
+    !metrics.isStockEqual ||
+    inspection.matchCount !== 1;
+  const status = isCombination
+    ? "matched_combination_review"
+    : metrics.isPriceEqual && metrics.isStockEqual
+      ? "matched_product_ok"
+      : "matched_product_diff";
+
+  return {
+    status,
+    action: "update_existing",
+    needsReview,
     itemCode: article.itemCode,
     itemName: article.itemName,
     sapPrice: article.price,
@@ -76,6 +122,10 @@ function buildResultRow(article, inspection) {
     selectedStockQuantity: inspection.bestMatch.stock
       ? inspection.bestMatch.stock.quantity
       : null,
+    priceDiff: metrics.priceDiff,
+    stockDiff: metrics.stockDiff,
+    isPriceEqual: metrics.isPriceEqual,
+    isStockEqual: metrics.isStockEqual,
     matchCount: inspection.matchCount,
     error: "",
   };
@@ -112,7 +162,9 @@ async function run() {
 
       if (!inspection) {
         results.push({
-          status: "not_found",
+          status: "create_from_sap",
+          action: "create_in_prestashop",
+          needsReview: false,
           itemCode: article.itemCode,
           itemName: article.itemName,
           sapPrice: article.price,
@@ -126,6 +178,10 @@ async function run() {
           selectedCombinationReference: "",
           selectedCombinationPrice: null,
           selectedStockQuantity: null,
+          priceDiff: null,
+          stockDiff: null,
+          isPriceEqual: false,
+          isStockEqual: false,
           matchCount: 0,
           error: "",
         });
@@ -156,6 +212,8 @@ async function run() {
 
       results.push({
         status: "error",
+        action: "review_error",
+        needsReview: true,
         itemCode: article.itemCode,
         itemName: article.itemName,
         sapPrice: article.price,
@@ -169,6 +227,10 @@ async function run() {
         selectedCombinationReference: "",
         selectedCombinationPrice: null,
         selectedStockQuantity: null,
+        priceDiff: null,
+        stockDiff: null,
+        isPriceEqual: false,
+        isStockEqual: false,
         matchCount: 0,
         error: error.message,
       });
