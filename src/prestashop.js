@@ -80,11 +80,15 @@ function createPrestaClient(log) {
     return request("POST", resource, { params, body });
   }
 
+  async function put(resource, body, params = {}) {
+    return request("PUT", resource, { params, body });
+  }
+
   async function patch(resource, body, params = {}) {
     return request("PATCH", resource, { params, body });
   }
 
-  return { get, post, patch };
+  return { get, post, put, patch };
 }
 
 function parseProductSummary(productXml) {

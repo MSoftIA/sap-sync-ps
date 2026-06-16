@@ -42,8 +42,51 @@ function sanitizeProductName(text, fallback = "") {
   );
 }
 
+function sanitizeAsciiProductName(text, fallback = "") {
+  const normalized = sanitizeProductName(text, fallback)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z0-9 .,_()/#-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return (normalized || String(fallback || "").trim() || "Producto").slice(
+    0,
+    128,
+  );
+}
+
+function setTagValue(xml, tagName, value) {
+  const tagPattern = new RegExp(
+    `(<${tagName}(?:\\s[^>]*)?>)([\\s\\S]*?)(</${tagName}>)`,
+  );
+  return xml.replace(tagPattern, `$1${cdata(value)}$3`);
+}
+
+function setLanguageTagValue(xml, tagName, value, fallbackLanguageId = 1) {
+  const tagPattern = new RegExp(
+    `(<${tagName}(?:\\s[^>]*)?>)([\\s\\S]*?)(</${tagName}>)`,
+  );
+
+  return xml.replace(tagPattern, (_, openTag, inner, closeTag) => {
+    const updatedInner = inner.replace(
+      /(<language\b[^>]*>)([\s\S]*?)(<\/language>)/g,
+      `$1${cdata(value)}$3`,
+    );
+
+    if (updatedInner !== inner) {
+      return `${openTag}${updatedInner}${closeTag}`;
+    }
+
+    return (
+      `${openTag}<language id="${escapeXml(fallbackLanguageId)}">` +
+      `${cdata(value)}</language>${closeTag}`
+    );
+  });
+}
+
 function buildCreateProductXml(payload) {
-  const safeName = sanitizeProductName(
+  const safeName = sanitizeAsciiProductName(
     payload.product.name,
     payload.product.reference,
   );
@@ -122,6 +165,59 @@ async function findStockAvailableId(client, productId, productAttributeId = 0) {
   return ids[0] || null;
 }
 
+function buildPutProductXml(existingXml, payload = {}) {
+  let xml = existingXml;
+
+  if (payload.reference) {
+    xml = setTagValue(xml, "reference", payload.reference);
+  }
+
+  if (payload.price !== undefined) {
+    xml = setTagValue(xml, "price", payload.price);
+  }
+
+  if (payload.active !== undefined) {
+    xml = setTagValue(xml, "active", payload.active);
+  }
+
+  return xml;
+}
+
+function buildPutStockXml(existingXml, quantity) {
+  return setTagValue(existingXml, "quantity", quantity);
+}
+
+async function createProductWithFallbackName(client, row) {
+  const createXml = buildCreateProductXml(row.actionPayload);
+
+  try {
+    return await client.post("products", createXml);
+  } catch (error) {
+    const isNameValidationError =
+      error.message &&
+      error.message.includes("Product->name") &&
+      error.message.includes("Validation error");
+
+    if (!isNameValidationError) {
+      throw error;
+    }
+
+    const fallbackPayload = {
+      ...row.actionPayload,
+      product: {
+        ...row.actionPayload.product,
+        name: sanitizeAsciiProductName(
+          row.itemCode,
+          row.actionPayload.product.reference,
+        ),
+      },
+    };
+
+    const fallbackXml = buildCreateProductXml(fallbackPayload);
+    return client.post("products", fallbackXml);
+  }
+}
+
 async function executeSyncAction(client, row, log) {
   if (!isWriteEnabled()) {
     return {
@@ -155,8 +251,7 @@ async function executeSyncAction(client, row, log) {
   }
 
   if (row.action === "create_product") {
-    const createXml = buildCreateProductXml(row.actionPayload);
-    const createResponse = await client.post("products", createXml);
+    const createResponse = await createProductWithFallbackName(client, row);
     const productIds = parseAnyIdList(createResponse, "product");
     const productId = productIds[0];
 
@@ -166,11 +261,12 @@ async function executeSyncAction(client, row, log) {
 
     const stockId = await findStockAvailableId(client, productId, 0);
     if (stockId && row.actionPayload.stockAvailable) {
-      const stockXml = buildPatchStockXml(
-        stockId,
+      const existingStockXml = await client.get("stock_availables/" + stockId);
+      const stockXml = buildPutStockXml(
+        existingStockXml,
         row.actionPayload.stockAvailable.quantity,
       );
-      await client.patch("stock_availables/" + stockId, stockXml);
+      await client.put("stock_availables/" + stockId, stockXml);
     }
 
     log("info", "Producto creado en PrestaShop", {
@@ -197,11 +293,12 @@ async function executeSyncAction(client, row, log) {
       throw new Error("Falta actionPayload.product para action=" + row.action);
     }
 
-    const productXml = buildPatchProductXml(
-      row.productId,
+    const existingProductXml = await client.get("products/" + row.productId);
+    const productXml = buildPutProductXml(
+      existingProductXml,
       row.actionPayload.product,
     );
-    await client.patch("products/" + row.productId, productXml);
+    await client.put("products/" + row.productId, productXml);
   }
 
   if (
@@ -226,11 +323,12 @@ async function executeSyncAction(client, row, log) {
       );
     }
 
-    const stockXml = buildPatchStockXml(
-      stockId,
+    const existingStockXml = await client.get("stock_availables/" + stockId);
+    const stockXml = buildPutStockXml(
+      existingStockXml,
       row.actionPayload.stockAvailable.quantity,
     );
-    await client.patch("stock_availables/" + stockId, stockXml);
+    await client.put("stock_availables/" + stockId, stockXml);
   }
 
   log("info", "Accion aplicada en PrestaShop", {
