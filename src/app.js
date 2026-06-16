@@ -240,7 +240,7 @@ async function run() {
       );
 
       if (!inspection) {
-        results.push({
+        const createdRow = {
           status: "create_from_sap",
           action: "create_product",
           actionReason: "missing_in_prestashop",
@@ -270,8 +270,7 @@ async function run() {
           isStockEqual: false,
           matchCount: 0,
           error: "",
-        });
-        const createdRow = results[results.length - 1];
+        };
         const actionPayload = buildActionPayload(createdRow, article);
         createdRow.blockedReason = actionPayload.blockedReason;
         createdRow.payloadSummary = actionPayload.payloadSummary;
@@ -284,6 +283,7 @@ async function run() {
           createdRow,
           log,
         );
+        results.push(createdRow);
         continue;
       }
 

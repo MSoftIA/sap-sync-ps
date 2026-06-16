@@ -39,6 +39,21 @@ function parseIdList(xml, tagName) {
   return ids;
 }
 
+function parseNodeIdList(xml, tagName) {
+  return parseXmlBlocks(xml, tagName)
+    .map((block) => Number(xmlText(block, "id") || 0))
+    .filter((id) => Number.isFinite(id) && id > 0);
+}
+
+function parseAnyIdList(xml, tagName) {
+  const ids = parseIdList(xml, tagName);
+  if (ids.length > 0) {
+    return ids;
+  }
+
+  return parseNodeIdList(xml, tagName);
+}
+
 function parseXmlBlocks(xml, tagName) {
   const blocks = [];
   const re = new RegExp(
@@ -56,7 +71,9 @@ function parseXmlBlocks(xml, tagName) {
 
 module.exports = {
   decodeXml,
+  parseAnyIdList,
   parseIdList,
+  parseNodeIdList,
   parseXmlBlocks,
   xmlLanguageText,
   xmlText,

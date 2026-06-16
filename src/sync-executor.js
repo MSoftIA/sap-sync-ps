@@ -1,5 +1,5 @@
 const { env } = require("./env");
-const { parseIdList } = require("./xml");
+const { parseAnyIdList } = require("./xml");
 
 function isWriteEnabled() {
   return String(env("SYNC_WRITE", "false")).toLowerCase() === "true";
@@ -30,7 +30,25 @@ function slugify(text) {
   );
 }
 
+function sanitizeProductName(text, fallback = "") {
+  const normalized = String(text || fallback || "")
+    .replace(/[\u0000-\u001f\u007f]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return (normalized || String(fallback || "").trim() || "Producto").slice(
+    0,
+    128,
+  );
+}
+
 function buildCreateProductXml(payload) {
+  const safeName = sanitizeProductName(
+    payload.product.name,
+    payload.product.reference,
+  );
+  const safeSlug = slugify(safeName || payload.product.reference);
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <prestashop xmlns:xlink="http://www.w3.org/1999/xlink">
   <product>
@@ -45,19 +63,11 @@ function buildCreateProductXml(payload) {
     <price>${cdata(payload.product.price)}</price>
     <active>${cdata(payload.product.active)}</active>
     <name>
-      <language id="${escapeXml(payload.product.languageId)}">${cdata(payload.product.name)}</language>
+      <language id="${escapeXml(payload.product.languageId)}">${cdata(safeName)}</language>
     </name>
     <link_rewrite>
-      <language id="${escapeXml(payload.product.languageId)}">${cdata(
-        slugify(payload.product.name || payload.product.reference),
-      )}</language>
+      <language id="${escapeXml(payload.product.languageId)}">${cdata(safeSlug)}</language>
     </link_rewrite>
-    <description>
-      <language id="${escapeXml(payload.product.languageId)}">${cdata(payload.product.name)}</language>
-    </description>
-    <description_short>
-      <language id="${escapeXml(payload.product.languageId)}">${cdata(payload.product.name)}</language>
-    </description_short>
     <associations>
       <categories>
         <category>
@@ -69,7 +79,7 @@ function buildCreateProductXml(payload) {
 </prestashop>`;
 }
 
-function buildPatchProductXml(productId, payload) {
+function buildPatchProductXml(productId, payload = {}) {
   const fields = ["<id>" + cdata(productId) + "</id>"];
 
   if (payload.reference) {
@@ -108,7 +118,7 @@ async function findStockAvailableId(client, productId, productAttributeId = 0) {
     "filter[id_product]": productId,
     "filter[id_product_attribute]": productAttributeId,
   });
-  const ids = parseIdList(xml, "stock_available");
+  const ids = parseAnyIdList(xml, "stock_available");
   return ids[0] || null;
 }
 
@@ -147,7 +157,7 @@ async function executeSyncAction(client, row, log) {
   if (row.action === "create_product") {
     const createXml = buildCreateProductXml(row.actionPayload);
     const createResponse = await client.post("products", createXml);
-    const productIds = parseIdList(createResponse, "product");
+    const productIds = parseAnyIdList(createResponse, "product");
     const productId = productIds[0];
 
     if (!productId) {
@@ -183,6 +193,10 @@ async function executeSyncAction(client, row, log) {
     row.action === "update_product_price" ||
     row.action === "update_product_price_and_stock"
   ) {
+    if (!row.actionPayload || !row.actionPayload.product) {
+      throw new Error("Falta actionPayload.product para action=" + row.action);
+    }
+
     const productXml = buildPatchProductXml(
       row.productId,
       row.actionPayload.product,
@@ -194,6 +208,12 @@ async function executeSyncAction(client, row, log) {
     row.action === "update_product_stock" ||
     row.action === "update_product_price_and_stock"
   ) {
+    if (!row.actionPayload || !row.actionPayload.stockAvailable) {
+      throw new Error(
+        "Falta actionPayload.stockAvailable para action=" + row.action,
+      );
+    }
+
     const stockId = await findStockAvailableId(
       client,
       row.productId,
