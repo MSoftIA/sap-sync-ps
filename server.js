@@ -135,6 +135,97 @@ function getLatestReport() {
   return JSON.parse(fs.readFileSync(path.join(reportDir, files[0]), "utf8"));
 }
 
+function listSummaryFiles() {
+  const reportDir = path.join(process.cwd(), env("REPORT_DIR", "reports"));
+
+  try {
+    return fs
+      .readdirSync(reportDir)
+      .filter((f) => f.endsWith(".summary.json"))
+      .sort()
+      .reverse()
+      .map((file) => path.join(reportDir, file));
+  } catch {
+    return [];
+  }
+}
+
+function readJsonFileSafe(filePath) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function getLatestDomainSummary(domainKey) {
+  const files = listSummaryFiles();
+
+  if (domainKey === "products") {
+    for (const filePath of files) {
+      const payload = readJsonFileSafe(filePath);
+      if (!payload) continue;
+      if (!payload.domain && payload.summary) {
+        return payload;
+      }
+    }
+    return null;
+  }
+
+  for (const filePath of files) {
+    const payload = readJsonFileSafe(filePath);
+    if (!payload) continue;
+    if (payload.domain === domainKey && payload.summary) {
+      return payload;
+    }
+  }
+
+  return null;
+}
+
+function buildDomainAnalysisSummary() {
+  const products = getLatestDomainSummary("products");
+  const categories = getLatestDomainSummary("categories");
+
+  return {
+    generatedAt: new Date().toISOString(),
+    domains: {
+      products: products
+        ? {
+            key: "products",
+            available: true,
+            generatedAt: products.generatedAt || null,
+            summary: products.summary || {},
+            recommendedActions: products.recommendedActions || {},
+          }
+        : {
+            key: "products",
+            available: false,
+            summary: null,
+            recommendedActions: null,
+          },
+      categories: categories
+        ? {
+            key: "categories",
+            available: true,
+            generatedAt: categories.generatedAt || null,
+            summary: categories.summary || {},
+          }
+        : {
+            key: "categories",
+            available: false,
+            summary: null,
+          },
+      orders: {
+        key: "orders",
+        available: false,
+        summary: null,
+        note: "Dominio en discovery. Todavia no genera reportes propios.",
+      },
+    },
+  };
+}
+
 function buildExecutiveSummary(overview, latestReport) {
   const summary = latestReport ? latestReport.summary || {} : {};
   const actions = latestReport ? latestReport.recommendedActions || {} : {};
@@ -300,6 +391,10 @@ app.get("/api/dashboard-summary", async (req, res) => {
     overview,
     executive: buildExecutiveSummary(overview, latestReport),
   });
+});
+
+app.get("/api/domain-analysis", (req, res) => {
+  res.json(buildDomainAnalysisSummary());
 });
 
 app.get("/api/sync-domains", (req, res) => {

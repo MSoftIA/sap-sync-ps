@@ -308,6 +308,68 @@
         line-height: 1.45;
       }
 
+      .analysis-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 14px;
+      }
+
+      .analysis-card {
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: white;
+        padding: 16px;
+        box-shadow: var(--shadow);
+        display: grid;
+        gap: 12px;
+      }
+
+      .analysis-card-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: start;
+      }
+
+      .analysis-card-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 800;
+      }
+
+      .analysis-card-copy {
+        color: var(--muted);
+        font-size: 0.88rem;
+        line-height: 1.4;
+      }
+
+      .analysis-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .analysis-metric {
+        border-radius: 14px;
+        padding: 12px;
+        background: #f8fafc;
+        border: 1px solid #e6edf5;
+      }
+
+      .analysis-metric-label {
+        font-size: 0.78rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-weight: 800;
+        margin-bottom: 4px;
+      }
+
+      .analysis-metric-value {
+        font-size: 1.35rem;
+        font-weight: 800;
+      }
+
       .progress-shell {
         display: grid;
         gap: 10px;
@@ -997,6 +1059,120 @@
                   </div>
                 </div>
               </details>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-header">
+            <h2 class="section-title">Análisis por dominio</h2>
+            <div class="section-note">Cada bloque resume por separado qué tanto se ha analizado en productos, categorías y pedidos.</div>
+          </div>
+
+          <div class="analysis-grid">
+            <div class="analysis-card">
+              <div class="analysis-card-header">
+                <div>
+                  <h3 class="analysis-card-title">Productos</h3>
+                  <div class="analysis-card-copy">
+                    Diagnóstico y sincronización de precios, stock, altas y diferencias contra PrestaShop.
+                  </div>
+                </div>
+                <span id="analysis-products-status" class="tag gray">Sin datos</span>
+              </div>
+
+              <div class="analysis-metrics">
+                <div class="analysis-metric">
+                  <div class="analysis-metric-label">Última muestra</div>
+                  <div class="analysis-metric-value" id="analysis-products-total">-</div>
+                </div>
+                <div class="analysis-metric">
+                  <div class="analysis-metric-label">Para crear</div>
+                  <div class="analysis-metric-value" id="analysis-products-create">-</div>
+                </div>
+                <div class="analysis-metric">
+                  <div class="analysis-metric-label">Para actualizar</div>
+                  <div class="analysis-metric-value" id="analysis-products-update">-</div>
+                </div>
+                <div class="analysis-metric">
+                  <div class="analysis-metric-label">Revisión / errores</div>
+                  <div class="analysis-metric-value" id="analysis-products-review">-</div>
+                </div>
+              </div>
+
+              <div class="analysis-card-copy" id="analysis-products-note">
+                Todavía no hay una corrida de análisis de productos.
+              </div>
+            </div>
+
+            <div class="analysis-card">
+              <div class="analysis-card-header">
+                <div>
+                  <h3 class="analysis-card-title">Categorías</h3>
+                  <div class="analysis-card-copy">
+                    Diagnóstico de categoría principal desde SAP y propiedades activas `QryGroup*`.
+                  </div>
+                </div>
+                <span id="analysis-categories-status" class="tag gray">Sin datos</span>
+              </div>
+
+              <div class="analysis-metrics">
+                <div class="analysis-metric">
+                  <div class="analysis-metric-label">Artículos vistos</div>
+                  <div class="analysis-metric-value" id="analysis-categories-total">-</div>
+                </div>
+                <div class="analysis-metric">
+                  <div class="analysis-metric-label">Categorías únicas</div>
+                  <div class="analysis-metric-value" id="analysis-categories-main">-</div>
+                </div>
+                <div class="analysis-metric">
+                  <div class="analysis-metric-label">Propiedades activas</div>
+                  <div class="analysis-metric-value" id="analysis-categories-properties">-</div>
+                </div>
+                <div class="analysis-metric">
+                  <div class="analysis-metric-label">Sin categoría principal</div>
+                  <div class="analysis-metric-value" id="analysis-categories-missing">-</div>
+                </div>
+              </div>
+
+              <div class="analysis-card-copy" id="analysis-categories-note">
+                Todavía no hay una corrida de análisis de categorías.
+              </div>
+            </div>
+
+            <div class="analysis-card">
+              <div class="analysis-card-header">
+                <div>
+                  <h3 class="analysis-card-title">Pedidos</h3>
+                  <div class="analysis-card-copy">
+                    Estado del dominio de órdenes y preparación para futura integración.
+                  </div>
+                </div>
+                <span id="analysis-orders-status" class="tag amber">Discovery</span>
+              </div>
+
+              <div class="analysis-metrics">
+                <div class="analysis-metric">
+                  <div class="analysis-metric-label">Estado</div>
+                  <div class="analysis-metric-value" id="analysis-orders-total">-</div>
+                </div>
+                <div class="analysis-metric">
+                  <div class="analysis-metric-label">Lectura SAP</div>
+                  <div class="analysis-metric-value" id="analysis-orders-main">Sí</div>
+                </div>
+                <div class="analysis-metric">
+                  <div class="analysis-metric-label">Reporte propio</div>
+                  <div class="analysis-metric-value" id="analysis-orders-properties">No</div>
+                </div>
+                <div class="analysis-metric">
+                  <div class="analysis-metric-label">Sync automática</div>
+                  <div class="analysis-metric-value" id="analysis-orders-missing">No</div>
+                </div>
+              </div>
+
+              <div class="analysis-card-copy" id="analysis-orders-note">
+                Falta definir el flujo funcional antes de automatizar pedidos o estados.
+              </div>
             </div>
           </div>
         </section>
@@ -1721,6 +1897,91 @@
         badge.textContent = writeMode ? "Aplicar listo" : "Analizar listo";
       }
 
+      function setAnalysisTag(id, text, tone) {
+        const el = document.getElementById(id);
+        el.className = "tag " + (tone || "gray");
+        el.textContent = text;
+      }
+
+      function renderDomainAnalysis(domainSummary) {
+        const products = domainSummary.domains.products || {};
+        const categories = domainSummary.domains.categories || {};
+        const orders = domainSummary.domains.orders || {};
+
+        if (products.available && products.summary) {
+          const actions = products.recommendedActions || {};
+          const summary = products.summary || {};
+          const updateCount =
+            (actions.updateProductPrice || 0) +
+            (actions.updateProductStock || 0) +
+            (actions.updateProductPriceAndStock || 0);
+          const reviewCount =
+            (actions.reviewCombinationMapping || 0) +
+            (actions.reviewError || 0) +
+            (summary.errors || 0);
+
+          setAnalysisTag(
+            "analysis-products-status",
+            summary.errors > 0 ? "Con errores" : "Disponible",
+            summary.errors > 0 ? "red" : "green",
+          );
+          setText("analysis-products-total", summary.total);
+          setText("analysis-products-create", actions.createProduct);
+          setText("analysis-products-update", updateCount);
+          setText("analysis-products-review", reviewCount);
+          document.getElementById("analysis-products-note").textContent =
+            products.generatedAt
+              ? "Último análisis: " +
+                new Date(products.generatedAt).toLocaleString("es")
+              : "Hay análisis de productos disponible.";
+        } else {
+          setAnalysisTag("analysis-products-status", "Sin datos", "gray");
+          setText("analysis-products-total", "-");
+          setText("analysis-products-create", "-");
+          setText("analysis-products-update", "-");
+          setText("analysis-products-review", "-");
+          document.getElementById("analysis-products-note").textContent =
+            "Todavía no hay una corrida de análisis de productos.";
+        }
+
+        if (categories.available && categories.summary) {
+          const summary = categories.summary || {};
+          setAnalysisTag("analysis-categories-status", "Diagnóstico", "amber");
+          setText("analysis-categories-total", summary.total);
+          setText("analysis-categories-main", summary.uniqueMainCategories);
+          setText(
+            "analysis-categories-properties",
+            summary.uniqueActiveProperties,
+          );
+          setText(
+            "analysis-categories-missing",
+            summary.rowsWithoutMainCategory,
+          );
+          document.getElementById("analysis-categories-note").textContent =
+            categories.generatedAt
+              ? "Último diagnóstico: " +
+                new Date(categories.generatedAt).toLocaleString("es")
+              : "Hay diagnóstico de categorías disponible.";
+        } else {
+          setAnalysisTag("analysis-categories-status", "Sin datos", "gray");
+          setText("analysis-categories-total", "-");
+          setText("analysis-categories-main", "-");
+          setText("analysis-categories-properties", "-");
+          setText("analysis-categories-missing", "-");
+          document.getElementById("analysis-categories-note").textContent =
+            "Todavía no hay una corrida de análisis de categorías.";
+        }
+
+        setAnalysisTag("analysis-orders-status", "Discovery", "amber");
+        setText("analysis-orders-total", "Pend.");
+        setText("analysis-orders-main", "Sí");
+        setText("analysis-orders-properties", "No");
+        setText("analysis-orders-missing", "No");
+        document.getElementById("analysis-orders-note").textContent =
+          orders.note ||
+          "Falta definir el flujo funcional antes de automatizar pedidos o estados.";
+      }
+
       function renderReports(reports) {
         if (!reports.length) {
           document.getElementById("history-body").innerHTML =
@@ -1867,6 +2128,12 @@
         renderDomainSelector();
       }
 
+      async function loadDomainAnalysis() {
+        const response = await fetch("/api/domain-analysis");
+        const data = await response.json();
+        renderDomainAnalysis(data);
+      }
+
       async function loadDashboard(forceRefresh) {
         document.getElementById("overview-label").textContent = "Actualizando...";
 
@@ -1875,6 +2142,7 @@
         const overviewData = await overviewResponse.json();
         renderOverview(overviewData);
 
+        await loadDomainAnalysis();
         await loadReports();
         await loadStatus();
       }
