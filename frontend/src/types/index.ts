@@ -163,9 +163,19 @@ export interface PrestaProductSummary {
   reference: string
   name: string
   active: '1' | '0'
-  price: number
-  combinations: number
-  stock: number
+  productPrice: number
+  combinationCount: number
+  hasCombinations: boolean
+  stockTotal: number
+}
+
+export interface PaginationMeta {
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+  hasNextPage: boolean
+  hasPreviousPage: boolean
 }
 
 export type View = 'sync' | 'sap' | 'presta'

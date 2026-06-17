@@ -66,6 +66,7 @@ function buildSapProductListFilters({
   warehouse,
   search = "",
   status = "all",
+  stock = "all",
 }) {
   const filters = [
     `I."frozenFor" = 'N'`,
@@ -92,6 +93,13 @@ function buildSapProductListFilters({
     filters.push(`I."validFor" <> 'Y'`);
   }
 
+  const normalizedStock = String(stock || "all").trim().toLowerCase();
+  if (normalizedStock === "with") {
+    filters.push(`C."OnHand" > 0`);
+  } else if (normalizedStock === "without") {
+    filters.push(`C."OnHand" <= 0`);
+  }
+
   return {
     whereClause: filters.join(" AND "),
     params,
@@ -104,6 +112,7 @@ function buildSapProductListQuery({
   warehouse,
   search,
   status,
+  stock,
   page,
   pageSize,
 }) {
@@ -112,6 +121,7 @@ function buildSapProductListQuery({
     warehouse,
     search,
     status,
+    stock,
   });
   const safePage = Math.max(1, Number(page) || 1);
   const safePageSize = Math.max(1, Number(pageSize) || 50);
@@ -152,12 +162,14 @@ function buildSapProductListCountQuery({
   warehouse,
   search,
   status,
+  stock,
 }) {
   const { whereClause, params } = buildSapProductListFilters({
     priceList,
     warehouse,
     search,
     status,
+    stock,
   });
 
   return {
@@ -508,12 +520,16 @@ function readSapProductsPage(log, options = {}) {
   const status = String(options.status || "all")
     .trim()
     .toLowerCase();
+  const stock = String(options.stock || "all")
+    .trim()
+    .toLowerCase();
   const listQuery = buildSapProductListQuery({
     schema: config.query.schema,
     priceList: config.query.priceList,
     warehouse: config.query.warehouse,
     search,
     status,
+    stock,
     page,
     pageSize,
   });
@@ -523,6 +539,7 @@ function readSapProductsPage(log, options = {}) {
     warehouse: config.query.warehouse,
     search,
     status,
+    stock,
   });
 
   try {

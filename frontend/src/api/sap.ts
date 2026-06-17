@@ -1,49 +1,26 @@
-import type { SapArticle } from '../types'
+import type { SapArticle, PaginationMeta } from '../types'
 
-export interface SapArticlesResponse {
-  total: number
+export interface SapProductsParams {
+  page?: number
+  pageSize?: number
+  search?: string
+  status?: 'all' | 'active' | 'inactive'
+  stock?: 'all' | 'with' | 'without'
+}
+
+export interface SapProductsResponse {
+  pagination: PaginationMeta
   items: SapArticle[]
 }
 
-interface SapProductsPageResponse {
-  pagination?: {
-    total?: number
-    hasNextPage?: boolean
-  }
-  items?: Array<{
-    itemCode?: string
-    itemName?: string
-    price?: number
-    stock?: number
-    status?: string
-  }>
-}
-
-export async function getSapArticles(): Promise<SapArticlesResponse> {
-  const pageSize = 250
-  let page = 1
-  let total = 0
-  const items: SapArticle[] = []
-
-  while (true) {
-    const res = await fetch(`/api/sap-products?page=${page}&pageSize=${pageSize}`)
-    if (!res.ok) throw new Error('Error al cargar articulos SAP: ' + res.status)
-
-    const data = (await res.json()) as SapProductsPageResponse
-    const pageItems = (data.items ?? []).map((item) => ({
-      itemCode: item.itemCode ?? '',
-      itemName: item.itemName ?? '',
-      price: Number(item.price ?? 0),
-      stock: Number(item.stock ?? 0),
-      status: item.status ?? '',
-    }))
-
-    items.push(...pageItems)
-    total = Number(data.pagination?.total ?? items.length)
-
-    if (!data.pagination?.hasNextPage) break
-    page += 1
-  }
-
-  return { total, items }
+export async function getSapProducts(params: SapProductsParams = {}): Promise<SapProductsResponse> {
+  const q = new URLSearchParams()
+  if (params.page)     q.set('page', String(params.page))
+  if (params.pageSize) q.set('pageSize', String(params.pageSize))
+  if (params.search)   q.set('search', params.search)
+  if (params.status)   q.set('status', params.status)
+  if (params.stock)    q.set('stock', params.stock)
+  const res = await fetch('/api/sap-products?' + q)
+  if (!res.ok) throw new Error('Error al cargar artículos SAP: ' + res.status)
+  return res.json()
 }

@@ -284,23 +284,66 @@ app.get("/api/sync-domains", (_req, res) => {
   res.json(MOCK_SYNC_DOMAINS);
 });
 
-app.get("/api/prestashop/products", (_req, res) => {
-  const items = MOCK_ARTICLES
-    .filter((_, i) => i % 10 !== 3)   // ~10% no publicados en PS (brecha)
+function mockPaginate(items, req) {
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const pageSize = Math.min(250, Math.max(1, Number(req.query.pageSize) || 50));
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const offset = (safePage - 1) * pageSize;
+  return {
+    pagination: { page: safePage, pageSize, total, totalPages, hasNextPage: safePage < totalPages, hasPreviousPage: safePage > 1 },
+    pageItems: items.slice(offset, offset + pageSize),
+  };
+}
+
+app.get("/api/prestashop-products", (req, res) => {
+  const search = String(req.query.search || "").trim().toLowerCase();
+  const status = String(req.query.status || "all").trim().toLowerCase();
+  const combo = String(req.query.combo || "all").trim().toLowerCase();
+
+  const allItems = MOCK_ARTICLES
+    .filter((_, i) => i % 10 !== 3)
     .map((a, i) => ({
       productId: 1000 + i,
       reference: a.itemCode,
       name: a.itemName,
-      active: (a.status === 'Y' && i % 8 !== 0) ? '1' : '0',  // algunos inactivos extra
-      price: a.price,
-      combinations: i % 7 === 0 ? Math.floor(Math.random() * 4) + 2 : 0,
-      stock: i % 7 === 0 ? 0 : a.stock,  // combos reportan stock 0 (se maneja a nivel combo)
+      active: (a.status === 'Y' && i % 8 !== 0) ? '1' : '0',
+      productPrice: a.price,
+      combinationCount: i % 7 === 0 ? Math.floor(Math.random() * 4) + 2 : 0,
+      hasCombinations: i % 7 === 0,
+      stockTotal: i % 7 === 0 ? 0 : a.stock,
     }));
-  res.json({ total: items.length, items });
+
+  let filtered = allItems;
+  if (status === 'active')   filtered = filtered.filter(p => p.active === '1');
+  if (status === 'inactive') filtered = filtered.filter(p => p.active !== '1');
+  if (combo === 'simple')    filtered = filtered.filter(p => !p.hasCombinations);
+  if (combo === 'combo')     filtered = filtered.filter(p => p.hasCombinations);
+  if (search) filtered = filtered.filter(p =>
+    p.reference.toLowerCase().includes(search) || p.name.toLowerCase().includes(search)
+  );
+
+  const { pagination, pageItems } = mockPaginate(filtered, req);
+  res.json({ source: 'prestashop', filters: { search, status, combo }, pagination, items: pageItems });
 });
 
-app.get("/api/sap/articles", (_req, res) => {
-  res.json({ total: MOCK_ARTICLES.length, items: MOCK_ARTICLES });
+app.get("/api/sap-products", (req, res) => {
+  const search = String(req.query.search || "").trim().toLowerCase();
+  const status = String(req.query.status || "all").trim().toLowerCase();
+  const stock = String(req.query.stock || "all").trim().toLowerCase();
+
+  let filtered = MOCK_ARTICLES;
+  if (status === 'active')   filtered = filtered.filter(a => a.status === 'Y');
+  if (status === 'inactive') filtered = filtered.filter(a => a.status !== 'Y');
+  if (stock === 'with')      filtered = filtered.filter(a => a.stock > 0);
+  if (stock === 'without')   filtered = filtered.filter(a => a.stock <= 0);
+  if (search) filtered = filtered.filter(a =>
+    a.itemCode.toLowerCase().includes(search) || a.itemName.toLowerCase().includes(search)
+  );
+
+  const { pagination, pageItems } = mockPaginate(filtered, req);
+  res.json({ source: 'sap', filters: { search, status, stock }, pagination, items: pageItems });
 });
 
 app.get("/api/prestashop-control", (req, res) => {

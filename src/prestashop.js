@@ -119,6 +119,7 @@ function parseProductSummary(productXml) {
     active: xmlText(productXml, "active"),
     defaultCategory: xmlText(productXml, "id_category_default"),
     productPrice: Number(xmlText(productXml, "price") || 0),
+    name: xmlLanguageText(productXml, "name"),
   };
 }
 
@@ -294,6 +295,7 @@ function mapPrestaProductListItem(product, stockRows) {
   return {
     productId: product.id,
     reference: product.reference || "",
+    name: product.name || "",
     active: product.active,
     defaultCategory: product.defaultCategory || "",
     productPrice: Number(product.productPrice || 0),
@@ -312,9 +314,8 @@ async function readPrestaProductsPage(client, log, options = {}) {
   const page = Math.max(1, Number(options.page) || 1);
   const pageSize = Math.min(250, Math.max(1, Number(options.pageSize) || 50));
   const search = normalizePrestaSearch(options.search);
-  const status = String(options.status || "all")
-    .trim()
-    .toLowerCase();
+  const status = String(options.status || "all").trim().toLowerCase();
+  const combo = String(options.combo || "all").trim().toLowerCase();
 
   if (log) {
     log("info", "Consultando pagina de productos PrestaShop", {
@@ -322,6 +323,7 @@ async function readPrestaProductsPage(client, log, options = {}) {
       pageSize,
       search,
       status,
+      combo,
     });
   }
 
@@ -332,6 +334,12 @@ async function readPrestaProductsPage(client, log, options = {}) {
   ]);
 
   const stockByProductId = groupBy(stockAvailables, (row) => row.productId);
+
+  const productsWithCombinations = new Set(
+    stockAvailables
+      .filter((row) => Number(row.productAttributeId) > 0)
+      .map((row) => row.productId),
+  );
 
   let filteredProducts = products;
 
@@ -345,12 +353,22 @@ async function readPrestaProductsPage(client, log, options = {}) {
     );
   }
 
+  if (combo === "simple") {
+    filteredProducts = filteredProducts.filter(
+      (product) => !productsWithCombinations.has(product.id),
+    );
+  } else if (combo === "combo") {
+    filteredProducts = filteredProducts.filter(
+      (product) => productsWithCombinations.has(product.id),
+    );
+  }
+
   if (search) {
     filteredProducts = filteredProducts.filter((product) => {
       const haystack = [
         String(product.id || ""),
         String(product.reference || ""),
-        String(product.defaultCategory || ""),
+        String(product.name || ""),
       ]
         .join(" ")
         .toLowerCase();
@@ -388,6 +406,7 @@ async function readPrestaProductsPage(client, log, options = {}) {
     filters: {
       search,
       status,
+      combo,
     },
     pagination: {
       page: safePage,
@@ -407,7 +426,7 @@ async function listPrestaProducts(client, params = {}, batchSize = 250) {
 
   while (true) {
     const xml = await client.get("products", {
-      display: "[id,reference,active,id_category_default,price]",
+      display: "[id,reference,active,id_category_default,price,name]",
       limit: `${offset},${batchSize}`,
       ...params,
     });

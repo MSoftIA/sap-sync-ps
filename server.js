@@ -462,29 +462,24 @@ app.get("/api/sap-products", (req, res) => {
   const page = parsePositiveInt(req.query.page, 1);
   const pageSize = parsePositiveInt(req.query.pageSize, 50, { max: 250 });
   const search = String(req.query.search || "").trim();
-  const status = String(req.query.status || "all")
-    .trim()
-    .toLowerCase();
+  const status = String(req.query.status || "all").trim().toLowerCase();
+  const stock = String(req.query.stock || "all").trim().toLowerCase();
 
   if (!["all", "active", "inactive"].includes(status)) {
-    res.status(400).json({
-      error: "status invalido. Usa all, active o inactive",
-    });
+    res.status(400).json({ error: "status invalido. Usa all, active o inactive" });
+    return;
+  }
+
+  if (!["all", "with", "without"].includes(stock)) {
+    res.status(400).json({ error: "stock invalido. Usa all, with o without" });
     return;
   }
 
   try {
-    const payload = readSapProductsPage(log, {
-      page,
-      pageSize,
-      search,
-      status,
-    });
+    const payload = readSapProductsPage(log, { page, pageSize, search, status, stock });
     res.json(payload);
   } catch (error) {
-    res.status(500).json({
-      error: error.message,
-    });
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -492,14 +487,16 @@ app.get("/api/prestashop-products", async (req, res) => {
   const page = parsePositiveInt(req.query.page, 1);
   const pageSize = parsePositiveInt(req.query.pageSize, 50, { max: 250 });
   const search = String(req.query.search || "").trim();
-  const status = String(req.query.status || "all")
-    .trim()
-    .toLowerCase();
+  const status = String(req.query.status || "all").trim().toLowerCase();
+  const combo = String(req.query.combo || "all").trim().toLowerCase();
 
   if (!["all", "active", "inactive"].includes(status)) {
-    res.status(400).json({
-      error: "status invalido. Usa all, active o inactive",
-    });
+    res.status(400).json({ error: "status invalido. Usa all, active o inactive" });
+    return;
+  }
+
+  if (!["all", "simple", "combo"].includes(combo)) {
+    res.status(400).json({ error: "combo invalido. Usa all, simple o combo" });
     return;
   }
 
@@ -517,12 +514,11 @@ app.get("/api/prestashop-products", async (req, res) => {
       pageSize,
       search,
       status,
+      combo,
     });
     res.json(payload);
   } catch (error) {
-    res.status(500).json({
-      error: error.message,
-    });
+    res.status(500).json({ error: error.message });
   }
 });
 

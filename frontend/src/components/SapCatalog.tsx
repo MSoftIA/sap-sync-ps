@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react'
-import type { SapArticle } from '../types'
-import { getSapArticles } from '../api/sap'
+import { useState, useEffect, useRef } from 'react'
+import type { SapArticle, PaginationMeta } from '../types'
+import { getSapProducts } from '../api/sap'
 import { Skeleton } from './Skeleton'
 import { EmptyState } from './EmptyState'
 import { Tag } from './Tag'
@@ -12,21 +12,33 @@ type StockFilter  = 'all' | 'with'   | 'without'
 const PAGE_SIZE = 50
 
 export function SapCatalog() {
-  const [articles, setArticles] = useState<SapArticle[] | null>(null)
+  const [loaded, setLoaded] = useState(false)
+  const [items, setItems] = useState<SapArticle[]>([])
+  const [pagination, setPagination] = useState<PaginationMeta | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
   const [search, setSearch] = useState('')
+  const [searchInput, setSearchInput] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [stockFilter, setStockFilter] = useState<StockFilter>('all')
   const [page, setPage] = useState(1)
 
-  async function load() {
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  async function fetchPage(params: { page: number; search: string; status: StatusFilter; stock: StockFilter }) {
     setLoading(true)
     setError(null)
     try {
-      const data = await getSapArticles()
-      setArticles(data.items)
-      setPage(1)
+      const data = await getSapProducts({
+        page: params.page,
+        pageSize: PAGE_SIZE,
+        search: params.search || undefined,
+        status: params.status,
+        stock: params.stock,
+      })
+      setItems(data.items)
+      setPagination(data.pagination)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -34,41 +46,49 @@ export function SapCatalog() {
     }
   }
 
-  const filtered = useMemo(() => {
-    if (!articles) return []
-    const q = search.trim().toLowerCase()
-    return articles.filter(a => {
-      if (q && !String(a.itemCode ?? '').toLowerCase().includes(q) && !String(a.itemName ?? '').toLowerCase().includes(q)) return false
-      if (statusFilter === 'active'   && a.status !== 'Y') return false
-      if (statusFilter === 'inactive' && a.status === 'Y') return false
-      if (stockFilter  === 'with'    && (a.stock ?? 0) <= 0) return false
-      if (stockFilter  === 'without' && (a.stock ?? 0) >  0) return false
-      return true
-    })
-  }, [articles, search, statusFilter, stockFilter])
+  useEffect(() => {
+    if (!loaded) return
+    fetchPage({ page, search, status: statusFilter, stock: stockFilter })
+  }, [loaded, page, search, statusFilter, stockFilter])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const safePage   = Math.min(page, totalPages)
-  const pageItems  = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  function startLoad() {
+    setLoaded(true)
+  }
 
-  function onSearch(v: string) { setSearch(v); setPage(1) }
+  function onSearchInput(v: string) {
+    setSearchInput(v)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      setSearch(v)
+      setPage(1)
+    }, 350)
+  }
+
   function onStatus(v: StatusFilter) { setStatusFilter(v); setPage(1) }
   function onStock(v: StockFilter)   { setStockFilter(v);  setPage(1) }
 
-  if (!articles && !loading && !error) {
+  function clearFilters() {
+    setSearchInput('')
+    setSearch('')
+    setStatusFilter('all')
+    setStockFilter('all')
+    setPage(1)
+  }
+
+  if (!loaded) {
     return (
       <div className="card">
         <EmptyState
           icon="○"
           title="Catálogo no cargado"
           description="Cargá la lista de artículos para poder explorar, filtrar y buscar en el catálogo SAP."
-          action={{ label: 'Cargar catálogo', onClick: load }}
+          action={{ label: 'Cargar catálogo', onClick: startLoad }}
         />
       </div>
     )
   }
 
-  if (loading) {
+  if (loading && items.length === 0) {
     return (
       <div className="card">
         <div style={{ display: 'grid', gap: 10 }}>
@@ -80,18 +100,24 @@ export function SapCatalog() {
     )
   }
 
-  if (error) {
+  if (error && items.length === 0) {
     return (
       <div className="card">
         <EmptyState
           icon="!"
           title="Error al cargar el catálogo"
           description={error}
-          action={{ label: 'Reintentar', onClick: load }}
+          action={{ label: 'Reintentar', onClick: () => fetchPage({ page, search, status: statusFilter, stock: stockFilter }) }}
         />
       </div>
     )
   }
+
+  const total = pagination?.total ?? 0
+  const totalPages = pagination?.totalPages ?? 1
+  const safePage = pagination?.page ?? page
+  const pageStart = total === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1
+  const pageEnd = Math.min(safePage * PAGE_SIZE, total)
 
   return (
     <>
@@ -100,8 +126,8 @@ export function SapCatalog() {
           className="catalog-search"
           type="search"
           placeholder="Buscar por código o nombre..."
-          value={search}
-          onChange={e => onSearch(e.target.value)}
+          value={searchInput}
+          onChange={e => onSearchInput(e.target.value)}
         />
 
         <div className="catalog-filter-group">
@@ -116,29 +142,31 @@ export function SapCatalog() {
           <button type="button" className={stockFilter === 'without' ? 'active' : ''} onClick={() => onStock('without')}>Sin stock</button>
         </div>
 
-        <button className="btn-secondary" type="button" onClick={load} style={{ flexShrink: 0 }}>
-          Recargar
+        <button className="btn-secondary" type="button" onClick={() => fetchPage({ page, search, status: statusFilter, stock: stockFilter })} style={{ flexShrink: 0 }}>
+          {loading ? '...' : 'Recargar'}
         </button>
       </div>
 
       <div className="catalog-info">
-        {filtered.length === 0
-          ? 'Sin resultados para los filtros aplicados.'
-          : `Mostrando ${(safePage - 1) * PAGE_SIZE + 1}–${Math.min(safePage * PAGE_SIZE, filtered.length)} de ${fmt(filtered.length)} artículo(s)${filtered.length < (articles?.length ?? 0) ? ` (filtrado de ${fmt(articles?.length)})` : ''}`}
+        {loading
+          ? 'Cargando...'
+          : total === 0
+            ? 'Sin resultados para los filtros aplicados.'
+            : `Mostrando ${pageStart}–${pageEnd} de ${fmt(total)} artículo(s)`}
       </div>
 
-      {filtered.length === 0 ? (
+      {!loading && total === 0 ? (
         <div className="card">
           <EmptyState
             icon="○"
             title="Sin resultados"
             description="Probá ajustando la búsqueda o los filtros."
-            action={{ label: 'Limpiar filtros', onClick: () => { setSearch(''); setStatusFilter('all'); setStockFilter('all') } }}
+            action={{ label: 'Limpiar filtros', onClick: clearFilters }}
           />
         </div>
       ) : (
         <>
-          <div className="catalog-table-wrap">
+          <div className="catalog-table-wrap" style={{ opacity: loading ? 0.5 : 1 }}>
             <table>
               <thead>
                 <tr>
@@ -150,7 +178,7 @@ export function SapCatalog() {
                 </tr>
               </thead>
               <tbody>
-                {pageItems.map(a => {
+                {items.map(a => {
                   const inactive = a.status !== 'Y'
                   const zeroStock = (a.stock ?? 0) === 0
                   return (
@@ -179,13 +207,13 @@ export function SapCatalog() {
 
           <div className="pagination">
             <div className="section-note">
-              {fmt(filtered.length)} artículo(s) total
+              {fmt(total)} artículo(s) total
             </div>
             <div className="pagination-controls">
               <button
                 type="button"
                 className="btn-secondary"
-                disabled={safePage <= 1}
+                disabled={!pagination?.hasPreviousPage || loading}
                 onClick={() => setPage(p => p - 1)}
               >
                 ← Anterior
@@ -196,7 +224,7 @@ export function SapCatalog() {
               <button
                 type="button"
                 className="btn-secondary"
-                disabled={safePage >= totalPages}
+                disabled={!pagination?.hasNextPage || loading}
                 onClick={() => setPage(p => p + 1)}
               >
                 Siguiente →

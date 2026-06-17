@@ -1,55 +1,28 @@
-import type { PrestaControlResult, PrestaProductSummary } from '../types'
+import type { PrestaControlResult, PrestaProductSummary, PaginationMeta } from '../types'
+
+export interface PrestaProductsParams {
+  page?: number
+  pageSize?: number
+  search?: string
+  status?: 'all' | 'active' | 'inactive'
+  combo?: 'all' | 'simple' | 'combo'
+}
 
 export interface PrestaProductsResponse {
-  total: number
+  pagination: PaginationMeta
   items: PrestaProductSummary[]
 }
 
-interface PrestaProductsPageResponse {
-  pagination?: {
-    total?: number
-    hasNextPage?: boolean
-  }
-  items?: Array<{
-    productId?: number
-    reference?: string
-    active?: '1' | '0'
-    productPrice?: number
-    stockTotal?: number
-    combinationCount?: number
-    defaultCategory?: string
-  }>
-}
-
-export async function getPrestaProducts(): Promise<PrestaProductsResponse> {
-  const pageSize = 250
-  let page = 1
-  let total = 0
-  const items: PrestaProductSummary[] = []
-
-  while (true) {
-    const res = await fetch(`/api/prestashop-products?page=${page}&pageSize=${pageSize}`)
-    if (!res.ok) throw new Error('Error al cargar productos PrestaShop: ' + res.status)
-
-    const data = (await res.json()) as PrestaProductsPageResponse
-    const pageItems = (data.items ?? []).map((item) => ({
-      productId: Number(item.productId ?? 0),
-      reference: item.reference ?? '',
-      name: item.reference ?? item.defaultCategory ?? '',
-      active: item.active === '0' ? '0' : '1',
-      price: Number(item.productPrice ?? 0),
-      combinations: Number(item.combinationCount ?? 0),
-      stock: Number(item.stockTotal ?? 0),
-    }))
-
-    items.push(...pageItems)
-    total = Number(data.pagination?.total ?? items.length)
-
-    if (!data.pagination?.hasNextPage) break
-    page += 1
-  }
-
-  return { total, items }
+export async function getPrestaProducts(params: PrestaProductsParams = {}): Promise<PrestaProductsResponse> {
+  const q = new URLSearchParams()
+  if (params.page)     q.set('page', String(params.page))
+  if (params.pageSize) q.set('pageSize', String(params.pageSize))
+  if (params.search)   q.set('search', params.search)
+  if (params.status)   q.set('status', params.status)
+  if (params.combo)    q.set('combo', params.combo)
+  const res = await fetch('/api/prestashop-products?' + q)
+  if (!res.ok) throw new Error('Error al cargar productos PrestaShop: ' + res.status)
+  return res.json()
 }
 
 export async function lookupReference(reference: string): Promise<PrestaControlResult> {
