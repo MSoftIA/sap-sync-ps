@@ -11,7 +11,7 @@ const { executeSyncAction, isWriteEnabled } = require("./sync-executor");
 const { buildActionPayload } = require("./sync-plan");
 
 function logEnvLoad() {
-  const result = loadEnvFile();
+  const result = loadEnvFile(".env.local", { override: false });
   if (result.found) {
     log("info", ".env.local cargado");
     return;

@@ -1,7 +1,7 @@
 "use strict";
 
 const { loadEnvFile, env } = require("./src/env");
-loadEnvFile();
+loadEnvFile(".env.local", { override: false });
 
 const express = require("express");
 const { spawn } = require("child_process");
