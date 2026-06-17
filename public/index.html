@@ -79,16 +79,29 @@
         color: #d4ddf1;
       }
 
-      .view-tabs {
-        display: inline-flex;
-        gap: 8px;
-        background: #eef2ff;
-        padding: 6px;
-        border-radius: 14px;
+      .app-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        background: rgba(255, 255, 255, 0.88);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 10px;
         margin-bottom: 18px;
+        box-shadow: var(--shadow);
+        position: sticky;
+        top: 10px;
+        z-index: 20;
       }
 
-      .view-tabs button {
+      .app-nav-group {
+        display: inline-flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .app-nav button {
         border: none;
         border-radius: 10px;
         background: transparent;
@@ -99,10 +112,28 @@
         cursor: pointer;
       }
 
-      .view-tabs button.active {
+      .app-nav button.active {
         background: white;
         color: var(--text);
         box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+      }
+
+      .subnav {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+      }
+
+      .subnav button {
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: white;
+        color: #344054;
+        padding: 9px 14px;
+        font-size: 0.9rem;
+        font-weight: 700;
+        cursor: pointer;
       }
 
       .view {
@@ -178,14 +209,42 @@
       }
 
       .hero-title {
-        margin: 0 0 6px;
+        margin: 0;
         font-size: 1.25rem;
       }
 
       .hero-copy {
-        margin: 0;
+        margin: 8px 0 0;
         color: var(--muted);
         line-height: 1.5;
+      }
+
+      .hero-kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .hero-kpi {
+        border: 1px solid #e6edf5;
+        background: #f8fbff;
+        border-radius: 14px;
+        padding: 12px;
+      }
+
+      .hero-kpi-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+        font-weight: 800;
+        margin-bottom: 6px;
+      }
+
+      .hero-kpi-value {
+        font-size: 1.35rem;
+        font-weight: 800;
       }
 
       .status-badge {
@@ -281,31 +340,6 @@
         background: #dbeafe;
         color: #155eef;
         border: 1px solid #bfdbfe;
-      }
-
-      .flow-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 12px;
-      }
-
-      .flow-card {
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 14px;
-        background: #fff;
-      }
-
-      .flow-card h3 {
-        margin: 0 0 6px;
-        font-size: 1rem;
-      }
-
-      .flow-card p {
-        margin: 0;
-        color: var(--muted);
-        font-size: 0.9rem;
-        line-height: 1.45;
       }
 
       .analysis-grid {
@@ -826,6 +860,10 @@
           align-items: start;
         }
 
+        .app-nav {
+          position: static;
+        }
+
         .topbar-meta {
           justify-items: start;
         }
@@ -846,58 +884,60 @@
         </div>
       </section>
 
-      <div class="view-tabs" role="tablist" aria-label="Vistas del tablero">
-        <button
-          id="view-btn-sync"
-          class="active"
-          type="button"
-          onclick="setView('sync')"
-        >
-          Sync
-        </button>
-        <button id="view-btn-sap" type="button" onclick="setView('sap')">SAP</button>
-        <button id="view-btn-presta" type="button" onclick="setView('presta')">
-          PrestaShop
-        </button>
-      </div>
+      <nav class="app-nav" aria-label="Navegación principal">
+        <div class="app-nav-group" role="tablist" aria-label="Vistas del tablero">
+          <button
+            id="view-btn-sync"
+            class="active"
+            type="button"
+            onclick="setView('sync')"
+          >
+            Sync
+          </button>
+          <button id="view-btn-sap" type="button" onclick="setView('sap')">SAP</button>
+          <button id="view-btn-presta" type="button" onclick="setView('presta')">
+            PrestaShop
+          </button>
+        </div>
+        <div class="app-nav-group">
+          <button type="button" onclick="loadDashboard(true)">Refrescar</button>
+        </div>
+      </nav>
 
       <main id="view-sync" class="view active">
-        <section class="section">
+        <div class="subnav" aria-label="Navegación de Sync">
+          <button type="button" onclick="scrollToSection('sync-summary')">Resumen</button>
+          <button type="button" onclick="scrollToSection('sync-actions')">Ejecutar</button>
+          <button type="button" onclick="scrollToSection('sync-analysis')">Dominios</button>
+          <button type="button" onclick="scrollToSection('sync-progress')">Progreso</button>
+          <button type="button" onclick="scrollToSection('sync-logs')">Logs</button>
+          <button type="button" onclick="scrollToSection('sync-history')">Historial</button>
+        </div>
+
+        <section id="sync-summary" class="section">
           <div id="running-banner" class="banner">Sync masiva en curso...</div>
 
           <div class="sync-hero">
             <div class="hero-panel">
               <div class="card">
                 <h2 class="hero-title">Sync masiva</h2>
-                <p class="hero-copy">
-                  Esta vista sirve para tres cosas distintas: revisar qué datos hay,
-                  analizar qué pasaría sin tocar la tienda y aplicar cambios reales
-                  cuando ya estés seguro.
-                </p>
-              </div>
-
-              <div class="card">
-                <div class="flow-grid">
-                  <div class="flow-card">
-                    <h3>Productos</h3>
-                    <p>
-                      Ver catálogo, analizar diferencias con PrestaShop y sincronizar
-                      precio, stock y altas.
-                    </p>
+                <p class="hero-copy">Centro operativo para lanzar la sync y seguir qué está pasando.</p>
+                <div class="hero-kpis">
+                  <div class="hero-kpi">
+                    <div class="hero-kpi-label">Modo</div>
+                    <div class="hero-kpi-value" id="sync-mode-label">Dry run</div>
                   </div>
-                  <div class="flow-card">
-                    <h3>Categorías</h3>
-                    <p>
-                      Ver cómo SAP propone categorías y propiedades. Hoy está en modo
-                      diagnóstico, sin escribir en tienda.
-                    </p>
+                  <div class="hero-kpi">
+                    <div class="hero-kpi-label">Última muestra</div>
+                    <div class="hero-kpi-value" id="summary-total">-</div>
                   </div>
-                  <div class="flow-card">
-                    <h3>Pedidos</h3>
-                    <p>
-                      Entender estados y flujo de órdenes. Todavía no está listo para
-                      sincronización automática.
-                    </p>
+                  <div class="hero-kpi">
+                    <div class="hero-kpi-label">Aplicados</div>
+                    <div class="hero-kpi-value" id="summary-executed">-</div>
+                  </div>
+                  <div class="hero-kpi">
+                    <div class="hero-kpi-label">Errores</div>
+                    <div class="hero-kpi-value" id="summary-errors">-</div>
                   </div>
                 </div>
               </div>
@@ -910,29 +950,19 @@
                     <div class="hint">Situación actual del proceso</div>
                   </div>
                   <div class="metric-card">
-                    <div class="label">Modo</div>
-                    <div class="value" id="sync-mode-label">Dry run</div>
-                    <div class="hint">Dry run no escribe. Write sí aplica cambios.</div>
+                    <div class="label">Para crear</div>
+                    <div class="value" id="summary-create">-</div>
+                    <div class="hint">Altas detectadas</div>
                   </div>
                   <div class="metric-card">
-                    <div class="label">Muestra procesada</div>
-                    <div class="value" id="summary-total">-</div>
-                    <div class="hint">Cantidad del último reporte generado</div>
+                    <div class="label">Para actualizar</div>
+                    <div class="value" id="summary-update">-</div>
+                    <div class="hint">Precio o stock</div>
                   </div>
                   <div class="metric-card">
-                    <div class="label">Cambios aplicados</div>
-                    <div class="value" id="summary-executed">-</div>
-                    <div class="hint">Acciones realmente escritas en tienda</div>
-                  </div>
-                  <div class="metric-card">
-                    <div class="label">Revision manual</div>
+                    <div class="label">Revisión manual</div>
                     <div class="value" id="summary-review">-</div>
-                    <div class="hint">Casos que quedaron para revisar</div>
-                  </div>
-                  <div class="metric-card">
-                    <div class="label">Errores</div>
-                    <div class="value" id="summary-errors">-</div>
-                    <div class="hint">Errores del último reporte</div>
+                    <div class="hint">Casos pendientes</div>
                   </div>
                 </div>
               </div>
@@ -950,21 +980,21 @@
                 </div>
                 <div class="fact-row">
                   <div class="fact-label">Detectados para crear</div>
-                  <div class="fact-value" id="summary-create">-</div>
+                  <div class="fact-value" id="summary-create-fact">-</div>
                 </div>
                 <div class="fact-row">
                   <div class="fact-label">Detectados para actualizar</div>
-                  <div class="fact-value" id="summary-update">-</div>
+                  <div class="fact-value" id="summary-update-fact">-</div>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section class="section">
+        <section id="sync-actions" class="section">
           <div class="section-header">
-            <h2 class="section-title">Qué quieres hacer</h2>
-            <div class="section-note">Primero elegí el dominio. Luego decidí si quieres analizar o aplicar.</div>
+            <h2 class="section-title">Ejecutar</h2>
+            <div class="section-note">Elegí dominio y modo.</div>
           </div>
 
           <div class="card">
@@ -1063,10 +1093,10 @@
           </div>
         </section>
 
-        <section class="section">
+        <section id="sync-analysis" class="section">
           <div class="section-header">
-            <h2 class="section-title">Análisis por dominio</h2>
-            <div class="section-note">Cada bloque resume por separado qué tanto se ha analizado en productos, categorías y pedidos.</div>
+            <h2 class="section-title">Dominios</h2>
+            <div class="section-note">Estado resumido por área.</div>
           </div>
 
           <div class="analysis-grid">
@@ -1177,10 +1207,10 @@
           </div>
         </section>
 
-        <section class="section">
+        <section id="sync-progress" class="section">
           <div class="section-header">
             <h2 class="section-title">Avance de la corrida</h2>
-            <div class="section-note">Barra de avance y lectura rápida de lo que el proceso está haciendo ahora.</div>
+            <div class="section-note">Qué está corriendo ahora.</div>
           </div>
 
           <div class="card">
@@ -1201,10 +1231,10 @@
           </div>
         </section>
 
-        <section class="section">
+        <section id="sync-logs" class="section">
           <div class="section-header">
             <h2 class="section-title">Log en tiempo real</h2>
-            <div class="section-note">Aquí se ve el detalle técnico de la corrida. La barra de arriba es el resumen rápido.</div>
+            <div class="section-note">Detalle técnico.</div>
           </div>
 
           <div id="log-box" class="log-box">
@@ -1212,12 +1242,10 @@
           </div>
         </section>
 
-        <section class="section">
+        <section id="sync-history" class="section">
           <div class="section-header">
             <h2 class="section-title">Historial de ejecuciones</h2>
-            <div class="section-note">
-              La columna “Muestra” es lo que procesó esa corrida, no el tamaño total del catálogo.
-            </div>
+            <div class="section-note">La muestra es lo procesado en esa corrida.</div>
           </div>
 
           <div class="history-table">
@@ -1245,10 +1273,15 @@
       </main>
 
       <main id="view-sap" class="view">
-        <section class="section">
+        <div class="subnav" aria-label="Navegación de SAP">
+          <button type="button" onclick="scrollToSection('sap-summary')">Resumen</button>
+          <button type="button" onclick="scrollToSection('sap-detail')">Detalle</button>
+        </div>
+
+        <section id="sap-summary" class="section">
           <div class="section-header">
-            <h2 class="section-title">Catalogo SAP</h2>
-            <div class="section-note">Snapshot global del origen de verdad.</div>
+            <h2 class="section-title">Catálogo SAP</h2>
+            <div class="section-note">Fuente de verdad.</div>
           </div>
 
           <div class="grid grid-3">
@@ -1270,7 +1303,7 @@
           </div>
         </section>
 
-        <section class="section">
+        <section id="sap-detail" class="section">
           <div class="card">
             <dl class="data-list">
               <dt>Schema</dt>
@@ -1297,10 +1330,16 @@
       </main>
 
       <main id="view-presta" class="view">
-        <section class="section">
+        <div class="subnav" aria-label="Navegación de PrestaShop">
+          <button type="button" onclick="scrollToSection('presta-summary')">Resumen</button>
+          <button type="button" onclick="scrollToSection('presta-gap')">Brechas</button>
+          <button type="button" onclick="scrollToSection('presta-control')">Control puntual</button>
+        </div>
+
+        <section id="presta-summary" class="section">
           <div class="section-header">
-            <h2 class="section-title">Catalogo PrestaShop</h2>
-            <div class="section-note">Estado actual reportado por el webservice.</div>
+            <h2 class="section-title">Catálogo PrestaShop</h2>
+            <div class="section-note">Lectura actual del webservice.</div>
           </div>
 
           <div class="grid grid-3">
@@ -1322,7 +1361,7 @@
           </div>
         </section>
 
-        <section class="section">
+        <section id="presta-gap" class="section">
           <div class="grid grid-4">
             <div class="card stat-box">
               <div class="label">Faltan en PrestaShop</div>
@@ -1343,7 +1382,7 @@
           </div>
         </section>
 
-        <section class="section">
+        <section id="presta-control" class="section">
           <div class="grid grid-2">
             <div class="card">
               <dl class="data-list">
@@ -1365,7 +1404,7 @@
             <div class="card card-soft">
               <div class="section-header">
                 <h2 class="section-title">Control puntual</h2>
-                <div class="section-note">Consultar un producto puntual en ambos lados.</div>
+                <div class="section-note">Comparar un producto puntual.</div>
               </div>
 
               <div class="field-grid">
@@ -1730,6 +1769,12 @@
         return [...selectedSyncDomains];
       }
 
+      function scrollToSection(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
       function setView(view) {
         currentView = view;
         ["sync", "sap", "presta"].forEach((name) => {
@@ -1738,6 +1783,7 @@
             .getElementById("view-btn-" + name)
             .classList.toggle("active", name === view);
         });
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
 
       function setMode(mode) {
@@ -2042,7 +2088,9 @@
 
         setText("summary-total", summary.total);
         setText("summary-create", actions.createProduct);
+        setText("summary-create-fact", actions.createProduct);
         setText("summary-update", updateCount);
+        setText("summary-update-fact", updateCount);
         setText("summary-executed", actions.executed);
         setText("summary-review", reviewCount);
         setText("summary-errors", summary.errors);
