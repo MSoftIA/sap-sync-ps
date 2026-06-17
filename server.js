@@ -16,6 +16,7 @@ const {
 } = require("./src/prestashop");
 const { readSapArticleByCode, readSapOverview } = require("./src/sap");
 const { log } = require("./src/logger");
+const { listSyncDomains } = require("./src/sync-domains");
 
 const app = express();
 const PORT = env("UI_PORT", "3000");
@@ -298,6 +299,14 @@ app.get("/api/dashboard-summary", async (req, res) => {
     latestReport,
     overview,
     executive: buildExecutiveSummary(overview, latestReport),
+  });
+});
+
+app.get("/api/sync-domains", (req, res) => {
+  res.json({
+    generatedAt: new Date().toISOString(),
+    sourceOfTruth: "sap",
+    domains: listSyncDomains(),
   });
 });
 

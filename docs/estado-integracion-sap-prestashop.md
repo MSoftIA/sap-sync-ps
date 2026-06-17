@@ -23,6 +23,20 @@ Con la evidencia recopilada pude confirmar que la aplicacion:
 - Se conecta directamente al webservice de PrestaShop mediante una API key.
 - Esta orientada a sincronizar articulos, precios y existencias.
 
+Ademas, en el reemplazo Node.js propio ya deje preparada una arquitectura por
+dominios para poder crecer desde este alcance inicial hacia:
+
+- productos y variantes
+- categorias
+- pedidos
+
+Tambien deje documentado el criterio de crecimiento con SAP como fuente de
+verdad en:
+
+```text
+docs/arquitectura-fuente-de-verdad-sap.md
+```
+
 Hasta el momento no he encontrado evidencia de que esta aplicacion descargue pedidos,
 clientes o pagos desde PrestaShop hacia SAP.
 
@@ -504,6 +518,37 @@ El script Node pudo leer correctamente el articulo `61072505` desde SAP HANA:
 
 Esto confirma que ya existe una base tecnica para construir un sincronizador
 propio sin depender del ejecutable actual.
+
+### Evolucion de arquitectura del reemplazo
+
+Al 2026-06-17, el reemplazo Node.js dejo de depender de una sola orquestacion
+monolitica y paso a una seleccion de dominios:
+
+```text
+products
+categories
+orders
+```
+
+Estado actual de esos dominios:
+
+| Dominio | Estado |
+|---|---|
+| `products` | operativo |
+| `categories` | preparado como placeholder |
+| `orders` | preparado como placeholder |
+
+Fuente de verdad definida para esta arquitectura:
+
+| Dominio | Fuente de verdad |
+|---|---|
+| `products` | SAP |
+| `categories` | SAP |
+| `orders` | objetivo SAP, pendiente de confirmacion funcional |
+
+La idea es que SAP siga siendo la fuente de verdad, pero sin meter toda la
+logica futura de categorias y pedidos dentro del mismo flujo que hoy actualiza
+productos.
 
 El siguiente paso debe ser consultar PrestaShop en modo solo lectura usando la
 referencia SAP, comparar valores y registrar diferencias sin escribir cambios.

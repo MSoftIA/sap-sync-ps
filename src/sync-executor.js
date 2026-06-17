@@ -273,7 +273,9 @@ async function createProductWithFallbackName(client, row) {
       },
     };
 
-    return client.post("products", buildCreateProductXml(fallbackPayload), { display: "[id]" });
+    return client.post("products", buildCreateProductXml(fallbackPayload), {
+      display: "[id]",
+    });
   }
 }
 

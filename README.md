@@ -35,6 +35,7 @@ PRESTASHOP_API_KEY=API_KEY
 PRESTASHOP_DEFAULT_CATEGORY_ID=
 PRESTASHOP_LANGUAGE_ID=1
 SYNC_WRITE=false
+SYNC_DOMAINS=products
 REPORT_DIR=reports
 REPORT_BASENAME=sap-prestashop-diagnostic
 LOG_LEVEL=info
@@ -94,6 +95,10 @@ SYNC_WRITE=true
 - `src/app.js`: orquestacion del flujo
 - `src/sap.js`: lectura desde SAP HANA
 - `src/prestashop.js`: cliente y parsing de PrestaShop
+- `src/sync-domains.js`: seleccion y registro de dominios de sincronizacion
+- `src/domains/products.js`: dominio actual de productos, precios y stock
+- `src/domains/categories.js`: base del dominio de categorias
+- `src/domains/orders.js`: base del dominio de pedidos
 - `src/xml.js`: utilidades XML
 - `src/env.js`: carga y validacion de entorno
 - `src/logger.js`: salida JSON estructurada
@@ -104,8 +109,11 @@ SYNC_WRITE=true
 - `docs/inventario-entorno.md`: levantamiento tecnico del servidor y su entorno
 - `docs/estado-integracion-sap-prestashop.md`: estado de la integracion
   historica y del reemplazo en curso
+- `docs/arquitectura-fuente-de-verdad-sap.md`: criterio objetivo de SAP como
+  fuente de verdad por dominios
 - `docs/handoff-ia-sap-prestashop.md`: contexto de continuidad para otra IA o
   tecnico
+- `docs/resumen-trabajo-realizado.md`: resumen ejecutivo de lo ya investigado
 
 ## Estado actual
 
@@ -120,6 +128,40 @@ El script resuelve:
 Esto nos permite validar con mas precision como se relaciona un `ItemCode`
 de SAP con una combinacion concreta de PrestaShop antes de automatizar
 escrituras.
+
+## Dominios objetivo
+
+La integracion ya quedo preparada para crecer por dominios separados:
+
+- `products`: productos, precios, stock y variantes
+- `categories`: categorias y jerarquias comerciales
+- `orders`: pedidos y estados
+
+Hoy el dominio realmente operativo es `products`.
+
+Los dominios `categories` y `orders` ya existen en la orquestacion, pero por
+ahora solo dejan trazas informativas para poder extender el programa sin volver
+a mezclar toda la logica en un unico flujo.
+
+Cada dominio publica su propio estado interno para que la orquestacion y el
+panel puedan saber:
+
+- si ya esta implementado o no
+- si SAP es su fuente de verdad
+- si genera reportes operativos
+- cual es su alcance previsto
+
+Para seleccionar dominios se usa:
+
+```text
+SYNC_DOMAINS=products
+```
+
+Mas adelante soportara corridas como:
+
+```text
+SYNC_DOMAINS=products,categories,orders
+```
 
 ## Diagnostico masivo
 

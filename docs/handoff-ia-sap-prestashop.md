@@ -8,6 +8,10 @@ persona tecnica puedan continuar el trabajo sin empezar desde cero.
 El foco actual es reemplazar o estabilizar la integracion entre SAP Business
 One sobre HANA y PrestaShop, usando como fuente de verdad los datos de SAP.
 
+Desde el 2026-06-17, la orquestacion del proyecto ya no vive como un unico
+flujo monolitico. Quedo separada por dominios para permitir ampliar el alcance
+sin mezclar productos, categorias y pedidos en un solo archivo.
+
 ## Contexto general
 
 ### Cliente
@@ -84,6 +88,7 @@ PRESTASHOP_API_KEY=...
 PRESTASHOP_DEFAULT_CATEGORY_ID=...
 PRESTASHOP_LANGUAGE_ID=1
 SYNC_WRITE=true|false
+SYNC_DOMAINS=products
 REPORT_DIR=reports
 REPORT_BASENAME=sap-prestashop-diagnostic
 LOG_LEVEL=info|debug
@@ -97,10 +102,52 @@ No incluir secretos reales en prompts ni en documentos de handoff.
 - `src/app.js`: orquestacion general
 - `src/sap.js`: conexion HANA y query de articulos
 - `src/prestashop.js`: cliente HTTP del webservice
+- `src/sync-domains.js`: registro de dominios activos para la corrida
+- `src/domains/products.js`: sincronizacion de productos, precio y stock
+- `src/domains/categories.js`: placeholder del dominio de categorias
+- `src/domains/orders.js`: placeholder del dominio de pedidos
 - `src/sync-plan.js`: decide acciones y payloads
 - `src/sync-executor.js`: ejecuta escrituras reales
 - `src/report.js`: genera reportes
 - `src/xml.js`: utilidades XML
+- `docs/arquitectura-fuente-de-verdad-sap.md`: criterio de crecimiento por
+  dominios con SAP como fuente de verdad
+
+## Objetivo funcional ampliado
+
+El objetivo ya no es solamente reemplazar el sincronizador de articulos.
+
+La direccion definida para el programa es:
+
+```text
+SAP -> PrestaShop
+```
+
+Con SAP como fuente de verdad para estos dominios:
+
+1. productos y variantes
+2. categorias y jerarquias
+3. pedidos / estados
+
+Nota importante:
+
+- para `products` el sentido SAP -> PrestaShop ya esta alineado con el
+  comportamiento esperado.
+- para `categories` tambien es razonable si SAP contiene la clasificacion
+  comercial oficial.
+- para `orders` hace falta definir mejor el negocio, porque en muchos ecommerce
+  los pedidos nacen en PrestaShop y luego se reflejan en SAP. Si aqui se desea
+  que SAP mande tambien en pedidos, hay que precisar si eso significa crear
+  pedidos, actualizar estados, publicar tracking, reflejar facturacion o todo
+  eso junto.
+
+## Estado de dominios al 2026-06-17
+
+| Dominio | Fuente de verdad | Estado | Observacion |
+|---|---|---|---|
+| `products` | SAP | activo | sincroniza productos simples, precio y stock |
+| `categories` | SAP | planned | falta query SAP y regla de mapeo |
+| `orders` | SAP (objetivo), flujo a definir | discovery | requiere aclaracion funcional antes de programar |
 
 ## Query SAP validada
 
