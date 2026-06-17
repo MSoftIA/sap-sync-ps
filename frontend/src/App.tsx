@@ -20,8 +20,10 @@ function AppContent() {
   const [domainAnalysis, setDomainAnalysis] = useState<DomainAnalysis | null>(null)
   const [overviewLabel, setOverviewLabel] = useState('Sin snapshot')
   const [lastRunLabel, setLastRunLabel] = useState('Sin reportes')
+  const [loadingAll, setLoadingAll] = useState(true)
 
   const loadAll = useCallback(async (forceRefresh = false) => {
+    setLoadingAll(true)
     setOverviewLabel('Actualizando...')
 
     const results = await Promise.allSettled([
@@ -55,6 +57,8 @@ function AppContent() {
     if (results[3].status === 'fulfilled') {
       setAvailableDomains(results[3].value)
     }
+
+    setLoadingAll(false)
   }, [setAvailableDomains])
 
   useEffect(() => {
@@ -66,11 +70,14 @@ function AppContent() {
 
   return (
     <div className="layout">
+      <div className={`top-loading-bar${loadingAll ? ' visible' : ''}`} />
+
       <Sidebar
         currentView={currentView}
         onNavigate={setCurrentView}
         lastRunLabel={lastRunLabel}
         overviewLabel={overviewLabel}
+        loading={loadingAll}
         badges={{ sync: syncBadge }}
       />
 
@@ -79,14 +86,23 @@ function AppContent() {
           <SyncView
             reports={reports}
             domainAnalysis={domainAnalysis}
+            loading={loadingAll}
             onRefresh={() => loadAll(true)}
           />
         )}
-        {currentView === 'sap' && <SapView overview={overview} domainAnalysis={domainAnalysis} onRefresh={() => loadAll(true)} />}
+        {currentView === 'sap' && (
+          <SapView
+            overview={overview}
+            domainAnalysis={domainAnalysis}
+            loading={loadingAll}
+            onRefresh={() => loadAll(true)}
+          />
+        )}
         {currentView === 'presta' && (
           <PrestaView
             overview={overview}
             domainAnalysis={domainAnalysis}
+            loading={loadingAll}
             onRefresh={() => loadAll(true)}
           />
         )}

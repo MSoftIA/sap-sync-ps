@@ -12,6 +12,7 @@ import { lookupReference, changeProductStatus } from '../api/prestashop'
 interface Props {
   overview: CatalogOverview | null
   domainAnalysis: DomainAnalysis | null
+  loading?: boolean
   onRefresh: () => void
 }
 

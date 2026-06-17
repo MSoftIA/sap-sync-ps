@@ -982,6 +982,56 @@ summary {
   to   { transform: translateX(0);    opacity: 1; }
 }
 
+/* ── Spinner ────────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  display: inline-block;
+  width: 13px; height: 13px;
+  border: 2px solid rgba(255,255,255,0.25);
+  border-top-color: rgba(255,255,255,0.85);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.spinner-dark {
+  display: inline-block;
+  width: 13px; height: 13px;
+  border: 2px solid rgba(54,89,227,0.2);
+  border-top-color: #3659e3;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ── Top loading bar ────────────────────────────────── */
+.top-loading-bar {
+  position: fixed; top: 0; left: 0; right: 0; height: 3px;
+  z-index: 200; pointer-events: none; overflow: hidden;
+  background: transparent;
+}
+
+.top-loading-bar.visible {
+  background: rgba(54,89,227,0.12);
+}
+
+.top-loading-bar.visible::after {
+  content: '';
+  position: absolute; top: 0; left: 0; height: 100%; width: 35%;
+  background: linear-gradient(90deg, #3659e3, #6ea8fe, #3659e3);
+  animation: indeterminateSlide 1.2s ease-in-out infinite;
+}
+
+/* ── Catalog loading overlay ────────────────────────── */
+.catalog-loading-overlay {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; padding: 40px 0;
+  color: var(--muted); font-size: 0.9rem;
+}
+
 /* ── Modal ──────────────────────────────────────────── */
 .modal-overlay {
   position: fixed;

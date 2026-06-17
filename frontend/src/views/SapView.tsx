@@ -9,10 +9,11 @@ import { fmt, number, fmtDate } from '../utils'
 interface Props {
   overview: CatalogOverview | null
   domainAnalysis: DomainAnalysis | null
+  loading?: boolean
   onRefresh: () => void
 }
 
-export function SapView({ overview, domainAnalysis, onRefresh }: Props) {
+export function SapView({ overview, domainAnalysis, loading: loadingAll, onRefresh }: Props) {
   const sap = overview?.sap ?? {}
   const loading = overview === null
 

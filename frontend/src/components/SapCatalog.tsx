@@ -91,8 +91,12 @@ export function SapCatalog() {
   if (loading && items.length === 0) {
     return (
       <div className="card">
-        <div style={{ display: 'grid', gap: 10 }}>
-          {Array.from({ length: 12 }).map((_, i) => (
+        <div className="catalog-loading-overlay">
+          <span className="spinner-dark" />
+          Cargando artículos...
+        </div>
+        <div style={{ display: 'grid', gap: 10, marginTop: 8 }}>
+          {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} width="100%" height={20} />
           ))}
         </div>
@@ -142,12 +146,20 @@ export function SapCatalog() {
           <button type="button" className={stockFilter === 'without' ? 'active' : ''} onClick={() => onStock('without')}>Sin stock</button>
         </div>
 
-        <button className="btn-secondary" type="button" onClick={() => fetchPage({ page, search, status: statusFilter, stock: stockFilter })} style={{ flexShrink: 0 }}>
-          {loading ? '...' : 'Recargar'}
+        <button
+          className="btn-secondary"
+          type="button"
+          disabled={loading}
+          onClick={() => fetchPage({ page, search, status: statusFilter, stock: stockFilter })}
+          style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 7 }}
+        >
+          {loading && <span className="spinner-dark" />}
+          {loading ? 'Cargando' : 'Recargar'}
         </button>
       </div>
 
-      <div className="catalog-info">
+      <div className="catalog-info" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {loading && <span className="spinner-dark" style={{ width: 11, height: 11 }} />}
         {loading
           ? 'Cargando...'
           : total === 0

@@ -18,6 +18,7 @@ import { startSyncStream } from '../api/sync'
 interface Props {
   reports: Report[]
   domainAnalysis: DomainAnalysis | null
+  loading?: boolean
   onRefresh: () => void
 }
 
@@ -59,7 +60,7 @@ function parseLogLine(raw: string): { text: string; cls: LogEntry['cls']; progre
   }
 }
 
-export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
+export function SyncView({ reports, domainAnalysis, loading, onRefresh }: Props) {
   const { writeMode, setWriteMode, syncRunning, setSyncRunning,
     selectedDomains, setSelectedDomains, availableDomains, setCurrentProgress } = useAppContext()
   const { addToast } = useToast()
@@ -109,7 +110,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
     if (syncRunning) return
 
     setSyncRunning(true)
-    setStatusLabel('En ejecuciÃƒÆ’Ã‚Â³n')
+    setStatusLabel('En ejecucion')
     setLogEntries([])
     setProgress(defaultProgress)
     setCurrentProgress(defaultProgress)
@@ -117,7 +118,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
     const appendLog = (text: string, cls: LogEntry['cls']) =>
       setLogEntries(prev => [...prev, { text, cls }])
 
-    appendLog(fullCatalog ? 'Iniciando operaciÃƒÆ’Ã‚Â³n principal sobre el catÃƒÆ’Ã‚Â¡logo...' : 'Iniciando corrida puntual...', 'info')
+    appendLog(fullCatalog ? 'Iniciando operacion principal sobre el catalogo...' : 'Iniciando corrida puntual...', 'info')
     appendLog('Dominios seleccionados: ' + activeDomains.join(', '), 'info')
     appendLog(writeMode ? 'Modo seleccionado: aplicar cambios reales.' : 'Modo seleccionado: analizar sin modificar tienda.', 'info')
 
@@ -190,13 +191,13 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
   const progressMeta = syncRunning
     ? (progress.known ? `${fmt(progress.current)} de ${fmt(progress.total)} (${fmt(progress.percent)}%)` : 'Calculando avance')
     : statusLabel === 'Completado' ? (progress.known ? `${fmt(progress.total)} elemento(s) recorridos` : 'Proceso finalizado')
-    : 'Esperando acciÃƒÆ’Ã‚Â³n'
+    : 'Esperando accion'
 
   const progressNote = syncRunning
     ? (progress.itemCode ? `Procesando item ${progress.itemCode}` : 'Procesando dominio seleccionado')
-    : statusLabel === 'Completado' ? 'La operaciÃƒÆ’Ã‚Â³n terminÃƒÆ’Ã‚Â³. Puedes revisar el historial y los reportes generados.'
-    : statusLabel === 'Con errores' ? 'Revisa el log para ver en quÃƒÆ’Ã‚Â© punto se cortÃƒÆ’Ã‚Â³ y quÃƒÆ’Ã‚Â© dominio estaba activo.'
-    : 'Cuando inicies una corrida, aquÃƒÆ’Ã‚Â­ verÃƒÆ’Ã‚Â¡s el dominio actual, el avance y el artÃƒÆ’Ã‚Â­culo en proceso cuando aplique.'
+    : statusLabel === 'Completado' ? 'La operacion termino. Puedes revisar el historial y los reportes generados.'
+    : statusLabel === 'Con errores' ? 'Revisa el log para ver en que punto se corto y que dominio estaba activo.'
+    : 'Cuando inicies una corrida, aqui veras el dominio actual, el avance y el articulo en proceso cuando aplique.'
 
   const progressPercent = statusLabel === 'Completado' ? 100 : progress.percent
   const progressKnown = statusLabel === 'Completado' ? true : progress.known
@@ -206,7 +207,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
     { label: 'Crear', value: latestActions.createProduct ?? 0, color: '#15803d' },
     { label: 'Actualizar', value: updateCount, color: '#b45309' },
     { label: 'Sin cambio', value: latestActions.skipNoChange ?? 0, color: '#667085' },
-    { label: 'RevisiÃƒÆ’Ã‚Â³n', value: reviewCount, color: '#b91c1c' },
+    { label: 'Revision', value: reviewCount, color: '#b91c1c' },
   ] : []
 
   return (
@@ -237,20 +238,20 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
           const hasErrors = (latestSummary.errors ?? 0) > 0
           if (hasErrors) return (
             <div className="sync-status-banner error">
-              <span>ÃƒÂ¢Ã…Â¡Ã‚Â </span>
-              <span>La ÃƒÆ’Ã‚Âºltima corrida tuvo {latestSummary.errors} error(es). RevisÃƒÆ’Ã‚Â¡ el log antes de sincronizar.</span>
+              <span>!</span>
+              <span>La ultima corrida tuvo {latestSummary.errors} error(es). Revisa el log antes de sincronizar.</span>
             </div>
           )
           if (totalPending === 0 && (latestSummary.total ?? 0) > 0) return (
             <div className="sync-status-banner ok">
-              <span>ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“</span>
-              <span>Los {latestSummary.total} artÃƒÆ’Ã‚Â­culos de la ÃƒÆ’Ã‚Âºltima muestra estÃƒÆ’Ã‚Â¡n sincronizados con PrestaShop.</span>
+              <span>OK</span>
+              <span>Los {latestSummary.total} articulos de la ultima muestra estan sincronizados con PrestaShop.</span>
             </div>
           )
           if (totalPending > 0) return (
             <div className="sync-status-banner warn">
               <span>!</span>
-              <span>{totalPending} artÃƒÆ’Ã‚Â­culo(s) requieren acciÃƒÆ’Ã‚Â³n. RevisÃƒÆ’Ã‚Â¡ las tarjetas abajo y ejecutÃƒÆ’Ã‚Â¡ la sync cuando estÃƒÆ’Ã‚Â©s listo.</span>
+              <span>{totalPending} articulo(s) requieren accion. Revisa las tarjetas abajo y ejecuta la sync cuando estes listo.</span>
             </div>
           )
           return null
@@ -262,7 +263,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
             <div className={`action-card${(latestActions.createProduct ?? 0) > 0 ? ' pending-create' : ''}`}>
               <div className="action-card-count">{fmt(latestActions.createProduct) ?? '0'}</div>
               <div className="action-card-label">Por crear en PrestaShop</div>
-              <div className="action-card-desc">ArtÃƒÆ’Ã‚Â­culos en SAP que no existen todavÃƒÆ’Ã‚Â­a en la tienda.</div>
+              <div className="action-card-desc">Articulos en SAP que no existen todavia en la tienda.</div>
             </div>
             <div className={`action-card${updateCount > 0 ? ' pending-update' : ''}`}>
               <div className="action-card-count">{fmt(updateCount) ?? '0'}</div>
@@ -271,37 +272,37 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
             </div>
             <div className={`action-card${reviewCount > 0 ? ' pending-review' : ''}`}>
               <div className="action-card-count">{fmt(reviewCount) ?? '0'}</div>
-              <div className="action-card-label">RevisiÃƒÆ’Ã‚Â³n manual</div>
-              <div className="action-card-desc">Combinaciones o errores que no se pueden sincronizar automÃƒÆ’Ã‚Â¡ticamente.</div>
+              <div className="action-card-label">Revision manual</div>
+              <div className="action-card-desc">Combinaciones o errores que no se pueden sincronizar automaticamente.</div>
             </div>
             <div className={`action-card${(latestActions.skipNoChange ?? 0) > 0 ? ' all-clear' : ''}`}>
               <div className="action-card-count">{fmt(latestActions.skipNoChange) ?? '0'}</div>
               <div className="action-card-label">Sin cambios</div>
-              <div className="action-card-desc">ArtÃƒÆ’Ã‚Â­culos que ya coinciden entre SAP y PrestaShop.</div>
+              <div className="action-card-desc">Articulos que ya coinciden entre SAP y PrestaShop.</div>
             </div>
           </div>
         ) : (
           <div className="card" style={{ marginBottom: 16 }}>
             <EmptyState
-              icon="ÃƒÂ¢Ã¢â‚¬â€Ã¢â‚¬Â¹"
+              icon="o"
               title="Sin corridas registradas"
-              description="EjecutÃƒÆ’Ã‚Â¡ una sync para ver el estado del catÃƒÆ’Ã‚Â¡logo aquÃƒÆ’Ã‚Â­."
+              description="Ejecuta una sync para ver el estado del catalogo aqui."
               action={{ label: 'Ir a Ejecutar', onClick: () => document.getElementById('sync-actions')?.scrollIntoView({ behavior: 'smooth' }) }}
             />
           </div>
         )}
 
-        {/* DistribuciÃƒÆ’Ã‚Â³n y metadata */}
+        {/* Distribucion y metadata */}
         {latest && (
           <div className="sync-hero">
             <div className="card">
-              <div className="section-note" style={{ marginBottom: 12 }}>DistribuciÃƒÆ’Ã‚Â³n ÃƒÆ’Ã‚Âºltima corrida</div>
+              <div className="section-note" style={{ marginBottom: 12 }}>Distribucion ultima corrida</div>
               {hasLastRun
                 ? <BarChart items={chartItems} />
-                : <p className="empty" style={{ margin: 0 }}>Sin datos de distribuciÃƒÆ’Ã‚Â³n todavÃƒÆ’Ã‚Â­a.</p>}
+                : <p className="empty" style={{ margin: 0 }}>Sin datos de distribucion todavia.</p>}
               <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #eef2f7' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <StatusBadge tone={statusTone}>{syncRunning ? 'En ejecuciÃƒÆ’Ã‚Â³n' : statusLabel}</StatusBadge>
+                  <StatusBadge tone={statusTone}>{syncRunning ? 'En ejecucion' : statusLabel}</StatusBadge>
                   <span className="section-note">Modo: {writeMode ? 'Aplicar cambios' : 'Dry run'}</span>
                 </div>
               </div>
@@ -310,12 +311,12 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
             <div className="card card-soft">
               <div className="run-facts">
                 <div className="fact-row">
-                  <div className="fact-label">ÃƒÆ’Ã…Â¡ltima ejecuciÃƒÆ’Ã‚Â³n</div>
+                  <div className="fact-label">Ultima ejecucion</div>
                   <div className="fact-value">{fmtDate(latest.generatedAt)}</div>
                 </div>
                 <div className="fact-row">
-                  <div className="fact-label">ArtÃƒÆ’Ã‚Â­culos procesados</div>
-                  <div className="fact-value">{fmt(latestSummary.total) ?? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'}</div>
+                  <div className="fact-label">Articulos procesados</div>
+                  <div className="fact-value">{fmt(latestSummary.total) ?? '-'}</div>
                 </div>
                 <div className="fact-row">
                   <div className="fact-label">Cambios aplicados</div>
@@ -339,23 +340,23 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
       <section id="sync-actions" className="section">
         <div className="section-header">
           <h2 className="section-title">Ejecutar</h2>
-          <div className="section-note">ElegÃƒÆ’Ã‚Â­ dominio y modo.</div>
+          <div className="section-note">Elige dominio y modo.</div>
         </div>
 
         <div className="card">
           <div className="action-block">
             <MessageBox kind={writeMode ? 'warn' : 'info'}>
               {writeMode
-                ? 'Aplicar cambios escribe de verdad en PrestaShop, pero solo en los dominios que ya estÃƒÆ’Ã‚Â¡n listos para escritura.'
+                ? 'Aplicar cambios escribe de verdad en PrestaShop, pero solo en los dominios que ya estan listos para escritura.'
                 : 'Analizar solo revisa datos, compara y deja reportes. No modifica productos en PrestaShop.'}
             </MessageBox>
 
             <div className="domain-picker">
               <div className="domain-header">
                 <div>
-                  <div className="domain-title">SegmentaciÃƒÆ’Ã‚Â³n de sync</div>
+                  <div className="domain-title">Segmentacion de sync</div>
                   <div className="domain-subtitle">
-                    ElegÃƒÆ’Ã‚Â­ desde la interfaz quÃƒÆ’Ã‚Â© dominios quieres correr.
+                    Elige desde la interfaz que dominios quieres correr.
                   </div>
                 </div>
                 <div className="domain-actions">
@@ -382,7 +383,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
               </div>
 
               <MessageBox kind={activeDomains.length === 0 ? 'warn' : 'info'}>
-                {`La prÃƒÆ’Ã‚Â³xima corrida usarÃƒÆ’Ã‚Â¡: ${activeDomains.join(', ')}. ${writeMode ? 'Vas a aplicar cambios reales en los dominios listos.' : 'Vas a analizar sin modificar la tienda.'}`}
+                {`La proxima corrida usara: ${activeDomains.join(', ')}. ${writeMode ? 'Vas a aplicar cambios reales en los dominios listos.' : 'Vas a analizar sin modificar la tienda.'}`}
               </MessageBox>
             </div>
 
@@ -410,7 +411,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
                 disabled={syncRunning}
                 onClick={() => requestSync(true)}
               >
-                {writeMode ? 'Sincronizar productos con PrestaShop' : 'Analizar catÃƒÆ’Ã‚Â¡logo completo'}
+                {writeMode ? 'Sincronizar productos con PrestaShop' : 'Analizar catalogo completo'}
               </button>
 
               <button
@@ -433,7 +434,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
                   </div>
                   <div className="field">
                     <label htmlFor="item-code">Item code puntual</label>
-                    <input type="text" id="item-code" placeholder="Opcional: un artÃƒÆ’Ã‚Â­culo o lote acotado"
+                    <input type="text" id="item-code" placeholder="Opcional: un articulo o lote acotado"
                       value={itemCode} onChange={e => setItemCode(e.target.value)} />
                   </div>
                 </div>
@@ -568,7 +569,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
                     ordersSummary.latestDocNum ? `ultimo DocNum ${ordersSummary.latestDocNum}` : null,
                     ordersSummary.latestDocDate ? `fecha ${new Date(String(ordersSummary.latestDocDate)).toLocaleDateString('es')}` : null,
                     ordersSummary.uniqueCustomers !== undefined ? `${ordersSummary.uniqueCustomers} clientes con pedidos` : null,
-                  ].filter(Boolean).join(' Ã‚Â· ')
+                  ].filter(Boolean).join(' | ')
                 : orders?.note || 'Falta cargar el resumen operativo de pedidos.'}
             </div>
           </div>
@@ -579,7 +580,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
       <section id="sync-progress" className="section">
         <div className="section-header">
           <h2 className="section-title">Avance de la corrida</h2>
-          <div className="section-note">QuÃƒÆ’Ã‚Â© estÃƒÆ’Ã‚Â¡ corriendo ahora.</div>
+          <div className="section-note">Que esta corriendo ahora.</div>
         </div>
         <div className="card">
           <ProgressBar
@@ -597,7 +598,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
       <section id="sync-logs" className="section">
         <div className="section-header">
           <h2 className="section-title">Log en tiempo real</h2>
-          <div className="section-note">Detalle tÃƒÆ’Ã‚Â©cnico.</div>
+          <div className="section-note">Detalle tecnico.</div>
         </div>
         <LogBox entries={logEntries} />
       </section>
@@ -611,9 +612,9 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
         {reports.length === 0 ? (
           <div className="card">
             <EmptyState
-              icon="ÃƒÂ¢Ã¢â‚¬â€Ã¢â‚¬Â¹"
+              icon="o"
               title="Sin corridas registradas"
-              description="Ejecuta una sincronizaciÃƒÆ’Ã‚Â³n para ver el historial aquÃƒÆ’Ã‚Â­."
+              description="Ejecuta una sincronizacion para ver el historial aqui."
               action={{ label: 'Ir a Ejecutar', onClick: () => document.getElementById('sync-actions')?.scrollIntoView({ behavior: 'smooth' }) }}
             />
           </div>
@@ -655,4 +656,5 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
     </main>
   )
 }
+
 
