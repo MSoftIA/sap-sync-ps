@@ -6,6 +6,14 @@ const LEVELS = {
   data: 3,
 };
 
+function sanitizeBindings(bindings = {}) {
+  return Object.fromEntries(
+    Object.entries(bindings).filter(
+      ([, value]) => value !== undefined && value !== null && value !== "",
+    ),
+  );
+}
+
 function getLogLevel() {
   const raw = (process.env.LOG_LEVEL || "info").toLowerCase();
   return LEVELS[raw] === undefined ? LEVELS.info : LEVELS[raw];
@@ -33,6 +41,18 @@ function log(level, message, data = {}) {
   );
 }
 
+function createLogger(bindings = {}) {
+  const baseBindings = sanitizeBindings(bindings);
+
+  return function scopedLog(level, message, data = {}) {
+    log(level, message, {
+      ...baseBindings,
+      ...sanitizeBindings(data),
+    });
+  };
+}
+
 module.exports = {
+  createLogger,
   log,
 };

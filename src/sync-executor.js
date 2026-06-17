@@ -415,11 +415,13 @@ async function executeSyncAction(client, row, log) {
       );
     }
 
-    const stockId = await findStockAvailableId(
-      client,
-      row.productId,
-      row.actionPayload.stockAvailable.productAttributeId || 0,
-    );
+    const stockId =
+      row.selectedStockId ||
+      (await findStockAvailableId(
+        client,
+        row.productId,
+        row.actionPayload.stockAvailable.productAttributeId || 0,
+      ));
 
     if (!stockId) {
       throw new Error(

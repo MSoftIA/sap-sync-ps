@@ -1,8 +1,14 @@
 const { loadEnvFile } = require("./env");
-const { log } = require("./logger");
+const { createLogger, log } = require("./logger");
 const { writeRunReports } = require("./report");
 const { isWriteEnabled } = require("./sync-executor");
 const { listSyncDomains, parseSyncDomains } = require("./sync-domains");
+
+function createRunId() {
+  return (
+    "run-" + new Date().toISOString().replace(/[:.]/g, "-") + "-" + process.pid
+  );
+}
 
 function logEnvLoad() {
   const result = loadEnvFile(".env.local", { override: false });
@@ -21,12 +27,16 @@ function logEnvLoad() {
 }
 
 async function run() {
+  const runId = createRunId();
+  const runLog = createLogger({ runId });
+  const startedAt = Date.now();
+
   logEnvLoad();
 
   const { domains, unknown } = parseSyncDomains();
   const availableDomains = listSyncDomains();
 
-  log("info", "Iniciando main.js", {
+  runLog("info", "Iniciando main.js", {
     cwd: process.cwd(),
     node: process.version,
     syncWrite: isWriteEnabled(),
@@ -36,7 +46,7 @@ async function run() {
   });
 
   if (unknown.length > 0) {
-    log("warn", "SYNC_DOMAINS contiene dominios no registrados", {
+    runLog("warn", "SYNC_DOMAINS contiene dominios no registrados", {
       unknown,
     });
   }
@@ -45,13 +55,16 @@ async function run() {
   const domainResults = [];
 
   for (const domain of domains) {
-    log("info", "Ejecutando dominio de sincronizacion", {
+    const domainStartedAt = Date.now();
+    const domainLog = createLogger({ runId, domain: domain.key });
+
+    runLog("info", "Ejecutando dominio de sincronizacion", {
       domain: domain.key,
       sourceOfTruth: domain.sourceOfTruth,
       status: domain.status,
     });
 
-    const result = await domain.runner(log);
+    const result = await domain.runner(domainLog);
     const normalizedResult = result || {
       key: domain.key,
       reportRows: [],
@@ -65,6 +78,7 @@ async function run() {
 
     domainResults.push({
       key: normalizedResult.key || domain.key,
+      elapsedMs: Date.now() - domainStartedAt,
       ...normalizedResult.summary,
     });
 
@@ -73,17 +87,24 @@ async function run() {
     }
   }
 
-  log("info", "Resumen de dominios ejecutados", {
+  runLog("info", "Resumen de dominios ejecutados", {
     domainResults,
+    elapsedMs: Date.now() - startedAt,
   });
 
   if (reportRows.length > 0) {
-    writeRunReports(log, reportRows);
+    writeRunReports(runLog, reportRows);
+    runLog("info", "Corrida finalizada", {
+      elapsedMs: Date.now() - startedAt,
+      domains: domains.map((domain) => domain.key),
+      reportRows: reportRows.length,
+    });
     return;
   }
 
-  log("info", "No se generaron reportes de productos en esta corrida", {
+  runLog("info", "No se generaron reportes de productos en esta corrida", {
     domains: domains.map((domain) => domain.key),
+    elapsedMs: Date.now() - startedAt,
   });
 }
 
