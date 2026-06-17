@@ -40,7 +40,11 @@ function buildPropertyBreakdown(rows) {
 function buildCategorySummary(rows, propertyCatalog) {
   const groupBreakdown = buildGroupBreakdown(rows);
   const propertyBreakdown = buildPropertyBreakdown(rows);
-  const rowsWithoutMainCategory = rows.filter((row) => !row.hasMainCategory);
+  const rowsWithoutMainCategory = rows.filter(
+    (row) =>
+      row.status === "missing_main_category" ||
+      !String(row.itemGroupName || "").trim(),
+  );
 
   return {
     total: rows.length,
