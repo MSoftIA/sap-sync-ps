@@ -18,6 +18,7 @@ const {
   readSapArticleByCode,
   readSapOrdersOverview,
   readSapOverview,
+  readSapProductsPage,
 } = require("./src/sap");
 const { log } = require("./src/logger");
 const { listSyncDomains } = require("./src/sync-domains");
@@ -324,6 +325,17 @@ function buildUnavailableOverview(source, error) {
   };
 }
 
+function parsePositiveInt(value, fallback, options = {}) {
+  const { max = Number.MAX_SAFE_INTEGER, min = 1 } = options;
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  return Math.min(max, Math.max(min, Math.floor(parsed)));
+}
+
 async function getCatalogOverview(forceRefresh = false) {
   const ttlMs = 60 * 1000;
   if (
@@ -433,6 +445,36 @@ app.get("/api/dashboard-summary", async (req, res) => {
 
 app.get("/api/domain-analysis", (req, res) => {
   res.json(buildDomainAnalysisSummary());
+});
+
+app.get("/api/sap-products", (req, res) => {
+  const page = parsePositiveInt(req.query.page, 1);
+  const pageSize = parsePositiveInt(req.query.pageSize, 50, { max: 250 });
+  const search = String(req.query.search || "").trim();
+  const status = String(req.query.status || "all")
+    .trim()
+    .toLowerCase();
+
+  if (!["all", "active", "inactive"].includes(status)) {
+    res.status(400).json({
+      error: "status invalido. Usa all, active o inactive",
+    });
+    return;
+  }
+
+  try {
+    const payload = readSapProductsPage(log, {
+      page,
+      pageSize,
+      search,
+      status,
+    });
+    res.json(payload);
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
+    });
+  }
 });
 
 app.get("/api/sync-domains", (req, res) => {

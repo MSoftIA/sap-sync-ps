@@ -61,6 +61,123 @@ function buildArticleQuery({ schema, priceList, warehouse, itemCode, limit }) {
   };
 }
 
+function buildSapProductListFilters({
+  priceList,
+  warehouse,
+  search = "",
+  status = "all",
+}) {
+  const filters = [
+    `I."frozenFor" = 'N'`,
+    `P."PriceList" = ?`,
+    `C."WhsCode" = ?`,
+  ];
+  const params = [priceList, warehouse];
+
+  const normalizedSearch = String(search || "").trim();
+  if (normalizedSearch) {
+    const searchPattern = `%${normalizedSearch.toUpperCase()}%`;
+    filters.push(
+      `(UPPER(I."ItemCode") LIKE ? OR UPPER(I."ItemName") LIKE ? OR UPPER(COALESCE(I."CodeBars", '')) LIKE ?)`,
+    );
+    params.push(searchPattern, searchPattern, searchPattern);
+  }
+
+  const normalizedStatus = String(status || "all")
+    .trim()
+    .toLowerCase();
+  if (normalizedStatus === "active") {
+    filters.push(`I."validFor" = 'Y'`);
+  } else if (normalizedStatus === "inactive") {
+    filters.push(`I."validFor" <> 'Y'`);
+  }
+
+  return {
+    whereClause: filters.join(" AND "),
+    params,
+  };
+}
+
+function buildSapProductListQuery({
+  schema,
+  priceList,
+  warehouse,
+  search,
+  status,
+  page,
+  pageSize,
+}) {
+  const { whereClause, params } = buildSapProductListFilters({
+    priceList,
+    warehouse,
+    search,
+    status,
+  });
+  const safePage = Math.max(1, Number(page) || 1);
+  const safePageSize = Math.max(1, Number(pageSize) || 50);
+  const offset = (safePage - 1) * safePageSize;
+
+  return {
+    sql:
+      "SELECT " +
+      'I."ItemCode", I."ItemName", P."AddPrice1" AS "Price", ' +
+      'C."WhsCode", C."OnHand" AS "Existencia", I."CodeBars", ' +
+      'I."validFor" AS "Status", I."ItmsGrpCod" AS "ItemGroupCode" ' +
+      'FROM "' +
+      schema +
+      '"."OITM" I ' +
+      'INNER JOIN "' +
+      schema +
+      '"."ITM1" P ON P."ItemCode" = I."ItemCode" ' +
+      'INNER JOIN "' +
+      schema +
+      '"."OITW" C ON C."ItemCode" = I."ItemCode" ' +
+      "WHERE " +
+      whereClause +
+      ' ORDER BY I."ItemCode" ASC ' +
+      "LIMIT " +
+      safePageSize +
+      " OFFSET " +
+      offset,
+    params,
+    page: safePage,
+    pageSize: safePageSize,
+    offset,
+  };
+}
+
+function buildSapProductListCountQuery({
+  schema,
+  priceList,
+  warehouse,
+  search,
+  status,
+}) {
+  const { whereClause, params } = buildSapProductListFilters({
+    priceList,
+    warehouse,
+    search,
+    status,
+  });
+
+  return {
+    sql:
+      'SELECT COUNT(*) AS "Total" ' +
+      'FROM "' +
+      schema +
+      '"."OITM" I ' +
+      'INNER JOIN "' +
+      schema +
+      '"."ITM1" P ON P."ItemCode" = I."ItemCode" ' +
+      'INNER JOIN "' +
+      schema +
+      '"."OITW" C ON C."ItemCode" = I."ItemCode" ' +
+      "WHERE " +
+      whereClause,
+    params,
+  };
+}
+
 function connectSap(conn, log, config) {
   if (log) {
     log("info", "Conectando a SAP HANA");
@@ -81,6 +198,22 @@ function mapSapRow(row) {
     barcode: row.CodeBars || null,
     status: row.Status,
     raw: row,
+  };
+}
+
+function mapSapProductListRow(row) {
+  return {
+    itemCode: row.ItemCode,
+    itemName: row.ItemName,
+    price: Number(row.Price),
+    warehouse: row.WhsCode,
+    stock: Number(row.Existencia),
+    barcode: row.CodeBars || null,
+    status: row.Status,
+    itemGroupCode:
+      row.ItemGroupCode === null || row.ItemGroupCode === undefined
+        ? null
+        : Number(row.ItemGroupCode),
   };
 }
 
@@ -307,6 +440,92 @@ function readSapOverview(log) {
   }
 }
 
+function readSapProductsPage(log, options = {}) {
+  const config = getSapConfig();
+  const conn = hana.createConnection();
+  const page = Math.max(1, Number(options.page) || 1);
+  const pageSize = Math.min(250, Math.max(1, Number(options.pageSize) || 50));
+  const search = String(options.search || "").trim();
+  const status = String(options.status || "all")
+    .trim()
+    .toLowerCase();
+  const listQuery = buildSapProductListQuery({
+    schema: config.query.schema,
+    priceList: config.query.priceList,
+    warehouse: config.query.warehouse,
+    search,
+    status,
+    page,
+    pageSize,
+  });
+  const countQuery = buildSapProductListCountQuery({
+    schema: config.query.schema,
+    priceList: config.query.priceList,
+    warehouse: config.query.warehouse,
+    search,
+    status,
+  });
+
+  try {
+    if (log) {
+      log("info", "Consultando pagina de productos SAP", {
+        schema: config.query.schema,
+        warehouse: config.query.warehouse,
+        priceList: config.query.priceList,
+        page,
+        pageSize,
+        search,
+        status,
+      });
+    }
+
+    connectSap(conn, log, config);
+
+    const startedAt = Date.now();
+    const rows = conn.exec(listQuery.sql, listQuery.params);
+    const totalRows = conn.exec(countQuery.sql, countQuery.params);
+    const total = Number(totalRows[0]?.Total || 0);
+    const items = rows.map(mapSapProductListRow);
+    const totalPages =
+      pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
+
+    if (log) {
+      log("info", "Pagina de productos SAP cargada", {
+        page,
+        pageSize,
+        returned: items.length,
+        total,
+        totalPages,
+        elapsedMs: Date.now() - startedAt,
+      });
+    }
+
+    return {
+      source: "sap",
+      schema: config.query.schema,
+      warehouse: config.query.warehouse,
+      priceList: config.query.priceList,
+      filters: {
+        search,
+        status,
+      },
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+      items,
+    };
+  } finally {
+    try {
+      conn.disconnect();
+    } catch {}
+  }
+}
+
 function readSapArticles(log) {
   const config = getSapConfig();
   const conn = hana.createConnection();
@@ -448,6 +667,8 @@ function readSapCategoryDiagnostics(log) {
 module.exports = {
   buildArticleQuery,
   buildCategoryDiagnosticQuery,
+  buildSapProductListCountQuery,
+  buildSapProductListQuery,
   getSapConfig,
   readSapArticleByCode,
   readSapArticles,
@@ -455,4 +676,5 @@ module.exports = {
   readSapCategoryPropertyCatalog,
   readSapOrdersOverview,
   readSapOverview,
+  readSapProductsPage,
 };
