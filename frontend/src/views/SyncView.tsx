@@ -411,7 +411,9 @@ export function SyncView({ reports, domainAnalysis, loading, onRefresh }: Props)
                 disabled={syncRunning}
                 onClick={() => requestSync(true)}
               >
-                {writeMode ? 'Sincronizar productos con PrestaShop' : 'Analizar catalogo completo'}
+                {writeMode
+                  ? `Sincronizar ${activeDomains.join(', ')} con PrestaShop`
+                  : `Analizar ${activeDomains.join(', ')}`}
               </button>
 
               <button
