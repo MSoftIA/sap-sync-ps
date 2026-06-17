@@ -1122,6 +1122,86 @@ summary {
   text-align: right;
 }
 
+/* ── Accion cards (sync resumen) ────────────────────── */
+.action-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.action-card {
+  border-radius: 16px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  background: white;
+  display: grid;
+  gap: 4px;
+}
+
+.action-card.pending-create {
+  border-left: 4px solid #b45309;
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.action-card.pending-update {
+  border-left: 4px solid #1d4ed8;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.action-card.pending-review {
+  border-left: 4px solid #b91c1c;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.action-card.all-clear {
+  border-left: 4px solid #15803d;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.action-card-count {
+  font-size: 2.2rem;
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.action-card.pending-create .action-card-count { color: #b45309; }
+.action-card.pending-update .action-card-count { color: #1d4ed8; }
+.action-card.pending-review .action-card-count { color: #b91c1c; }
+.action-card.all-clear     .action-card-count { color: #15803d; }
+
+.action-card-label {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.action-card-desc {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.sync-status-banner {
+  border-radius: 14px;
+  padding: 14px 18px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.sync-status-banner.ok    { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.sync-status-banner.warn  { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+.sync-status-banner.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+
 /* ── Responsive sidebar ─────────────────────────────── */
 @media (max-width: 768px) {
   .sidebar { width: 60px; }

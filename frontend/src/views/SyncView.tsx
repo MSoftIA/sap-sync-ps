@@ -231,89 +231,108 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
       <section id="sync-summary" className="section">
         {syncRunning && <div className="banner visible">Sync masiva en curso...</div>}
 
-        <div className="sync-hero">
-          <div className="hero-panel">
-            <div className="card">
-              <h2 className="hero-title">Sync masiva</h2>
-              <p className="hero-copy">Centro operativo para lanzar la sync y seguir qué está pasando.</p>
-              <div className="hero-kpis">
-                <div className="hero-kpi">
-                  <div className="hero-kpi-label">Modo</div>
-                  <div className="hero-kpi-value">{writeMode ? 'Aplicar cambios' : 'Dry run'}</div>
-                </div>
-                <div className="hero-kpi">
-                  <div className="hero-kpi-label">Última muestra</div>
-                  <div className="hero-kpi-value">{fmt(latestSummary.total)}</div>
-                </div>
-                <div className="hero-kpi">
-                  <div className="hero-kpi-label">Aplicados</div>
-                  <div className="hero-kpi-value">{fmt(latestActions.executed)}</div>
-                </div>
-                <div className="hero-kpi">
-                  <div className="hero-kpi-label">Errores</div>
-                  <div className="hero-kpi-value">{fmt(latestSummary.errors)}</div>
-                </div>
-              </div>
+        {/* Banner de estado accionable */}
+        {!syncRunning && latest && (() => {
+          const totalPending = (latestActions.createProduct ?? 0) + updateCount + reviewCount
+          const hasErrors = (latestSummary.errors ?? 0) > 0
+          if (hasErrors) return (
+            <div className="sync-status-banner error">
+              <span>⚠</span>
+              <span>La última corrida tuvo {latestSummary.errors} error(es). Revisá el log antes de sincronizar.</span>
             </div>
+          )
+          if (totalPending === 0 && (latestSummary.total ?? 0) > 0) return (
+            <div className="sync-status-banner ok">
+              <span>✓</span>
+              <span>Los {latestSummary.total} artículos de la última muestra están sincronizados con PrestaShop.</span>
+            </div>
+          )
+          if (totalPending > 0) return (
+            <div className="sync-status-banner warn">
+              <span>!</span>
+              <span>{totalPending} artículo(s) requieren acción. Revisá las tarjetas abajo y ejecutá la sync cuando estés listo.</span>
+            </div>
+          )
+          return null
+        })()}
 
+        {/* Tarjetas de acciones pendientes */}
+        {latest ? (
+          <div className="action-cards" style={{ marginBottom: 16 }}>
+            <div className={`action-card${(latestActions.createProduct ?? 0) > 0 ? ' pending-create' : ''}`}>
+              <div className="action-card-count">{fmt(latestActions.createProduct) ?? '0'}</div>
+              <div className="action-card-label">Por crear en PrestaShop</div>
+              <div className="action-card-desc">Artículos en SAP que no existen todavía en la tienda.</div>
+            </div>
+            <div className={`action-card${updateCount > 0 ? ' pending-update' : ''}`}>
+              <div className="action-card-count">{fmt(updateCount) ?? '0'}</div>
+              <div className="action-card-label">Por actualizar</div>
+              <div className="action-card-desc">Diferencias de precio o stock entre SAP y PrestaShop.</div>
+            </div>
+            <div className={`action-card${reviewCount > 0 ? ' pending-review' : ''}`}>
+              <div className="action-card-count">{fmt(reviewCount) ?? '0'}</div>
+              <div className="action-card-label">Revisión manual</div>
+              <div className="action-card-desc">Combinaciones o errores que no se pueden sincronizar automáticamente.</div>
+            </div>
+            <div className={`action-card${(latestActions.skipNoChange ?? 0) > 0 ? ' all-clear' : ''}`}>
+              <div className="action-card-count">{fmt(latestActions.skipNoChange) ?? '0'}</div>
+              <div className="action-card-label">Sin cambios</div>
+              <div className="action-card-desc">Artículos que ya coinciden entre SAP y PrestaShop.</div>
+            </div>
+          </div>
+        ) : (
+          <div className="card" style={{ marginBottom: 16 }}>
+            <EmptyState
+              icon="○"
+              title="Sin corridas registradas"
+              description="Ejecutá una sync para ver el estado del catálogo aquí."
+              action={{ label: 'Ir a Ejecutar', onClick: () => document.getElementById('sync-actions')?.scrollIntoView({ behavior: 'smooth' }) }}
+            />
+          </div>
+        )}
+
+        {/* Distribución y metadata */}
+        {latest && (
+          <div className="sync-hero">
             <div className="card">
-              <div className="summary-grid">
-                <div className="metric-card">
-                  <div className="label">Estado</div>
+              <div className="section-note" style={{ marginBottom: 12 }}>Distribución última corrida</div>
+              {hasLastRun
+                ? <BarChart items={chartItems} />
+                : <p className="empty" style={{ margin: 0 }}>Sin datos de distribución todavía.</p>}
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #eef2f7' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <StatusBadge tone={statusTone}>{syncRunning ? 'En ejecución' : statusLabel}</StatusBadge>
-                  <div className="hint">Situación actual del proceso</div>
-                </div>
-                <div className="metric-card">
-                  <div className="label">Para crear</div>
-                  <div className="value">{fmt(latestActions.createProduct)}</div>
-                  <div className="hint">Altas detectadas</div>
-                </div>
-                <div className="metric-card">
-                  <div className="label">Para actualizar</div>
-                  <div className="value">{fmt(updateCount)}</div>
-                  <div className="hint">Precio o stock</div>
-                </div>
-                <div className="metric-card">
-                  <div className="label">Revisión manual</div>
-                  <div className="value">{fmt(reviewCount)}</div>
-                  <div className="hint">Casos pendientes</div>
+                  <span className="section-note">Modo: {writeMode ? 'Aplicar cambios' : 'Dry run'}</span>
                 </div>
               </div>
-
-              {hasLastRun && (
-                <div style={{ marginTop: 16 }}>
-                  <div className="section-note" style={{ marginBottom: 10 }}>Distribución última corrida</div>
-                  <BarChart items={chartItems} />
-                </div>
-              )}
             </div>
-          </div>
 
-          <div className="card card-soft">
-            <div className="run-facts">
-              <div className="fact-row">
-                <div className="fact-label">Ultima ejecución</div>
-                <div className="fact-value">{fmtDate(latest?.generatedAt)}</div>
-              </div>
-              <div className="fact-row">
-                <div className="fact-label">Lectura del proceso</div>
-                <div className="fact-value">
-                  {latestSummary.total && latestSummary.total > 0
-                    ? `La última ejecución procesó ${latestSummary.total} producto(s).`
-                    : 'Sin actividad reciente'}
+            <div className="card card-soft">
+              <div className="run-facts">
+                <div className="fact-row">
+                  <div className="fact-label">Última ejecución</div>
+                  <div className="fact-value">{fmtDate(latest.generatedAt)}</div>
                 </div>
-              </div>
-              <div className="fact-row">
-                <div className="fact-label">Detectados para crear</div>
-                <div className="fact-value">{fmt(latestActions.createProduct)}</div>
-              </div>
-              <div className="fact-row">
-                <div className="fact-label">Detectados para actualizar</div>
-                <div className="fact-value">{fmt(updateCount)}</div>
+                <div className="fact-row">
+                  <div className="fact-label">Artículos procesados</div>
+                  <div className="fact-value">{fmt(latestSummary.total) ?? '—'}</div>
+                </div>
+                <div className="fact-row">
+                  <div className="fact-label">Cambios aplicados</div>
+                  <div className="fact-value">{fmt(latestActions.executed) ?? '0'}</div>
+                </div>
+                <div className="fact-row">
+                  <div className="fact-label">Errores</div>
+                  <div className="fact-value">
+                    <Tag tone={(latestSummary.errors ?? 0) > 0 ? 'red' : 'gray'}>
+                      {fmt(latestSummary.errors) ?? '0'}
+                    </Tag>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </section>
 
       {/* Ejecutar */}
