@@ -283,6 +283,89 @@
         border: 1px solid #bfdbfe;
       }
 
+      .flow-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+      }
+
+      .flow-card {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 14px;
+        background: #fff;
+      }
+
+      .flow-card h3 {
+        margin: 0 0 6px;
+        font-size: 1rem;
+      }
+
+      .flow-card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+        line-height: 1.45;
+      }
+
+      .progress-shell {
+        display: grid;
+        gap: 10px;
+      }
+
+      .progress-topline {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .progress-title {
+        font-weight: 800;
+      }
+
+      .progress-meta {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .progress-track {
+        width: 100%;
+        height: 14px;
+        background: #e7eef7;
+        border-radius: 999px;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .progress-bar {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #3659e3 0%, #6ea8fe 100%);
+        border-radius: 999px;
+        transition: width 0.25s ease;
+      }
+
+      .progress-track.indeterminate .progress-bar {
+        width: 35%;
+        animation: indeterminateSlide 1.2s ease-in-out infinite;
+      }
+
+      .progress-note {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      @keyframes indeterminateSlide {
+        0% {
+          transform: translateX(-110%);
+        }
+        100% {
+          transform: translateX(320%);
+        }
+      }
+
       .action-block {
         display: grid;
         gap: 14px;
@@ -725,9 +808,36 @@
               <div class="card">
                 <h2 class="hero-title">Sync masiva</h2>
                 <p class="hero-copy">
-                  Esta vista está pensada para lanzar la sync completa, seguir el log y
-                  entender si la corrida avanza, se corta o termina bien.
+                  Esta vista sirve para tres cosas distintas: revisar qué datos hay,
+                  analizar qué pasaría sin tocar la tienda y aplicar cambios reales
+                  cuando ya estés seguro.
                 </p>
+              </div>
+
+              <div class="card">
+                <div class="flow-grid">
+                  <div class="flow-card">
+                    <h3>Productos</h3>
+                    <p>
+                      Ver catálogo, analizar diferencias con PrestaShop y sincronizar
+                      precio, stock y altas.
+                    </p>
+                  </div>
+                  <div class="flow-card">
+                    <h3>Categorías</h3>
+                    <p>
+                      Ver cómo SAP propone categorías y propiedades. Hoy está en modo
+                      diagnóstico, sin escribir en tienda.
+                    </p>
+                  </div>
+                  <div class="flow-card">
+                    <h3>Pedidos</h3>
+                    <p>
+                      Entender estados y flujo de órdenes. Todavía no está listo para
+                      sincronización automática.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div class="card">
@@ -791,14 +901,14 @@
 
         <section class="section">
           <div class="section-header">
-            <h2 class="section-title">Acciones</h2>
-            <div class="section-note">Primero probá con dry run. Luego usá write para aplicar.</div>
+            <h2 class="section-title">Qué quieres hacer</h2>
+            <div class="section-note">Primero elegí el dominio. Luego decidí si quieres analizar o aplicar.</div>
           </div>
 
           <div class="card">
             <div class="action-block">
               <div id="sync-mode-help" class="message-box message-info">
-                Dry run analiza el catálogo y deja trazas. Write usa SAP como fuente de verdad y aplica cambios en PrestaShop.
+                Analizar no modifica nada. Aplicar cambios sí escribe en PrestaShop usando SAP como fuente de verdad.
               </div>
 
               <div class="domain-picker">
@@ -837,10 +947,10 @@
                     type="button"
                     onclick="setMode('dry')"
                   >
-                    Dry run
+                    Analizar sin cambios
                   </button>
                   <button id="btn-write" type="button" onclick="setMode('write')">
-                    Write
+                    Aplicar cambios
                   </button>
                 </div>
 
@@ -850,7 +960,7 @@
                   type="button"
                   onclick="runSync({ fullCatalog: true })"
                 >
-                  Iniciar sync masiva
+                  Ejecutar operación principal
                 </button>
                 <button
                   class="btn-secondary"
@@ -863,7 +973,7 @@
               </div>
 
               <details>
-                <summary>Opciones avanzadas</summary>
+                <summary>Opciones avanzadas y corridas puntuales</summary>
                 <div class="details-body">
                   <div class="field-grid">
                     <div class="field">
@@ -882,7 +992,7 @@
 
                   <div class="button-row" style="margin-top: 12px">
                     <button class="btn-primary" id="btn-run" type="button" onclick="runSync()">
-                      Ejecutar lote manual
+                      Ejecutar corrida puntual
                     </button>
                   </div>
                 </div>
@@ -893,8 +1003,32 @@
 
         <section class="section">
           <div class="section-header">
+            <h2 class="section-title">Avance de la corrida</h2>
+            <div class="section-note">Barra de avance y lectura rápida de lo que el proceso está haciendo ahora.</div>
+          </div>
+
+          <div class="card">
+            <div class="progress-shell">
+              <div class="progress-topline">
+                <div class="progress-title" id="progress-title">Sin corrida activa</div>
+                <div class="progress-meta" id="progress-meta">Esperando acción</div>
+              </div>
+
+              <div id="progress-track" class="progress-track indeterminate">
+                <div id="progress-bar" class="progress-bar"></div>
+              </div>
+
+              <div id="progress-note" class="progress-note">
+                Cuando inicies una corrida, aquí verás el dominio actual, el avance y el artículo en proceso cuando aplique.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-header">
             <h2 class="section-title">Log en tiempo real</h2>
-            <div class="section-note">Este bloque es el centro del seguimiento de la sync masiva.</div>
+            <div class="section-note">Aquí se ve el detalle técnico de la corrida. La barra de arriba es el resumen rápido.</div>
           </div>
 
           <div id="log-box" class="log-box">
@@ -1148,6 +1282,14 @@
       let currentView = "sync";
       let availableSyncDomains = [];
       let selectedSyncDomains = ["products"];
+      let currentProgress = {
+        domain: "",
+        current: 0,
+        total: 0,
+        percent: 0,
+        itemCode: "",
+        known: false,
+      };
 
       function fmt(value) {
         if (value === undefined || value === null || value === "") return "-";
@@ -1173,6 +1315,117 @@
 
       function setText(id, value) {
         document.getElementById(id).textContent = fmt(value);
+      }
+
+      function updateProgressUi({
+        title,
+        meta,
+        note,
+        percent = 0,
+        known = false,
+        running = false,
+      }) {
+        document.getElementById("progress-title").textContent = title;
+        document.getElementById("progress-meta").textContent = meta;
+        document.getElementById("progress-note").textContent = note;
+
+        const track = document.getElementById("progress-track");
+        const bar = document.getElementById("progress-bar");
+
+        if (running && !known) {
+          track.classList.add("indeterminate");
+          bar.style.width = "35%";
+          return;
+        }
+
+        track.classList.remove("indeterminate");
+        bar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+      }
+
+      function resetProgressUi() {
+        currentProgress = {
+          domain: "",
+          current: 0,
+          total: 0,
+          percent: 0,
+          itemCode: "",
+          known: false,
+        };
+        updateProgressUi({
+          title: "Sin corrida activa",
+          meta: "Esperando acción",
+          note: "Cuando inicies una corrida, aquí verás el dominio actual, el avance y el artículo en proceso cuando aplique.",
+          percent: 0,
+          known: false,
+          running: false,
+        });
+      }
+
+      function describeSelectedUseCase() {
+        const selected = availableSyncDomains.filter((domain) =>
+          selectedSyncDomains.includes(domain.key),
+        );
+
+        if (!selected.length) {
+          return "No hay dominios seleccionados.";
+        }
+
+        if (selected.length === 1) {
+          const domain = selected[0];
+          if (domain.key === "products") {
+            return writeMode
+              ? "Vas a aplicar cambios reales de productos: altas, precio y stock."
+              : "Vas a analizar productos para ver diferencias y acciones sugeridas sin tocar la tienda.";
+          }
+
+          if (domain.key === "categories") {
+            return "Vas a revisar cómo SAP propone categorías y propiedades. Hoy este dominio funciona en modo diagnóstico.";
+          }
+
+          if (domain.key === "orders") {
+            return "Vas a revisar el dominio de pedidos. Hoy todavía está en fase de descubrimiento, no de sincronización.";
+          }
+        }
+
+        return writeMode
+          ? "Vas a ejecutar una corrida combinada. Solo los dominios listos para escritura aplicarán cambios reales."
+          : "Vas a ejecutar una corrida combinada en modo análisis para varios dominios.";
+      }
+
+      function getPrimaryActionLabel() {
+        const selected = availableSyncDomains.filter((domain) =>
+          selectedSyncDomains.includes(domain.key),
+        );
+
+        if (!selected.length) {
+          return writeMode ? "Aplicar operación seleccionada" : "Analizar operación seleccionada";
+        }
+
+        if (selected.length === 1) {
+          const domain = selected[0];
+
+          if (domain.key === "products") {
+            return writeMode
+              ? "Sincronizar productos con PrestaShop"
+              : "Analizar productos";
+          }
+
+          if (domain.key === "categories") {
+            return "Analizar categorías SAP";
+          }
+
+          if (domain.key === "orders") {
+            return "Revisar pedidos SAP";
+          }
+        }
+
+        return writeMode
+          ? "Ejecutar dominios seleccionados"
+          : "Analizar dominios seleccionados";
+      }
+
+      function updateActionButtons() {
+        document.getElementById("btn-run-full").textContent = getPrimaryActionLabel();
       }
 
       function normalizeDomainSelection() {
@@ -1216,6 +1469,12 @@
                     ? "Discovery"
                     : "Planned";
             const scope = Array.isArray(domain.scope) ? domain.scope.join(", ") : "";
+            const capability =
+              domain.key === "products"
+                ? "Permite analizar y sincronizar."
+                : domain.key === "categories"
+                  ? "Hoy permite ver y diagnosticar, no aplicar cambios."
+                  : "Hoy permite descubrimiento, no sincronización automática.";
 
             return `
               <div class="domain-card">
@@ -1228,7 +1487,7 @@
                   />
                   <div>
                     <div class="domain-card-title">${domain.key}</div>
-                    <div class="domain-card-copy">${scope || "Sin descripción"}</div>
+                    <div class="domain-card-copy">${capability} ${scope || "Sin descripción"}</div>
                   </div>
                 </label>
                 <div class="domain-meta">
@@ -1241,6 +1500,7 @@
           .join("");
 
         updateDomainHelp();
+        updateActionButtons();
       }
 
       function updateDomainHelp() {
@@ -1264,7 +1524,8 @@
         el.className = "message-box message-info";
         el.textContent =
           `La próxima corrida usará: ${domainList}. ` +
-          `Estado actual por dominio: ${statusNotes}.`;
+          `Estado actual por dominio: ${statusNotes}. ` +
+          describeSelectedUseCase();
       }
 
       function toggleDomain(key) {
@@ -1309,18 +1570,21 @@
         document.getElementById("btn-write").classList.toggle("active", writeMode);
         document.getElementById("btn-write").classList.toggle("danger", writeMode);
         document.getElementById("sync-mode-label").textContent = writeMode
-          ? "Write"
-          : "Dry run";
+          ? "Aplicar cambios"
+          : "Analizar";
         const badge = document.getElementById("sync-status-badge");
         if (!syncRunning) {
           badge.className = "status-badge " + (writeMode ? "status-warn" : "status-ok");
-          badge.textContent = writeMode ? "Write listo" : "Dry run listo";
+          badge.textContent = writeMode ? "Aplicar listo" : "Analizar listo";
         }
         document.getElementById("sync-mode-help").className =
           "message-box " + (writeMode ? "message-warn" : "message-info");
         document.getElementById("sync-mode-help").textContent = writeMode
-          ? "Write aplica cambios reales en PrestaShop usando SAP como fuente de verdad."
-          : "Dry run solo analiza y deja trazas. No modifica productos en PrestaShop.";
+          ? "Aplicar cambios escribe de verdad en PrestaShop, pero solo en los dominios que ya están listos para escritura."
+          : "Analizar solo revisa datos, compara y deja reportes. No modifica productos en PrestaShop.";
+        const primaryAction = document.getElementById("btn-run-full");
+        primaryAction.textContent = getPrimaryActionLabel();
+        updateDomainHelp();
       }
 
       function appendLog(text, cls) {
@@ -1369,6 +1633,28 @@
       function logJson(raw) {
         try {
           const obj = JSON.parse(raw);
+          if (obj.message === "Progreso de dominio") {
+            currentProgress = {
+              domain: obj.domain || "",
+              current: Number(obj.current || 0),
+              total: Number(obj.total || 0),
+              percent: Number(obj.percent || 0),
+              itemCode: obj.itemCode || "",
+              known: Number.isFinite(Number(obj.total)) && Number(obj.total) > 0,
+            };
+            updateProgressUi({
+              title: `Dominio ${fmt(currentProgress.domain)}`,
+              meta: currentProgress.known
+                ? `${fmt(currentProgress.current)} de ${fmt(currentProgress.total)} (${fmt(currentProgress.percent)}%)`
+                : "Calculando avance",
+              note: currentProgress.itemCode
+                ? `Procesando item ${currentProgress.itemCode}`
+                : "Procesando dominio seleccionado",
+              percent: currentProgress.percent,
+              known: currentProgress.known,
+              running: true,
+            });
+          }
           const time = obj.ts ? new Date(obj.ts).toLocaleTimeString("es") : "";
           const text =
             `[${time}] ${obj.level ? obj.level.toUpperCase() : "INFO"} ${obj.message || raw}` +
@@ -1387,24 +1673,52 @@
           badge.className = "status-badge status-warn";
           badge.textContent = "En ejecución";
           document.getElementById("sync-headline").textContent =
-            "La sync masiva está corriendo. Mirá el log para seguir el avance.";
+            "La operación está corriendo. Mirá la barra de avance y el log para seguirla.";
+          updateProgressUi({
+            title: "Corrida en curso",
+            meta: "Preparando proceso",
+            note: "Todavía no hay un total confirmado. En cuanto el dominio lo informe, la barra mostrará avance.",
+            percent: 0,
+            known: false,
+            running: true,
+          });
           return;
         }
 
         if (status === "Completado") {
           badge.className = "status-badge status-ok";
           badge.textContent = "Completado";
+          updateProgressUi({
+            title: "Corrida completada",
+            meta: currentProgress.known
+              ? `${fmt(currentProgress.total)} elemento(s) recorridos`
+              : "Proceso finalizado",
+            note: "La operación terminó. Puedes revisar el historial y los reportes generados.",
+            percent: 100,
+            known: true,
+            running: false,
+          });
           return;
         }
 
         if (status === "Con errores") {
           badge.className = "status-badge status-error";
           badge.textContent = "Con errores";
+          updateProgressUi({
+            title: "Corrida con errores",
+            meta: currentProgress.known
+              ? `${fmt(currentProgress.current)} de ${fmt(currentProgress.total)} recorridos`
+              : "Proceso interrumpido",
+            note: "Revisa el log para ver en qué punto se cortó y qué dominio estaba activo.",
+            percent: currentProgress.percent || 0,
+            known: currentProgress.known,
+            running: false,
+          });
           return;
         }
 
         badge.className = "status-badge " + (writeMode ? "status-warn" : "status-ok");
-        badge.textContent = writeMode ? "Write listo" : "Dry run listo";
+        badge.textContent = writeMode ? "Aplicar listo" : "Analizar listo";
       }
 
       function renderReports(reports) {
@@ -1569,6 +1883,7 @@
         if (syncRunning) return;
 
         syncRunning = true;
+        resetProgressUi();
         updateSyncStatus("Ejecutando", true);
         document.getElementById("btn-run").disabled = true;
         document.getElementById("btn-run-full").disabled = true;
@@ -1577,8 +1892,8 @@
 
         appendLog(
           options.fullCatalog
-            ? "Iniciando sync masiva del catalogo completo..."
-            : "Iniciando ejecución manual...",
+            ? "Iniciando operación principal sobre el catálogo..."
+            : "Iniciando corrida puntual...",
           "info",
         );
 
@@ -1597,6 +1912,12 @@
         params.set("write", writeMode ? "true" : "false");
         params.set("syncDomains", domains.join(","));
         appendLog("Dominios seleccionados: " + domains.join(", "), "info");
+        appendLog(
+          writeMode
+            ? "Modo seleccionado: aplicar cambios reales."
+            : "Modo seleccionado: analizar sin modificar tienda.",
+          "info",
+        );
         const es = new EventSource("/api/sync?" + params.toString());
 
         es.onmessage = (event) => {
@@ -1778,6 +2099,7 @@
 
       setView(currentView);
       setMode("dry");
+      resetProgressUi();
       Promise.all([loadSyncDomains(), loadDashboard(false)]).catch((error) => {
         document.getElementById("overview-label").textContent =
           "No pude cargar el tablero";

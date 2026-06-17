@@ -198,6 +198,13 @@ async function runProductDomain(log) {
   });
 
   const articles = readSapArticles(log);
+  const totalArticles = articles.length;
+
+  log("info", "Plan de corrida de products", {
+    domain: "products",
+    mode: isWriteEnabled() ? "write" : "dry_run",
+    total: totalArticles,
+  });
 
   if (!hasPrestaConfig()) {
     log(
@@ -220,7 +227,16 @@ async function runProductDomain(log) {
   const prestaClient = createPrestaClient(log);
   const results = [];
 
-  for (const article of articles) {
+  for (const [index, article] of articles.entries()) {
+    log("info", "Progreso de dominio", {
+      domain: "products",
+      current: index + 1,
+      total: totalArticles,
+      percent:
+        totalArticles > 0 ? Math.round(((index + 1) / totalArticles) * 100) : 0,
+      itemCode: article.itemCode,
+    });
+
     try {
       const inspection = await inspectProductByReference(
         prestaClient,
@@ -365,6 +381,10 @@ async function runProductDomain(log) {
 
   log("info", "Dominio products finalizado", {
     processed: results.length,
+    domain: "products",
+    current: totalArticles,
+    total: totalArticles,
+    percent: totalArticles > 0 ? 100 : 0,
   });
 
   return {

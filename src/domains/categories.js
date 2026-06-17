@@ -82,6 +82,17 @@ async function runCategoryDomain(log) {
 
   const { propertyCatalog, diagnostics } = readSapCategoryDiagnostics(log);
   const rows = diagnostics.map(toDiagnosticRow);
+  log("info", "Plan de corrida de categories", {
+    domain: "categories",
+    mode: "diagnostic",
+    total: rows.length,
+  });
+  log("info", "Progreso de dominio", {
+    domain: "categories",
+    current: rows.length,
+    total: rows.length,
+    percent: rows.length > 0 ? 100 : 0,
+  });
   const summary = buildCategorySummary(rows, propertyCatalog);
   const report = writeDomainSnapshot(log, {
     domain: "categories",
