@@ -1,1293 +1,1393 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tablero SAP y PrestaShop</title>
-  <style>
-    :root {
-      color-scheme: light;
-      --bg: #f4f7fb;
-      --surface: #ffffff;
-      --surface-soft: #f8fbff;
-      --text: #172033;
-      --muted: #667085;
-      --border: #dbe4f0;
-      --primary: #3659e3;
-      --primary-strong: #2236a8;
-      --success: #15803d;
-      --success-soft: #dcfce7;
-      --warning: #b45309;
-      --warning-soft: #fef3c7;
-      --danger: #b91c1c;
-      --danger-soft: #fee2e2;
-      --info: #155eef;
-      --info-soft: #dbeafe;
-      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-      --radius: 18px;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: linear-gradient(180deg, #f4f7fb 0%, #edf4fb 100%);
-      color: var(--text);
-    }
-
-    .page {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 24px 18px 48px;
-    }
-
-    .hero {
-      background: linear-gradient(135deg, #172033 0%, #202d4a 100%);
-      color: white;
-      border-radius: 24px;
-      padding: 26px 28px;
-      box-shadow: var(--shadow);
-      display: grid;
-      grid-template-columns: 1.5fr 1fr;
-      gap: 24px;
-      margin-bottom: 24px;
-    }
-
-    .hero h1 {
-      margin: 0 0 8px;
-      font-size: 1.8rem;
-    }
-
-    .hero p {
-      margin: 0;
-      color: #d4ddf1;
-      line-height: 1.5;
-      max-width: 760px;
-    }
-
-    .hero-meta {
-      display: grid;
-      gap: 12px;
-      align-content: start;
-    }
-
-    .meta-box {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
-      padding: 14px 16px;
-    }
-
-    .meta-label {
-      display: block;
-      font-size: 0.78rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: #afbddf;
-      margin-bottom: 6px;
-    }
-
-    .meta-value {
-      font-size: 0.98rem;
-      font-weight: 700;
-    }
-
-    .section {
-      margin-bottom: 24px;
-    }
-
-    .section-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: end;
-      gap: 12px;
-      margin-bottom: 14px;
-      flex-wrap: wrap;
-    }
-
-    .section-title {
-      margin: 0;
-      font-size: 1.05rem;
-      font-weight: 800;
-    }
-
-    .section-note {
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
-
-    .grid {
-      display: grid;
-      gap: 16px;
-    }
-
-    .grid-4 {
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    }
-
-    .grid-3 {
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    }
-
-    .grid-2 {
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 18px;
-      box-shadow: var(--shadow);
-    }
-
-    .card-soft {
-      background: var(--surface-soft);
-    }
-
-    .metric-card .label {
-      font-size: 0.78rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
-      margin-bottom: 8px;
-      font-weight: 800;
-    }
-
-    .metric-card .value {
-      font-size: 2rem;
-      font-weight: 800;
-      line-height: 1;
-      margin-bottom: 8px;
-    }
-
-    .metric-card .hint {
-      font-size: 0.9rem;
-      color: var(--muted);
-      line-height: 1.4;
-    }
-
-    .status-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      border-radius: 999px;
-      padding: 8px 12px;
-      font-size: 0.9rem;
-      font-weight: 700;
-    }
-
-    .status-ok {
-      background: var(--success-soft);
-      color: var(--success);
-    }
-
-    .status-attention {
-      background: var(--warning-soft);
-      color: var(--warning);
-    }
-
-    .status-error {
-      background: var(--danger-soft);
-      color: var(--danger);
-    }
-
-    .banner {
-      display: none;
-      padding: 12px 14px;
-      border-radius: 14px;
-      font-size: 0.95rem;
-      font-weight: 700;
-      margin-bottom: 14px;
-    }
-
-    .banner.info {
-      display: block;
-      background: var(--info-soft);
-      color: var(--info);
-      border: 1px solid #bfdbfe;
-    }
-
-    .controls-panel {
-      display: grid;
-      gap: 14px;
-    }
-
-    .controls-row {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      align-items: end;
-    }
-
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      min-width: 170px;
-      flex: 1 1 170px;
-    }
-
-    .field label {
-      font-size: 0.84rem;
-      font-weight: 700;
-      color: #344054;
-    }
-
-    .field input {
-      border: 1px solid #cfd8e3;
-      border-radius: 12px;
-      padding: 11px 12px;
-      font-size: 0.96rem;
-      background: white;
-    }
-
-    .button-row {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    button {
-      border: none;
-      border-radius: 12px;
-      padding: 11px 16px;
-      font-size: 0.95rem;
-      font-weight: 800;
-      cursor: pointer;
-      transition: transform 0.12s ease, opacity 0.12s ease;
-    }
-
-    button:hover:not(:disabled) {
-      transform: translateY(-1px);
-    }
-
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .btn-primary {
-      background: var(--primary);
-      color: white;
-    }
-
-    .btn-secondary {
-      background: #eef2ff;
-      color: #243b9c;
-    }
-
-    .btn-dark {
-      background: #172033;
-      color: white;
-    }
-
-    .btn-danger {
-      background: #b42318;
-      color: white;
-    }
-
-    .btn-success {
-      background: #067647;
-      color: white;
-    }
-
-    .toggle-group {
-      display: inline-flex;
-      border: 1px solid #ccd6e3;
-      border-radius: 14px;
-      overflow: hidden;
-      background: white;
-    }
-
-    .toggle-group button {
-      border-radius: 0;
-      background: white;
-      color: #475467;
-      min-width: 128px;
-    }
-
-    .toggle-group button.active {
-      background: var(--primary);
-      color: white;
-    }
-
-    .toggle-group button.active.danger {
-      background: #b42318;
-    }
-
-    .tab-strip {
-      display: inline-flex;
-      gap: 8px;
-      background: #eef2ff;
-      padding: 6px;
-      border-radius: 14px;
-    }
-
-    .tab-button {
-      background: transparent;
-      color: #475467;
-      padding: 10px 14px;
-    }
-
-    .tab-button.active {
-      background: white;
-      color: var(--text);
-      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
-    }
-
-    .tab-panel {
-      display: none;
-    }
-
-    .tab-panel.active {
-      display: block;
-    }
-
-    .data-list {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 10px 12px;
-      margin: 0;
-    }
-
-    .data-list dt {
-      color: var(--muted);
-      font-size: 0.94rem;
-    }
-
-    .data-list dd {
-      margin: 0;
-      font-weight: 800;
-      text-align: right;
-    }
-
-    .message-box {
-      border-radius: 14px;
-      padding: 14px 16px;
-      line-height: 1.5;
-      font-size: 0.95rem;
-    }
-
-    .message-info {
-      background: #eff6ff;
-      color: #1d4ed8;
-      border: 1px solid #bfdbfe;
-    }
-
-    .message-warn {
-      background: #fff7ed;
-      color: #c2410c;
-      border: 1px solid #fdba74;
-    }
-
-    .message-error {
-      background: #fef2f2;
-      color: #b91c1c;
-      border: 1px solid #fecaca;
-    }
-
-    .microcopy {
-      margin-top: 10px;
-      color: var(--muted);
-      font-size: 0.88rem;
-      line-height: 1.45;
-    }
-
-    .comparison-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 10px;
-      margin-top: 14px;
-    }
-
-    .comparison-item {
-      border-radius: 14px;
-      padding: 14px;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-    }
-
-    .comparison-item .title {
-      font-size: 0.8rem;
-      color: var(--muted);
-      margin-bottom: 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      font-weight: 800;
-    }
-
-    .comparison-item .big {
-      font-size: 1.6rem;
-      font-weight: 800;
-    }
-
-    .log-box {
-      background: #04111f;
-      color: #e5eefc;
-      border-radius: var(--radius);
-      min-height: 260px;
-      max-height: 420px;
-      overflow-y: auto;
-      padding: 16px;
-      font-family: Consolas, monospace;
-      font-size: 0.8rem;
-      box-shadow: var(--shadow);
-    }
-
-    .log-line {
-      margin-bottom: 5px;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
-    .log-line.info { color: #dbeafe; }
-    .log-line.warn { color: #fde68a; }
-    .log-line.error { color: #fecaca; }
-    .log-line.done-ok { color: #86efac; font-weight: 700; }
-    .log-line.done-err { color: #fca5a5; font-weight: 700; }
-
-    .history-table {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      overflow: hidden;
-      box-shadow: var(--shadow);
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.9rem;
-    }
-
-    th, td {
-      padding: 12px 14px;
-      border-bottom: 1px solid #edf2f7;
-      text-align: left;
-      vertical-align: top;
-    }
-
-    th {
-      background: #f8fafc;
-      font-size: 0.76rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--muted);
-    }
-
-    tr:last-child td {
-      border-bottom: none;
-    }
-
-    .tag {
-      display: inline-flex;
-      align-items: center;
-      border-radius: 999px;
-      padding: 3px 9px;
-      font-size: 0.78rem;
-      font-weight: 800;
-    }
-
-    .tag.green { background: var(--success-soft); color: var(--success); }
-    .tag.amber { background: var(--warning-soft); color: var(--warning); }
-    .tag.red { background: var(--danger-soft); color: var(--danger); }
-    .tag.gray { background: #eef2f6; color: #475467; }
-
-    .empty {
-      color: var(--muted);
-      font-size: 0.92rem;
-    }
-
-    .section-stack {
-      display: grid;
-      gap: 16px;
-    }
-
-    @media (max-width: 960px) {
-      .hero {
-        grid-template-columns: 1fr;
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SAP Sync Panel</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f3f6fb;
+        --surface: #ffffff;
+        --surface-soft: #f8fbff;
+        --text: #172033;
+        --muted: #667085;
+        --border: #d9e3f0;
+        --primary: #3659e3;
+        --primary-strong: #2236a8;
+        --success: #15803d;
+        --success-soft: #dcfce7;
+        --warning: #b45309;
+        --warning-soft: #fef3c7;
+        --danger: #b91c1c;
+        --danger-soft: #fee2e2;
+        --dark: #0f172a;
+        --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+        --radius: 18px;
       }
-    }
-  </style>
-</head>
-<body>
-  <div class="page">
-    <section class="hero">
-      <div>
-        <h1>Tablero de sincronizacion SAP y PrestaShop</h1>
-        <p>
-          Este tablero resume el estado del catalogo, muestra si SAP y la tienda
-          estan alineados, y permite operar la sincronizacion sin tener que
-          leer logs tecnicos todo el tiempo.
-        </p>
-      </div>
 
-      <div class="hero-meta">
-        <div class="meta-box">
-          <span class="meta-label">Ultimo reporte</span>
-          <div class="meta-value" id="last-run-label">Sin reportes todavia</div>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          Inter,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background: linear-gradient(180deg, #f3f6fb 0%, #edf4fb 100%);
+        color: var(--text);
+      }
+
+      .page {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 24px 18px 40px;
+      }
+
+      .topbar {
+        background: linear-gradient(135deg, #172033 0%, #202d4a 100%);
+        color: white;
+        border-radius: 24px;
+        padding: 22px 24px;
+        box-shadow: var(--shadow);
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 22px;
+      }
+
+      .title h1 {
+        margin: 0;
+        font-size: 1.6rem;
+      }
+
+      .title p {
+        margin: 6px 0 0;
+        color: #d4ddf1;
+        font-size: 0.95rem;
+      }
+
+      .topbar-meta {
+        display: grid;
+        gap: 8px;
+        justify-items: end;
+        font-size: 0.9rem;
+        color: #d4ddf1;
+      }
+
+      .view-tabs {
+        display: inline-flex;
+        gap: 8px;
+        background: #eef2ff;
+        padding: 6px;
+        border-radius: 14px;
+        margin-bottom: 18px;
+      }
+
+      .view-tabs button {
+        border: none;
+        border-radius: 10px;
+        background: transparent;
+        color: #475467;
+        padding: 11px 16px;
+        font-size: 0.95rem;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .view-tabs button.active {
+        background: white;
+        color: var(--text);
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+      }
+
+      .view {
+        display: none;
+      }
+
+      .view.active {
+        display: block;
+      }
+
+      .section {
+        margin-bottom: 20px;
+      }
+
+      .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 12px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+
+      .section-title {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 800;
+      }
+
+      .section-note {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 18px;
+        box-shadow: var(--shadow);
+      }
+
+      .card-soft {
+        background: var(--surface-soft);
+      }
+
+      .grid {
+        display: grid;
+        gap: 16px;
+      }
+
+      .grid-2 {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      }
+
+      .grid-3 {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+
+      .grid-4 {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      }
+
+      .metric-card .label {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin-bottom: 8px;
+        font-weight: 800;
+      }
+
+      .metric-card .value {
+        font-size: 2rem;
+        line-height: 1;
+        font-weight: 800;
+        margin-bottom: 8px;
+      }
+
+      .metric-card .hint {
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .status-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+      }
+
+      .status-box {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        padding: 12px 14px;
+      }
+
+      .status-box .label {
+        display: block;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #afbddf;
+        margin-bottom: 6px;
+      }
+
+      .status-box .value {
+        font-size: 0.98rem;
+        font-weight: 800;
+      }
+
+      .banner {
+        display: none;
+        padding: 12px 14px;
+        border-radius: 14px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        margin-bottom: 14px;
+      }
+
+      .banner.visible {
+        display: block;
+        background: #dbeafe;
+        color: #155eef;
+        border: 1px solid #bfdbfe;
+      }
+
+      .controls-grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .controls-row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: end;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 170px;
+        flex: 1 1 170px;
+      }
+
+      .field label {
+        font-size: 0.84rem;
+        font-weight: 700;
+        color: #344054;
+      }
+
+      .field input {
+        border: 1px solid #cfd8e3;
+        border-radius: 12px;
+        padding: 11px 12px;
+        font-size: 0.96rem;
+        background: white;
+      }
+
+      .button-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        border: none;
+        border-radius: 12px;
+        padding: 11px 16px;
+        font-size: 0.95rem;
+        font-weight: 800;
+        cursor: pointer;
+        transition:
+          transform 0.12s ease,
+          opacity 0.12s ease;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-1px);
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .btn-primary {
+        background: var(--primary);
+        color: white;
+      }
+
+      .btn-secondary {
+        background: #eef2ff;
+        color: #243b9c;
+      }
+
+      .btn-dark {
+        background: #172033;
+        color: white;
+      }
+
+      .btn-danger {
+        background: #b42318;
+        color: white;
+      }
+
+      .btn-success {
+        background: #067647;
+        color: white;
+      }
+
+      .toggle-group {
+        display: inline-flex;
+        border: 1px solid #ccd6e3;
+        border-radius: 14px;
+        overflow: hidden;
+        background: white;
+      }
+
+      .toggle-group button {
+        border-radius: 0;
+        background: white;
+        color: #475467;
+        min-width: 128px;
+      }
+
+      .toggle-group button.active {
+        background: var(--primary);
+        color: white;
+      }
+
+      .toggle-group button.active.danger {
+        background: #b42318;
+      }
+
+      .log-box {
+        background: #04111f;
+        color: #e5eefc;
+        border-radius: var(--radius);
+        min-height: 380px;
+        max-height: 560px;
+        overflow-y: auto;
+        padding: 16px;
+        font-family: Consolas, monospace;
+        font-size: 0.82rem;
+        box-shadow: var(--shadow);
+      }
+
+      .log-line {
+        margin-bottom: 6px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .log-line.info {
+        color: #dbeafe;
+      }
+
+      .log-line.warn {
+        color: #fde68a;
+      }
+
+      .log-line.error {
+        color: #fecaca;
+      }
+
+      .log-line.done-ok {
+        color: #86efac;
+        font-weight: 700;
+      }
+
+      .log-line.done-err {
+        color: #fca5a5;
+        font-weight: 700;
+      }
+
+      .data-list {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px 12px;
+        margin: 0;
+      }
+
+      .data-list dt {
+        color: var(--muted);
+        font-size: 0.94rem;
+      }
+
+      .data-list dd {
+        margin: 0;
+        font-weight: 800;
+        text-align: right;
+      }
+
+      .message-box {
+        border-radius: 14px;
+        padding: 14px 16px;
+        line-height: 1.5;
+        font-size: 0.95rem;
+      }
+
+      .message-info {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+      }
+
+      .message-warn {
+        background: #fff7ed;
+        color: #c2410c;
+        border: 1px solid #fdba74;
+      }
+
+      .message-error {
+        background: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+      }
+
+      .history-table {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+      }
+
+      th,
+      td {
+        padding: 12px 14px;
+        border-bottom: 1px solid #edf2f7;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #f8fafc;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 3px 9px;
+        font-size: 0.78rem;
+        font-weight: 800;
+      }
+
+      .tag.green {
+        background: var(--success-soft);
+        color: var(--success);
+      }
+
+      .tag.amber {
+        background: var(--warning-soft);
+        color: var(--warning);
+      }
+
+      .tag.red {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+
+      .tag.gray {
+        background: #eef2f6;
+        color: #475467;
+      }
+
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .stat-box {
+        border-radius: 16px;
+        padding: 16px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+      }
+
+      .stat-box .label {
+        font-size: 0.8rem;
+        color: var(--muted);
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 800;
+      }
+
+      .stat-box .value {
+        font-size: 1.6rem;
+        font-weight: 800;
+      }
+
+      .empty {
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      @media (max-width: 860px) {
+        .topbar {
+          align-items: start;
+        }
+
+        .topbar-meta {
+          justify-items: start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <section class="topbar">
+        <div class="title">
+          <h1>SAP to PrestaShop Sync</h1>
+          <p>Operacion, monitoreo y control del catalogo.</p>
         </div>
-        <div class="meta-box">
-          <span class="meta-label">Snapshot de catalogo</span>
-          <div class="meta-value" id="overview-label">Sin snapshot todavia</div>
+
+        <div class="topbar-meta">
+          <div>Ultimo reporte: <strong id="last-run-label">Sin reportes</strong></div>
+          <div>Catalogo: <strong id="overview-label">Sin snapshot</strong></div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">Resumen ejecutivo</h2>
-        <div class="section-note">Lectura rapida para alguien no tecnico</div>
+      <div class="view-tabs" role="tablist" aria-label="Vistas del tablero">
+        <button id="view-btn-sync" class="active" type="button" onclick="setView('sync')">
+          Sync
+        </button>
+        <button id="view-btn-sap" type="button" onclick="setView('sap')">SAP</button>
+        <button id="view-btn-presta" type="button" onclick="setView('presta')">
+          PrestaShop
+        </button>
       </div>
 
-      <div class="grid grid-4">
-        <div class="card metric-card">
-          <div class="label">Estado general</div>
-          <div id="executive-status-pill" class="status-pill status-ok">Sin alertas</div>
-          <div class="hint" id="executive-headline">
-            El tablero todavia no tiene suficiente informacion para resumir la situacion.
+      <main id="view-sync" class="view active">
+        <section class="section">
+          <div class="section-header">
+            <h2 class="section-title">Ultima corrida</h2>
+            <div class="section-note">Resumen de la muestra procesada</div>
           </div>
-        </div>
 
-        <div class="card metric-card">
-          <div class="label">Catalogo SAP</div>
-          <div class="value" id="hero-sap-products">-</div>
-          <div class="hint">Productos totales informados por SAP</div>
-        </div>
-
-        <div class="card metric-card">
-          <div class="label">Catalogo tienda</div>
-          <div class="value" id="hero-presta-products">-</div>
-          <div class="hint">Productos visibles via webservice de PrestaShop</div>
-        </div>
-
-        <div class="card metric-card">
-          <div class="label">Ultima corrida</div>
-          <div class="value" id="hero-last-sample">-</div>
-          <div class="hint">Cantidad de productos analizados en la ultima corrida, no el pendiente global</div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">Que hacer ahora</h2>
-        <div class="section-note">Traduccion operativa del tablero</div>
-      </div>
-      <div class="card card-soft">
-        <div id="action-summary" class="message-box message-info">
-          Todavia no hay suficiente informacion para recomendar una accion.
-        </div>
-        <div class="microcopy">
-          La brecha del catalogo se calcula contra el estado real de PrestaShop. Solo cambia cuando una corrida en modo
-          `Aplicar cambios` crea o actualiza productos efectivamente en la tienda.
-        </div>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">Operacion de sincronizacion</h2>
-        <div class="section-note">Usa dry run para analizar. Usa write solo cuando quieras aplicar cambios.</div>
-      </div>
-
-      <div id="running-banner" class="banner">Sync en curso...</div>
-
-      <div class="card">
-        <div class="controls-panel">
-          <div class="controls-row">
-            <div class="field">
-              <label for="item-code">Codigo de articulo</label>
-              <input type="text" id="item-code" placeholder="Dejalo vacio para procesar un lote">
+          <div class="grid grid-4">
+            <div class="card metric-card">
+              <div class="label">Leidos</div>
+              <div class="value" id="summary-total">-</div>
+              <div class="hint">Productos evaluados en la ultima corrida</div>
             </div>
-
-            <div class="field">
-              <label for="limit">Cantidad maxima</label>
-              <input type="number" id="limit" min="1" placeholder="Ej. 50">
+            <div class="card metric-card">
+              <div class="label">Crear</div>
+              <div class="value" id="summary-create">-</div>
+              <div class="hint">No existen en PrestaShop</div>
             </div>
+            <div class="card metric-card">
+              <div class="label">Actualizar</div>
+              <div class="value" id="summary-update">-</div>
+              <div class="hint">Tienen diferencias para corregir</div>
+            </div>
+            <div class="card metric-card">
+              <div class="label">Errores</div>
+              <div class="value" id="summary-errors">-</div>
+              <div class="hint">Requieren revision manual</div>
+            </div>
+          </div>
+        </section>
 
-            <div class="field">
-              <label>Modo de ejecucion</label>
-              <div class="toggle-group">
-                <button id="btn-dryrun" class="active" type="button" onclick="setMode('dry')">Solo analizar</button>
-                <button id="btn-write" type="button" onclick="setMode('write')">Aplicar cambios</button>
+        <section class="section">
+          <div class="section-header">
+            <h2 class="section-title">Centro de sync</h2>
+            <div class="section-note">La vista principal queda enfocada en ejecutar y ver el resultado</div>
+          </div>
+
+          <div id="running-banner" class="banner">Sync en curso...</div>
+
+          <div class="card">
+            <div class="controls-grid">
+              <div class="status-row">
+                <div class="status-box">
+                  <span class="label">Estado</span>
+                  <div class="value" id="sync-status-label">Listo</div>
+                </div>
+                <div class="status-box">
+                  <span class="label">Modo</span>
+                  <div class="value" id="sync-mode-label">Dry run</div>
+                </div>
+                <div class="status-box">
+                  <span class="label">Ultima accion</span>
+                  <div class="value" id="sync-headline">Sin actividad reciente</div>
+                </div>
+              </div>
+
+              <div class="controls-row">
+                <div class="field">
+                  <label for="limit">Lote</label>
+                  <input type="number" id="limit" min="1" placeholder="Ej. 50" />
+                </div>
+
+                <div class="field">
+                  <label for="item-code">Item code puntual</label>
+                  <input
+                    type="text"
+                    id="item-code"
+                    placeholder="Opcional: deja vacio para lote o sync total"
+                  />
+                </div>
+
+                <div class="field">
+                  <label>Modo</label>
+                  <div class="toggle-group">
+                    <button id="btn-dryrun" class="active" type="button" onclick="setMode('dry')">
+                      Dry run
+                    </button>
+                    <button id="btn-write" type="button" onclick="setMode('write')">
+                      Write
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="button-row">
+                <button class="btn-primary" id="btn-run" type="button" onclick="runSync()">
+                  Ejecutar lote
+                </button>
+                <button
+                  class="btn-dark"
+                  id="btn-run-full"
+                  type="button"
+                  onclick="runSync({ fullCatalog: true })"
+                >
+                  Sync masiva
+                </button>
+                <button
+                  class="btn-secondary"
+                  id="btn-refresh-overview"
+                  type="button"
+                  onclick="loadDashboard(true)"
+                >
+                  Refrescar
+                </button>
               </div>
             </div>
           </div>
+        </section>
 
-          <div class="button-row">
-            <button class="btn-primary" id="btn-run" type="button" onclick="runSync()">Iniciar sincronizacion</button>
-            <button class="btn-dark" id="btn-run-full" type="button" onclick="runSync({ fullCatalog: true })">Sync masiva</button>
-            <button class="btn-secondary" id="btn-refresh-overview" type="button" onclick="loadDashboard(true)">Actualizar tablero</button>
+        <section class="section">
+          <div class="section-header">
+            <h2 class="section-title">Log en tiempo real</h2>
+            <div class="section-note">Lo importante para reportar errores y seguir el avance</div>
           </div>
-          <div class="microcopy">
-            `Iniciar sincronizacion` usa el filtro y/o limite cargado. `Sync masiva` recorre el catalogo completo de SAP.
-          </div>
-        </div>
-      </div>
-    </section>
 
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">Foto del catalogo</h2>
-        <div class="section-note">Vista global del catalogo completo, separada del resultado de la ultima corrida</div>
-      </div>
-
-      <div class="section-stack">
-        <div class="comparison-grid">
-          <div class="comparison-item">
-            <div class="title">Faltan en PrestaShop</div>
-            <div class="big" id="contrast-missing-products">-</div>
-            <div class="empty">Productos que existen en SAP y no aparecen en la tienda</div>
+          <div id="log-box" class="log-box">
+            <div class="log-line info">Los logs del sync apareceran aqui.</div>
           </div>
-          <div class="comparison-item">
-            <div class="title">Activos SAP fuera de tienda</div>
-            <div class="big" id="contrast-active-missing">-</div>
-            <div class="empty">Productos activos en SAP que todavia no se reflejan como activos en tienda</div>
-          </div>
-          <div class="comparison-item">
-            <div class="title">Inactivos extra en tienda</div>
-            <div class="big" id="contrast-extra-inactive">-</div>
-            <div class="empty">Productos que aparecen inactivos en tienda y no tienen ese mismo estado en SAP</div>
-          </div>
-        </div>
+        </section>
 
-        <div class="tab-strip" role="tablist" aria-label="Origen del catalogo">
-          <button class="tab-button active" id="tab-btn-sap" type="button" onclick="setCatalogTab('sap')">Vista SAP</button>
-          <button class="tab-button" id="tab-btn-presta" type="button" onclick="setCatalogTab('presta')">Vista PrestaShop</button>
-        </div>
+        <section class="section">
+          <div class="section-header">
+            <h2 class="section-title">Historial</h2>
+            <div class="section-note">Ultimas corridas generadas por el proceso</div>
+          </div>
 
-        <div class="tab-panel active" id="tab-panel-sap">
+          <div class="history-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Muestra</th>
+                  <th>Crear</th>
+                  <th>Actualizar</th>
+                  <th>Sin cambio</th>
+                  <th>Revision</th>
+                  <th>Ejecutados</th>
+                  <th>Errores</th>
+                </tr>
+              </thead>
+              <tbody id="history-body">
+                <tr>
+                  <td colspan="8" class="empty">Cargando...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <main id="view-sap" class="view">
+        <section class="section">
+          <div class="section-header">
+            <h2 class="section-title">Catalogo SAP</h2>
+            <div class="section-note">Snapshot global del origen de verdad</div>
+          </div>
+
+          <div class="grid grid-3">
+            <div class="card metric-card">
+              <div class="label">Total productos</div>
+              <div class="value" id="sap-total-products">-</div>
+              <div class="hint">Cantidad total en SAP</div>
+            </div>
+            <div class="card metric-card">
+              <div class="label">Activos</div>
+              <div class="value" id="sap-active-products">-</div>
+              <div class="hint">Productos habilitados en SAP</div>
+            </div>
+            <div class="card metric-card">
+              <div class="label">Stock total</div>
+              <div class="value" id="sap-total-stock-card">-</div>
+              <div class="hint">Suma de unidades del warehouse</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
           <div class="card">
-          <h3>SAP</h3>
-          <dl class="data-list">
-            <dt>Schema</dt><dd id="sap-schema">-</dd>
-            <dt>Warehouse</dt><dd id="sap-warehouse">-</dd>
-            <dt>Lista de precios</dt><dd id="sap-pricelist">-</dd>
-            <dt>Total productos</dt><dd id="sap-total-products">-</dd>
-            <dt>Activos</dt><dd id="sap-active-products">-</dd>
-            <dt>Inactivos</dt><dd id="sap-inactive-products">-</dd>
-            <dt>Con stock</dt><dd id="sap-products-with-stock">-</dd>
-            <dt>Sin stock</dt><dd id="sap-products-without-stock">-</dd>
-            <dt>Unidades totales en stock</dt><dd id="sap-total-stock">-</dd>
-          </dl>
-          <div class="microcopy">
-            Este valor es la suma de unidades disponibles en el `warehouse` seleccionado para todo el catalogo,
-            por eso puede verse grande aunque la cantidad de productos sea mucho menor.
-          </div>
-        </div>
-        </div>
-
-        <div class="tab-panel" id="tab-panel-presta">
-          <div class="card">
-          <h3>PrestaShop</h3>
-          <dl class="data-list">
-            <dt>Total productos</dt><dd id="presta-total-products">-</dd>
-            <dt>Activos</dt><dd id="presta-active-products">-</dd>
-            <dt>Inactivos</dt><dd id="presta-inactive-products">-</dd>
-            <dt>Total combinaciones</dt><dd id="presta-total-combinations">-</dd>
-            <dt>Estado del webservice</dt><dd id="presta-status">-</dd>
-          </dl>
-          <div class="microcopy">
-            Esta vista muestra lo que hoy responde el webservice de PrestaShop. Si SAP tiene mas productos,
-            esa diferencia no implica necesariamente error de lectura: puede significar que la sync todavia no corrio completa.
-          </div>
-        </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">Control puntual de PrestaShop</h2>
-        <div class="section-note">Busca un producto por referencia y revisa su estado por webservice</div>
-      </div>
-
-      <div class="card">
-        <div class="controls-row">
-          <div class="field" style="flex: 2 1 280px;">
-            <label for="control-reference">Referencia o item code</label>
-            <input type="text" id="control-reference" placeholder="Ej. 61072505">
-          </div>
-          <div class="button-row">
-            <button class="btn-dark" type="button" onclick="lookupReference()">Consultar producto</button>
-          </div>
-        </div>
-
-        <div id="control-message" class="message-box message-info" style="margin-top: 14px;">
-          Todavia no consultaste ningun producto.
-        </div>
-
-        <div class="grid grid-2" style="margin-top: 14px;">
-          <div class="card card-soft">
-            <h3>Dato en SAP</h3>
             <dl class="data-list">
-              <dt>Item code</dt><dd id="control-sap-item">-</dd>
-              <dt>Nombre</dt><dd id="control-sap-name">-</dd>
-              <dt>Precio</dt><dd id="control-sap-price">-</dd>
-              <dt>Stock</dt><dd id="control-sap-stock">-</dd>
-              <dt>Estado</dt><dd id="control-sap-status">-</dd>
+              <dt>Schema</dt>
+              <dd id="sap-schema">-</dd>
+              <dt>Warehouse</dt>
+              <dd id="sap-warehouse">-</dd>
+              <dt>Lista de precios</dt>
+              <dd id="sap-pricelist">-</dd>
+              <dt>Total productos</dt>
+              <dd id="sap-total-products-detail">-</dd>
+              <dt>Activos</dt>
+              <dd id="sap-active-products-detail">-</dd>
+              <dt>Inactivos</dt>
+              <dd id="sap-inactive-products">-</dd>
+              <dt>Con stock</dt>
+              <dd id="sap-products-with-stock">-</dd>
+              <dt>Sin stock</dt>
+              <dd id="sap-products-without-stock">-</dd>
+              <dt>Unidades totales</dt>
+              <dd id="sap-total-stock">-</dd>
             </dl>
           </div>
+        </section>
+      </main>
 
-          <div class="card card-soft">
-            <h3>Dato en PrestaShop</h3>
-            <dl class="data-list">
-              <dt>Product ID</dt><dd id="control-presta-id">-</dd>
-              <dt>Referencia</dt><dd id="control-presta-reference">-</dd>
-              <dt>Activo</dt><dd id="control-presta-active">-</dd>
-              <dt>Precio</dt><dd id="control-presta-price">-</dd>
-              <dt>Combinaciones</dt><dd id="control-presta-combinations">-</dd>
-              <dt>Stocks encontrados</dt><dd id="control-presta-stock-records">-</dd>
-            </dl>
+      <main id="view-presta" class="view">
+        <section class="section">
+          <div class="section-header">
+            <h2 class="section-title">Catalogo PrestaShop</h2>
+            <div class="section-note">Estado actual reportado por el webservice</div>
           </div>
-        </div>
 
-        <div class="button-row" style="margin-top: 14px;">
-          <button class="btn-success" id="btn-activate-product" type="button" onclick="changeProductStatus(true)" disabled>Activar en PrestaShop</button>
-          <button class="btn-danger" id="btn-deactivate-product" type="button" onclick="changeProductStatus(false)" disabled>Desactivar en PrestaShop</button>
-        </div>
+          <div class="grid grid-3">
+            <div class="card metric-card">
+              <div class="label">Total productos</div>
+              <div class="value" id="presta-total-products">-</div>
+              <div class="hint">Productos encontrados por API</div>
+            </div>
+            <div class="card metric-card">
+              <div class="label">Activos</div>
+              <div class="value" id="presta-active-products">-</div>
+              <div class="hint">Productos activos en tienda</div>
+            </div>
+            <div class="card metric-card">
+              <div class="label">Combinaciones</div>
+              <div class="value" id="presta-total-combinations">-</div>
+              <div class="hint">Total de variaciones detectadas</div>
+            </div>
+          </div>
+        </section>
 
-        <div class="microcopy">
-          Este control usa el webservice oficial de PrestaShop para consultar el producto y cambiar
-          su estado activo o inactivo. No elimina productos desde este tablero.
-        </div>
-      </div>
-    </section>
+        <section class="section">
+          <div class="grid grid-4">
+            <div class="card stat-box">
+              <div class="label">Faltan en PrestaShop</div>
+              <div class="value" id="contrast-missing-products">-</div>
+            </div>
+            <div class="card stat-box">
+              <div class="label">Activos SAP no publicados</div>
+              <div class="value" id="contrast-active-missing">-</div>
+            </div>
+            <div class="card stat-box">
+              <div class="label">Extra en PrestaShop</div>
+              <div class="value" id="contrast-extra-products">-</div>
+            </div>
+            <div class="card stat-box">
+              <div class="label">Estado API</div>
+              <div class="value" id="presta-status">-</div>
+            </div>
+          </div>
+        </section>
 
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">Cuidado operativo</h2>
-        <div class="section-note">Indicaciones de seguridad para operar el tablero sin riesgos innecesarios</div>
-      </div>
+        <section class="section">
+          <div class="grid grid-2">
+            <div class="card">
+              <dl class="data-list">
+                <dt>Total productos</dt>
+                <dd id="presta-total-products-detail">-</dd>
+                <dt>Activos</dt>
+                <dd id="presta-active-products-detail">-</dd>
+                <dt>Inactivos</dt>
+                <dd id="presta-inactive-products">-</dd>
+                <dt>Total combinaciones</dt>
+                <dd id="presta-total-combinations-detail">-</dd>
+                <dt>Productos extra</dt>
+                <dd id="contrast-extra-products-detail">-</dd>
+                <dt>Inactivos extra</dt>
+                <dd id="contrast-extra-inactive">-</dd>
+              </dl>
+            </div>
 
-      <div class="card card-soft">
-        <div class="message-box message-info">
-          Para mantener la operacion segura, este tablero no borra productos ni resuelve duplicados
-          automaticamente. La intervencion disponible por webservice se limita a consulta y
-          activacion o desactivacion puntual.
-        </div>
-      </div>
-    </section>
+            <div class="card card-soft">
+              <div class="controls-grid">
+                <div class="controls-row">
+                  <div class="field" style="flex: 2 1 280px">
+                    <label for="control-reference">Referencia o item code</label>
+                    <input type="text" id="control-reference" placeholder="Ej. 61072505" />
+                  </div>
+                  <div class="button-row">
+                    <button class="btn-dark" type="button" onclick="lookupReference()">
+                      Consultar
+                    </button>
+                  </div>
+                </div>
 
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">Log en tiempo real</h2>
-        <div class="section-note">Salida tecnica para seguimiento del proceso</div>
-      </div>
-      <div class="log-box" id="log-box">
-        <div class="log-line info">Los logs del sync apareceran aqui.</div>
-      </div>
-    </section>
+                <div id="control-message" class="message-box message-info">
+                  Todavia no consultaste ningun producto.
+                </div>
 
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">Historial de corridas</h2>
-        <div class="section-note">Ultimos reportes generados por el proceso</div>
-      </div>
+                <div class="grid grid-2">
+                  <div>
+                    <h3 style="margin-top: 0">SAP</h3>
+                    <dl class="data-list">
+                      <dt>Item code</dt>
+                      <dd id="control-sap-item">-</dd>
+                      <dt>Nombre</dt>
+                      <dd id="control-sap-name">-</dd>
+                      <dt>Precio</dt>
+                      <dd id="control-sap-price">-</dd>
+                      <dt>Stock</dt>
+                      <dd id="control-sap-stock">-</dd>
+                      <dt>Estado</dt>
+                      <dd id="control-sap-status">-</dd>
+                    </dl>
+                  </div>
 
-      <div class="history-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Total</th>
-              <th>Crear</th>
-              <th>Actualizar</th>
-              <th>Sin cambio</th>
-              <th>Revision</th>
-              <th>Ejecutados</th>
-              <th>Errores</th>
-            </tr>
-          </thead>
-          <tbody id="history-body">
-            <tr>
-              <td colspan="8" class="empty">Cargando...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-  </div>
+                  <div>
+                    <h3 style="margin-top: 0">PrestaShop</h3>
+                    <dl class="data-list">
+                      <dt>Product ID</dt>
+                      <dd id="control-presta-id">-</dd>
+                      <dt>Referencia</dt>
+                      <dd id="control-presta-reference">-</dd>
+                      <dt>Activo</dt>
+                      <dd id="control-presta-active">-</dd>
+                      <dt>Precio</dt>
+                      <dd id="control-presta-price">-</dd>
+                      <dt>Combinaciones</dt>
+                      <dd id="control-presta-combinations">-</dd>
+                      <dt>Stocks</dt>
+                      <dd id="control-presta-stock-records">-</dd>
+                    </dl>
+                  </div>
+                </div>
 
-  <script>
-    let writeMode = false;
-    let syncRunning = false;
-    let currentLookup = null;
-    let currentCatalogTab = "sap";
+                <div class="button-row">
+                  <button
+                    class="btn-success"
+                    id="btn-activate-product"
+                    type="button"
+                    onclick="changeProductStatus(true)"
+                    disabled
+                  >
+                    Activar
+                  </button>
+                  <button
+                    class="btn-danger"
+                    id="btn-deactivate-product"
+                    type="button"
+                    onclick="changeProductStatus(false)"
+                    disabled
+                  >
+                    Desactivar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
 
-    function fmt(value) {
-      if (value === undefined || value === null || value === "") return "-";
-      if (typeof value === "number") return value.toLocaleString("es");
-      return String(value);
-    }
+    <script>
+      let writeMode = false;
+      let syncRunning = false;
+      let currentLookup = null;
+      let currentView = "sync";
 
-    function number(value, decimals = 0) {
-      if (value === undefined || value === null || value === "") return "-";
-      return Number(value).toLocaleString("es", {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
-      });
-    }
-
-    function money(value) {
-      if (value === undefined || value === null || value === "") return "-";
-      return Number(value).toLocaleString("es", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
-    function setText(id, value) {
-      document.getElementById(id).textContent = fmt(value);
-    }
-
-    function setMode(mode) {
-      writeMode = mode === "write";
-      document.getElementById("btn-dryrun").classList.toggle("active", !writeMode);
-      document.getElementById("btn-write").classList.toggle("active", writeMode);
-      document.getElementById("btn-write").classList.toggle("danger", writeMode);
-    }
-
-    function setCatalogTab(tab) {
-      currentCatalogTab = tab;
-      document.getElementById("tab-btn-sap").classList.toggle("active", tab === "sap");
-      document.getElementById("tab-btn-presta").classList.toggle("active", tab === "presta");
-      document.getElementById("tab-panel-sap").classList.toggle("active", tab === "sap");
-      document.getElementById("tab-panel-presta").classList.toggle("active", tab === "presta");
-    }
-
-    function appendLog(text, cls) {
-      const box = document.getElementById("log-box");
-      const line = document.createElement("div");
-      line.className = "log-line " + (cls || "info");
-      line.textContent = text;
-      box.appendChild(line);
-      box.scrollTop = box.scrollHeight;
-    }
-
-    function formatLogValue(value) {
-      if (value === undefined || value === null || value === "") return "";
-      if (Array.isArray(value)) return value.length ? value.join(", ") : "";
-      if (typeof value === "object") return JSON.stringify(value);
-      return String(value);
-    }
-
-    function buildLogDetails(obj) {
-      const preferredKeys = [
-        "itemCode",
-        "reference",
-        "productId",
-        "matches",
-        "action",
-        "status",
-        "details",
-        "recoveredProductId",
-        "payloadSummary",
-        "sapPrice",
-        "prestashopProductPrice",
-        "sapStock",
-      ];
-      const pairs = [];
-
-      for (const key of preferredKeys) {
-        if (!(key in obj)) continue;
-        const value = formatLogValue(obj[key]);
-        if (!value) continue;
-        pairs.push(`${key}=${value}`);
+      function fmt(value) {
+        if (value === undefined || value === null || value === "") return "-";
+        if (typeof value === "number") return value.toLocaleString("es");
+        return String(value);
       }
 
-      if (pairs.length > 0) {
+      function number(value, decimals = 0) {
+        if (value === undefined || value === null || value === "") return "-";
+        return Number(value).toLocaleString("es", {
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: decimals,
+        });
+      }
+
+      function money(value) {
+        if (value === undefined || value === null || value === "") return "-";
+        return Number(value).toLocaleString("es", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+      }
+
+      function setText(id, value) {
+        document.getElementById(id).textContent = fmt(value);
+      }
+
+      function setView(view) {
+        currentView = view;
+        ["sync", "sap", "presta"].forEach((name) => {
+          document.getElementById("view-" + name).classList.toggle("active", name === view);
+          document
+            .getElementById("view-btn-" + name)
+            .classList.toggle("active", name === view);
+        });
+      }
+
+      function setMode(mode) {
+        writeMode = mode === "write";
+        document.getElementById("btn-dryrun").classList.toggle("active", !writeMode);
+        document.getElementById("btn-write").classList.toggle("active", writeMode);
+        document.getElementById("btn-write").classList.toggle("danger", writeMode);
+        document.getElementById("sync-mode-label").textContent = writeMode
+          ? "Write"
+          : "Dry run";
+      }
+
+      function appendLog(text, cls) {
+        const box = document.getElementById("log-box");
+        const line = document.createElement("div");
+        line.className = "log-line " + (cls || "info");
+        line.textContent = text;
+        box.appendChild(line);
+        box.scrollTop = box.scrollHeight;
+      }
+
+      function formatLogValue(value) {
+        if (value === undefined || value === null || value === "") return "";
+        if (Array.isArray(value)) return value.length ? value.join(", ") : "";
+        if (typeof value === "object") return JSON.stringify(value);
+        return String(value);
+      }
+
+      function buildLogDetails(obj) {
+        const preferredKeys = [
+          "itemCode",
+          "reference",
+          "productId",
+          "action",
+          "status",
+          "details",
+          "payloadSummary",
+          "sapPrice",
+          "prestashopProductPrice",
+          "sapStock",
+        ];
+        const pairs = [];
+
+        for (const key of preferredKeys) {
+          if (!(key in obj)) continue;
+          const value = formatLogValue(obj[key]);
+          if (!value) continue;
+          pairs.push(`${key}=${value}`);
+        }
+
+        if (!pairs.length) {
+          return "";
+        }
+
         return " | " + pairs.join(" | ");
       }
 
-      const extraPairs = Object.entries(obj)
-        .filter(([key]) => !["ts", "level", "message"].includes(key))
-        .map(([key, value]) => [key, formatLogValue(value)])
-        .filter(([, value]) => value);
-
-      if (!extraPairs.length) {
-        return "";
+      function logJson(raw) {
+        try {
+          const obj = JSON.parse(raw);
+          const time = obj.ts ? new Date(obj.ts).toLocaleTimeString("es") : "";
+          const text =
+            `[${time}] ${obj.level ? obj.level.toUpperCase() : "INFO"} ${obj.message || raw}` +
+            buildLogDetails(obj);
+          const cls =
+            obj.level === "error" ? "error" : obj.level === "warn" ? "warn" : "info";
+          appendLog(text, cls);
+        } catch {
+          appendLog(raw, "info");
+        }
       }
 
-      return " | " + extraPairs.map(([key, value]) => `${key}=${value}`).join(" | ");
-    }
-
-    function logJson(raw) {
-      try {
-        const obj = JSON.parse(raw);
-        const time = obj.ts ? new Date(obj.ts).toLocaleTimeString("es") : "";
-        const text =
-          `[${time}] ${obj.level ? obj.level.toUpperCase() : "INFO"} ${obj.message || raw}` +
-          buildLogDetails(obj);
-        const cls = obj.level === "error" ? "error" : obj.level === "warn" ? "warn" : "info";
-        appendLog(text, cls);
-      } catch {
-        appendLog(raw, "info");
-      }
-    }
-
-    function setStatusPill(status, text) {
-      const el = document.getElementById("executive-status-pill");
-      el.className = "status-pill";
-      if (status === "error") {
-        el.classList.add("status-error");
-      } else if (status === "attention") {
-        el.classList.add("status-attention");
-      } else {
-        el.classList.add("status-ok");
-      }
-      el.textContent = text;
-    }
-
-    function renderExecutive(data) {
-      const overview = data.overview || {};
-      const executive = data.executive || {};
-      const latestReport = data.latestReport || {};
-      const latestActions = latestReport.recommendedActions || {};
-      const contrast = overview.contrast || {};
-
-      setText("hero-sap-products", overview.sap ? overview.sap.totalProducts : null);
-      setText("hero-presta-products", overview.prestashop ? overview.prestashop.totalProducts : null);
-      setText("hero-last-sample", executive.sampleSize);
-
-      if (latestReport.generatedAt) {
-        document.getElementById("last-run-label").textContent =
-          new Date(latestReport.generatedAt).toLocaleString("es");
+      function updateSyncStatus(text) {
+        document.getElementById("sync-status-label").textContent = text;
       }
 
-      setStatusPill(
-        executive.overallStatus,
-        executive.overallStatus === "error"
-          ? "Atencion inmediata"
-          : executive.overallStatus === "attention"
-            ? "Requiere seguimiento"
-            : "Sin alertas criticas",
-      );
-
-      document.getElementById("executive-headline").textContent =
-        executive.headline || "No hay resumen ejecutivo disponible.";
-
-      const actionText = [];
-      if ((latestActions.createProduct || 0) > 0) {
-        actionText.push(`en la muestra analizada hay ${latestActions.createProduct} productos que SAP tiene y la tienda todavia no`);
-      }
-      if ((latestActions.updateProductPrice || 0) + (latestActions.updateProductStock || 0) + (latestActions.updateProductPriceAndStock || 0) > 0) {
-        actionText.push("en la muestra analizada hay productos existentes que requieren actualizacion");
-      }
-      if ((latestActions.reviewCombinationMapping || 0) + (latestActions.reviewError || 0) > 0) {
-        actionText.push("en la muestra analizada hay casos que conviene revisar manualmente");
-      }
-      if ((latestReport.summary || {}).errors > 0) {
-        actionText.push("la ultima corrida tuvo errores");
-      }
-      if ((contrast.missingProductsInPrestashop || 0) > 0) {
-        actionText.push(`a nivel catalogo completo, faltan aproximadamente ${contrast.missingProductsInPrestashop} productos en PrestaShop`);
-      }
-
-      const actionSummary = document.getElementById("action-summary");
-      const samplePrefix =
-        executive.sampleSize > 0
-          ? `La ultima corrida analizo ${executive.sampleSize} producto(s). `
-          : "";
-
-      if (actionText.length === 0) {
-        actionSummary.className = "message-box message-info";
-        actionSummary.textContent =
-          samplePrefix +
-          "No veo alertas urgentes en la ultima lectura. Si queres confirmar el estado actual, corre un dry run.";
-      } else {
-        actionSummary.className =
-          (latestReport.summary || {}).errors > 0
-            ? "message-box message-error"
-            : "message-box message-warn";
-        actionSummary.textContent =
-          samplePrefix + "En lenguaje simple: " + actionText.join(", ") + ".";
-      }
-    }
-
-    function renderOverview(overview) {
-      const sap = overview.sap || {};
-      const presta = overview.prestashop || {};
-      const contrast = overview.contrast || {};
-
-      setText("sap-schema", sap.schema);
-      setText("sap-warehouse", sap.warehouse);
-      setText("sap-pricelist", sap.priceList);
-      setText("sap-total-products", sap.totalProducts);
-      setText("sap-active-products", sap.activeProducts);
-      setText("sap-inactive-products", sap.inactiveProducts);
-      setText("sap-products-with-stock", sap.productsWithStock);
-      setText("sap-products-without-stock", sap.productsWithoutStock);
-      document.getElementById("sap-total-stock").textContent = number(sap.totalStock, 3);
-
-      setText("presta-total-products", presta.totalProducts);
-      setText("presta-active-products", presta.activeProducts);
-      setText("presta-inactive-products", presta.inactiveProducts);
-      setText("presta-total-combinations", presta.totalCombinations);
-      setText("presta-status", presta.error ? "No disponible" : "Disponible");
-
-      setText("contrast-missing-products", contrast.missingProductsInPrestashop);
-      setText("contrast-active-missing", contrast.activeProductsMissingInPrestashop);
-      setText("contrast-extra-inactive", contrast.inactiveProductsExtraInPrestashop);
-
-      const problems = [sap.error, presta.error].filter(Boolean);
-      if (problems.length > 0) {
-        document.getElementById("overview-label").textContent =
-          "Snapshot parcial: " + problems.join(" | ");
-      } else if (overview.generatedAt) {
-        document.getElementById("overview-label").textContent =
-          "Snapshot de catalogo: " + new Date(overview.generatedAt).toLocaleString("es");
-      }
-    }
-
-    function renderReports(reports) {
-      if (!reports.length) {
-        return;
-      }
-
-      const latest = reports[0];
-      const actions = latest.recommendedActions || {};
-      const summary = latest.summary || {};
-      const updates =
-        (actions.updateProductPrice || 0) +
-        (actions.updateProductStock || 0) +
-        (actions.updateProductPriceAndStock || 0);
-      const review =
-        (actions.reviewCombinationMapping || 0) +
-        (actions.reviewError || 0);
-
-      if (latest.generatedAt) {
-        document.getElementById("last-run-label").textContent =
-          new Date(latest.generatedAt).toLocaleString("es");
-      }
-
-      const tbody = document.getElementById("history-body");
-      tbody.innerHTML = reports.map((report) => {
-        const a = report.recommendedActions || {};
-        const s = report.summary || {};
-        const upd =
-          (a.updateProductPrice || 0) +
-          (a.updateProductStock || 0) +
-          (a.updateProductPriceAndStock || 0);
-        const rev =
-          (a.reviewCombinationMapping || 0) +
-          (a.reviewError || 0);
-        const executed = a.executed || 0;
-        const errors = s.errors || 0;
-
-        return `
-          <tr>
-            <td>${report.generatedAt ? new Date(report.generatedAt).toLocaleString("es") : "-"}</td>
-            <td>${fmt(s.total)}</td>
-            <td>${fmt(a.createProduct)}</td>
-            <td>${fmt(upd)}</td>
-            <td>${fmt(a.skipNoChange)}</td>
-            <td>${rev > 0 ? `<span class="tag amber">${fmt(rev)}</span>` : `<span class="tag gray">0</span>`}</td>
-            <td>${executed > 0 ? `<span class="tag green">${fmt(executed)}</span>` : `<span class="tag gray">0</span>`}</td>
-            <td>${errors > 0 ? `<span class="tag red">${fmt(errors)}</span>` : `<span class="tag gray">0</span>`}</td>
-          </tr>
-        `;
-      }).join("");
-    }
-
-    async function loadReports() {
-      const response = await fetch("/api/reports");
-      const reports = await response.json();
-      renderReports(reports);
-      return reports;
-    }
-
-    async function loadDashboard(forceRefresh) {
-      document.getElementById("overview-label").textContent = "Actualizando...";
-
-      const summaryUrl = "/api/dashboard-summary" + (forceRefresh ? "?refresh=true" : "");
-      const summaryResponse = await fetch(summaryUrl);
-      const summaryData = await summaryResponse.json();
-      renderExecutive(summaryData);
-
-      const url = "/api/catalog-overview" + (forceRefresh ? "?refresh=true" : "");
-      const overviewResponse = await fetch(url);
-      const overviewData = await overviewResponse.json();
-      renderOverview(overviewData);
-
-      await loadReports();
-    }
-
-    function runSync(options = {}) {
-      if (syncRunning) return;
-
-      syncRunning = true;
-      document.getElementById("btn-run").disabled = true;
-      document.getElementById("btn-run-full").disabled = true;
-      document.getElementById("running-banner").classList.add("info");
-      document.getElementById("log-box").innerHTML = "";
-      appendLog(
-        options.fullCatalog
-          ? "Iniciando sync masiva del catalogo completo..."
-          : "Iniciando sync...",
-        "info",
-      );
-
-      const itemCode = document.getElementById("item-code").value.trim();
-      const limit = document.getElementById("limit").value.trim();
-      const params = new URLSearchParams();
-
-      if (options.fullCatalog) {
-        params.set("fullCatalog", "true");
-      } else {
-        if (itemCode) params.set("itemCode", itemCode);
-        if (limit) params.set("limit", limit);
-      }
-      params.set("write", writeMode ? "true" : "false");
-
-      const es = new EventSource("/api/sync?" + params.toString());
-
-      es.onmessage = (event) => {
-        const msg = JSON.parse(event.data);
-
-        if (msg.type === "log") {
-          logJson(msg.line);
+      function renderReports(reports) {
+        if (!reports.length) {
+          document.getElementById("history-body").innerHTML =
+            '<tr><td colspan="8" class="empty">Sin reportes todavia.</td></tr>';
           return;
         }
 
-        if (msg.type === "done") {
-          const ok = msg.code === 0;
-          appendLog(
-            ok ? "Sync completado." : `Sync finalizo con codigo ${msg.code}.`,
-            ok ? "done-ok" : "done-err",
-          );
+        const latest = reports[0];
+        const actions = latest.recommendedActions || {};
+        const summary = latest.summary || {};
+        const updateCount =
+          (actions.updateProductPrice || 0) +
+          (actions.updateProductStock || 0) +
+          (actions.updateProductPriceAndStock || 0);
+        const reviewCount =
+          (actions.reviewCombinationMapping || 0) + (actions.reviewError || 0);
+
+        setText("summary-total", summary.total);
+        setText("summary-create", actions.createProduct);
+        setText("summary-update", updateCount);
+        setText("summary-errors", summary.errors);
+        document.getElementById("sync-headline").textContent =
+          summary.total > 0
+            ? `${summary.total} producto(s) analizados`
+            : "Sin actividad reciente";
+
+        if (latest.generatedAt) {
+          document.getElementById("last-run-label").textContent = new Date(
+            latest.generatedAt,
+          ).toLocaleString("es");
+        }
+
+        const tbody = document.getElementById("history-body");
+        tbody.innerHTML = reports
+          .map((report) => {
+            const a = report.recommendedActions || {};
+            const s = report.summary || {};
+            const upd =
+              (a.updateProductPrice || 0) +
+              (a.updateProductStock || 0) +
+              (a.updateProductPriceAndStock || 0);
+            const rev =
+              (a.reviewCombinationMapping || 0) + (a.reviewError || 0);
+            const executed = a.executed || 0;
+            const errors = s.errors || 0;
+
+            return `
+              <tr>
+                <td>${report.generatedAt ? new Date(report.generatedAt).toLocaleString("es") : "-"}</td>
+                <td>${fmt(s.total)}</td>
+                <td>${fmt(a.createProduct)}</td>
+                <td>${fmt(upd)}</td>
+                <td>${fmt(a.skipNoChange)}</td>
+                <td>${rev > 0 ? `<span class="tag amber">${fmt(rev)}</span>` : `<span class="tag gray">0</span>`}</td>
+                <td>${executed > 0 ? `<span class="tag green">${fmt(executed)}</span>` : `<span class="tag gray">0</span>`}</td>
+                <td>${errors > 0 ? `<span class="tag red">${fmt(errors)}</span>` : `<span class="tag gray">0</span>`}</td>
+              </tr>
+            `;
+          })
+          .join("");
+      }
+
+      function renderOverview(overview) {
+        const sap = overview.sap || {};
+        const presta = overview.prestashop || {};
+        const contrast = overview.contrast || {};
+
+        setText("sap-schema", sap.schema);
+        setText("sap-warehouse", sap.warehouse);
+        setText("sap-pricelist", sap.priceList);
+        setText("sap-total-products", sap.totalProducts);
+        setText("sap-total-products-detail", sap.totalProducts);
+        setText("sap-active-products", sap.activeProducts);
+        setText("sap-active-products-detail", sap.activeProducts);
+        setText("sap-inactive-products", sap.inactiveProducts);
+        setText("sap-products-with-stock", sap.productsWithStock);
+        setText("sap-products-without-stock", sap.productsWithoutStock);
+        document.getElementById("sap-total-stock").textContent = number(
+          sap.totalStock,
+          3,
+        );
+        document.getElementById("sap-total-stock-card").textContent = number(
+          sap.totalStock,
+          0,
+        );
+
+        setText("presta-total-products", presta.totalProducts);
+        setText("presta-total-products-detail", presta.totalProducts);
+        setText("presta-active-products", presta.activeProducts);
+        setText("presta-active-products-detail", presta.activeProducts);
+        setText("presta-inactive-products", presta.inactiveProducts);
+        setText("presta-total-combinations", presta.totalCombinations);
+        setText("presta-total-combinations-detail", presta.totalCombinations);
+        setText("presta-status", presta.error ? "No disponible" : "Disponible");
+
+        setText("contrast-missing-products", contrast.missingProductsInPrestashop);
+        setText(
+          "contrast-active-missing",
+          contrast.activeProductsMissingInPrestashop,
+        );
+        setText("contrast-extra-products", contrast.extraProductsInPrestashop);
+        setText(
+          "contrast-extra-products-detail",
+          contrast.extraProductsInPrestashop,
+        );
+        setText("contrast-extra-inactive", contrast.inactiveProductsExtraInPrestashop);
+
+        const problems = [sap.error, presta.error].filter(Boolean);
+        if (problems.length > 0) {
+          document.getElementById("overview-label").textContent =
+            "Parcial: " + problems.join(" | ");
+        } else if (overview.generatedAt) {
+          document.getElementById("overview-label").textContent = new Date(
+            overview.generatedAt,
+          ).toLocaleString("es");
+        }
+      }
+
+      async function loadReports() {
+        const response = await fetch("/api/reports");
+        const reports = await response.json();
+        renderReports(reports);
+        return reports;
+      }
+
+      async function loadStatus() {
+        const response = await fetch("/api/status");
+        const status = await response.json();
+        syncRunning = Boolean(status.running);
+        updateSyncStatus(syncRunning ? "Ejecutando" : "Listo");
+        document
+          .getElementById("running-banner")
+          .classList.toggle("visible", syncRunning);
+        document.getElementById("btn-run").disabled = syncRunning;
+        document.getElementById("btn-run-full").disabled = syncRunning;
+      }
+
+      async function loadDashboard(forceRefresh) {
+        document.getElementById("overview-label").textContent = "Actualizando...";
+
+        const overviewUrl = "/api/catalog-overview" + (forceRefresh ? "?refresh=true" : "");
+        const overviewResponse = await fetch(overviewUrl);
+        const overviewData = await overviewResponse.json();
+        renderOverview(overviewData);
+
+        await loadReports();
+        await loadStatus();
+      }
+
+      function runSync(options = {}) {
+        if (syncRunning) return;
+
+        syncRunning = true;
+        updateSyncStatus("Ejecutando");
+        document.getElementById("btn-run").disabled = true;
+        document.getElementById("btn-run-full").disabled = true;
+        document.getElementById("running-banner").classList.add("visible");
+        document.getElementById("log-box").innerHTML = "";
+
+        appendLog(
+          options.fullCatalog
+            ? "Iniciando sync masiva del catalogo completo..."
+            : "Iniciando sync...",
+          "info",
+        );
+
+        const itemCode = document.getElementById("item-code").value.trim();
+        const limit = document.getElementById("limit").value.trim();
+        const params = new URLSearchParams();
+
+        if (options.fullCatalog) {
+          params.set("fullCatalog", "true");
+        } else {
+          if (itemCode) params.set("itemCode", itemCode);
+          if (limit) params.set("limit", limit);
+        }
+
+        params.set("write", writeMode ? "true" : "false");
+        const es = new EventSource("/api/sync?" + params.toString());
+
+        es.onmessage = (event) => {
+          const msg = JSON.parse(event.data);
+
+          if (msg.type === "log") {
+            logJson(msg.line);
+            return;
+          }
+
+          if (msg.type === "done") {
+            const ok = msg.code === 0;
+            appendLog(
+              ok ? "Sync completado." : `Sync finalizo con codigo ${msg.code}.`,
+              ok ? "done-ok" : "done-err",
+            );
+            es.close();
+            syncRunning = false;
+            updateSyncStatus(ok ? "Completado" : "Con errores");
+            document.getElementById("btn-run").disabled = false;
+            document.getElementById("btn-run-full").disabled = false;
+            document.getElementById("running-banner").classList.remove("visible");
+            loadDashboard(true);
+          }
+        };
+
+        es.onerror = () => {
+          appendLog("Error de conexion con el servidor.", "error");
           es.close();
           syncRunning = false;
+          updateSyncStatus("Con errores");
           document.getElementById("btn-run").disabled = false;
           document.getElementById("btn-run-full").disabled = false;
-          document.getElementById("running-banner").classList.remove("info");
-          loadDashboard(true);
-        }
-      };
-
-      es.onerror = () => {
-        appendLog("Error de conexion con el servidor.", "error");
-        es.close();
-        syncRunning = false;
-        document.getElementById("btn-run").disabled = false;
-        document.getElementById("btn-run-full").disabled = false;
-        document.getElementById("running-banner").classList.remove("info");
-      };
-    }
-
-    function setControlMessage(text, kind) {
-      const el = document.getElementById("control-message");
-      el.className = "message-box " + (kind || "message-info");
-      el.textContent = text;
-    }
-
-    function renderLookup(data) {
-      currentLookup = data;
-
-      const sap = data.sap || {};
-      const presta = data.prestashop || {};
-      const comparison = data.comparison || {};
-
-      setText("control-sap-item", sap.itemCode);
-      setText("control-sap-name", sap.itemName);
-      document.getElementById("control-sap-price").textContent = money(sap.price);
-      setText("control-sap-stock", sap.stock);
-      setText("control-sap-status", sap.status === "Y" ? "Activo" : sap.status ? "Inactivo" : "-");
-
-      setText("control-presta-id", presta.productId);
-      setText("control-presta-reference", presta.reference);
-      setText("control-presta-active", presta.active === "1" ? "Activo" : presta.active === "0" ? "Inactivo" : "-");
-      document.getElementById("control-presta-price").textContent = money(presta.productPrice);
-      setText("control-presta-combinations", presta.combinations ? presta.combinations.length : null);
-      setText("control-presta-stock-records", presta.stockAvailables ? presta.stockAvailables.length : null);
-
-      const canChangeStatus = Boolean(presta && presta.productId);
-      document.getElementById("btn-activate-product").disabled = !canChangeStatus;
-      document.getElementById("btn-deactivate-product").disabled = !canChangeStatus;
-
-      if (presta.error) {
-        setControlMessage("PrestaShop respondio con error: " + presta.error, "message-box message-error");
-        return;
+          document.getElementById("running-banner").classList.remove("visible");
+        };
       }
 
-      if (!comparison.existsInSap && !comparison.existsInPrestashop) {
-        setControlMessage("No encontre esa referencia ni en SAP ni en PrestaShop.", "message-box message-warn");
-        return;
+      function setControlMessage(text, kind) {
+        const el = document.getElementById("control-message");
+        el.className = "message-box " + (kind || "message-info");
+        el.textContent = text;
       }
 
-      if (comparison.existsInSap && !comparison.existsInPrestashop) {
-        setControlMessage("El articulo existe en SAP pero no aparece en PrestaShop.", "message-box message-warn");
-        return;
-      }
+      function renderLookup(data) {
+        currentLookup = data;
 
-      if (!comparison.existsInSap && comparison.existsInPrestashop) {
-        setControlMessage("El producto existe en PrestaShop pero no lo pude localizar en SAP con esa referencia.", "message-box message-warn");
-        return;
-      }
+        const sap = data.sap || {};
+        const presta = data.prestashop || {};
+        const comparison = data.comparison || {};
 
-      if (comparison.samePrice) {
-        setControlMessage("El producto existe en ambos lados y el precio principal coincide.", "message-box message-info");
-      } else {
-        setControlMessage(
-          "El producto existe en ambos lados pero el precio principal no coincide. SAP: " +
-          money(sap.price) +
-          " | PrestaShop: " +
-          money(presta.productPrice),
-          "message-box message-warn",
+        setText("control-sap-item", sap.itemCode);
+        setText("control-sap-name", sap.itemName);
+        document.getElementById("control-sap-price").textContent = money(sap.price);
+        setText("control-sap-stock", sap.stock);
+        setText(
+          "control-sap-status",
+          sap.status === "Y" ? "Activo" : sap.status ? "Inactivo" : "-",
         );
+
+        setText("control-presta-id", presta.productId);
+        setText("control-presta-reference", presta.reference);
+        setText(
+          "control-presta-active",
+          presta.active === "1" ? "Activo" : presta.active === "0" ? "Inactivo" : "-",
+        );
+        document.getElementById("control-presta-price").textContent = money(
+          presta.productPrice,
+        );
+        setText(
+          "control-presta-combinations",
+          presta.combinations ? presta.combinations.length : null,
+        );
+        setText(
+          "control-presta-stock-records",
+          presta.stockAvailables ? presta.stockAvailables.length : null,
+        );
+
+        const canChangeStatus = Boolean(presta && presta.productId);
+        document.getElementById("btn-activate-product").disabled = !canChangeStatus;
+        document.getElementById("btn-deactivate-product").disabled = !canChangeStatus;
+
+        if (presta.error) {
+          setControlMessage(
+            "PrestaShop respondio con error: " + presta.error,
+            "message-box message-error",
+          );
+          return;
+        }
+
+        if (!comparison.existsInSap && !comparison.existsInPrestashop) {
+          setControlMessage(
+            "No encontre esa referencia ni en SAP ni en PrestaShop.",
+            "message-box message-warn",
+          );
+          return;
+        }
+
+        if (comparison.existsInSap && !comparison.existsInPrestashop) {
+          setControlMessage(
+            "El articulo existe en SAP pero no aparece en PrestaShop.",
+            "message-box message-warn",
+          );
+          return;
+        }
+
+        if (!comparison.existsInSap && comparison.existsInPrestashop) {
+          setControlMessage(
+            "El producto existe en PrestaShop pero no lo pude localizar en SAP con esa referencia.",
+            "message-box message-warn",
+          );
+          return;
+        }
+
+        if (comparison.samePrice) {
+          setControlMessage(
+            "El producto existe en ambos lados y el precio principal coincide.",
+            "message-box message-info",
+          );
+        } else {
+          setControlMessage(
+            "El producto existe en ambos lados pero el precio principal no coincide. SAP: " +
+              money(sap.price) +
+              " | PrestaShop: " +
+              money(presta.productPrice),
+            "message-box message-warn",
+          );
+        }
       }
-    }
 
-    async function lookupReference() {
-      const reference = document.getElementById("control-reference").value.trim();
-      if (!reference) {
-        setControlMessage("Escribe una referencia antes de consultar.", "message-box message-warn");
-        return;
+      async function lookupReference() {
+        const reference = document.getElementById("control-reference").value.trim();
+        if (!reference) {
+          setControlMessage(
+            "Escribe una referencia antes de consultar.",
+            "message-box message-warn",
+          );
+          return;
+        }
+
+        setControlMessage("Consultando SAP y PrestaShop...", "message-box message-info");
+        const response = await fetch(
+          "/api/prestashop-control?reference=" + encodeURIComponent(reference),
+        );
+        const data = await response.json();
+        renderLookup(data);
       }
 
-      setControlMessage("Consultando SAP y PrestaShop...", "message-box message-info");
+      async function changeProductStatus(active) {
+        if (!currentLookup || !currentLookup.prestashop || !currentLookup.prestashop.productId) {
+          setControlMessage(
+            "Primero consulta un producto valido de PrestaShop.",
+            "message-box message-warn",
+          );
+          return;
+        }
 
-      const response = await fetch("/api/prestashop-control?reference=" + encodeURIComponent(reference));
-      const data = await response.json();
-      renderLookup(data);
-    }
+        const response = await fetch("/api/prestashop-control/active", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            productId: currentLookup.prestashop.productId,
+            active,
+          }),
+        });
 
-    async function changeProductStatus(active) {
-      if (!currentLookup || !currentLookup.prestashop || !currentLookup.prestashop.productId) {
-        setControlMessage("Primero consulta un producto valido de PrestaShop.", "message-box message-warn");
-        return;
+        const data = await response.json();
+        if (!response.ok) {
+          setControlMessage(
+            "No pude cambiar el estado: " + (data.error || "error desconocido"),
+            "message-box message-error",
+          );
+          return;
+        }
+
+        setControlMessage(data.message, "message-box message-info");
+        await lookupReference();
+        await loadDashboard(true);
       }
 
-      const response = await fetch("/api/prestashop-control/active", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: currentLookup.prestashop.productId,
-          active,
-        }),
+      setView(currentView);
+      setMode("dry");
+      loadDashboard(false).catch((error) => {
+        document.getElementById("overview-label").textContent =
+          "No pude cargar el tablero";
+        appendLog(error.message, "error");
       });
-
-      const data = await response.json();
-      if (!response.ok) {
-        setControlMessage("No pude cambiar el estado: " + (data.error || "error desconocido"), "message-box message-error");
-        return;
-      }
-
-      setControlMessage(data.message, "message-box message-info");
-      await lookupReference();
-      await loadDashboard(true);
-    }
-
-    loadDashboard(false).catch((error) => {
-      document.getElementById("overview-label").textContent = "No pude cargar el tablero";
-      document.getElementById("action-summary").className = "message-box message-error";
-      document.getElementById("action-summary").textContent = error.message;
-    });
-
-    /* ─── Duplicados ─────────────────────────────────── */
-  </script>
-</body>
+    </script>
+  </body>
 </html>
