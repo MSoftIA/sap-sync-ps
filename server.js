@@ -11,6 +11,7 @@ const {
   createPrestaClient,
   hasPrestaConfig,
   inspectProductByReferenceValue,
+  readPrestaProductsPage,
   readPrestaOverview,
   updatePrestaProductActive,
 } = require("./src/prestashop");
@@ -464,6 +465,44 @@ app.get("/api/sap-products", (req, res) => {
 
   try {
     const payload = readSapProductsPage(log, {
+      page,
+      pageSize,
+      search,
+      status,
+    });
+    res.json(payload);
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
+    });
+  }
+});
+
+app.get("/api/prestashop-products", async (req, res) => {
+  const page = parsePositiveInt(req.query.page, 1);
+  const pageSize = parsePositiveInt(req.query.pageSize, 50, { max: 250 });
+  const search = String(req.query.search || "").trim();
+  const status = String(req.query.status || "all")
+    .trim()
+    .toLowerCase();
+
+  if (!["all", "active", "inactive"].includes(status)) {
+    res.status(400).json({
+      error: "status invalido. Usa all, active o inactive",
+    });
+    return;
+  }
+
+  if (!hasPrestaConfig()) {
+    res.status(400).json({
+      error: "PRESTASHOP_ENDPOINT o PRESTASHOP_API_KEY no configurados",
+    });
+    return;
+  }
+
+  try {
+    const client = createPrestaClient(log);
+    const payload = await readPrestaProductsPage(client, log, {
       page,
       pageSize,
       search,

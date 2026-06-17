@@ -219,6 +219,133 @@ async function readPrestaOverview(client, log) {
   };
 }
 
+function normalizePrestaSearch(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function mapPrestaProductListItem(product, stockRows) {
+  const directStockRow =
+    stockRows.find((row) => Number(row.productAttributeId) === 0) || null;
+  const combinationStockRows = stockRows.filter(
+    (row) => Number(row.productAttributeId) > 0,
+  );
+  const totalStock =
+    stockRows.length > 0
+      ? stockRows.reduce((acc, row) => acc + Number(row.quantity || 0), 0)
+      : 0;
+
+  return {
+    productId: product.id,
+    reference: product.reference || "",
+    active: product.active,
+    defaultCategory: product.defaultCategory || "",
+    productPrice: Number(product.productPrice || 0),
+    stockTotal: totalStock,
+    stockRows: stockRows.length,
+    directStock:
+      directStockRow && Number.isFinite(Number(directStockRow.quantity))
+        ? Number(directStockRow.quantity)
+        : null,
+    combinationCount: combinationStockRows.length,
+    hasCombinations: combinationStockRows.length > 0,
+  };
+}
+
+async function readPrestaProductsPage(client, log, options = {}) {
+  const page = Math.max(1, Number(options.page) || 1);
+  const pageSize = Math.min(250, Math.max(1, Number(options.pageSize) || 50));
+  const search = normalizePrestaSearch(options.search);
+  const status = String(options.status || "all")
+    .trim()
+    .toLowerCase();
+
+  if (log) {
+    log("info", "Consultando pagina de productos PrestaShop", {
+      page,
+      pageSize,
+      search,
+      status,
+    });
+  }
+
+  const startedAt = Date.now();
+  const [products, stockAvailables] = await Promise.all([
+    listPrestaProducts(client),
+    listPrestaStockAvailables(client),
+  ]);
+
+  const stockByProductId = groupBy(stockAvailables, (row) => row.productId);
+
+  let filteredProducts = products;
+
+  if (status === "active") {
+    filteredProducts = filteredProducts.filter(
+      (product) => String(product.active) === "1",
+    );
+  } else if (status === "inactive") {
+    filteredProducts = filteredProducts.filter(
+      (product) => String(product.active) !== "1",
+    );
+  }
+
+  if (search) {
+    filteredProducts = filteredProducts.filter((product) => {
+      const haystack = [
+        String(product.id || ""),
+        String(product.reference || ""),
+        String(product.defaultCategory || ""),
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(search);
+    });
+  }
+
+  filteredProducts.sort((a, b) => a.id - b.id);
+
+  const total = filteredProducts.length;
+  const totalPages =
+    pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
+  const safePage = Math.min(page, totalPages);
+  const offset = (safePage - 1) * pageSize;
+  const pageItems = filteredProducts
+    .slice(offset, offset + pageSize)
+    .map((product) =>
+      mapPrestaProductListItem(product, stockByProductId.get(product.id) || []),
+    );
+
+  if (log) {
+    log("info", "Pagina de productos PrestaShop cargada", {
+      page: safePage,
+      pageSize,
+      returned: pageItems.length,
+      total,
+      totalPages,
+      elapsedMs: Date.now() - startedAt,
+    });
+  }
+
+  return {
+    source: "prestashop",
+    filters: {
+      search,
+      status,
+    },
+    pagination: {
+      page: safePage,
+      pageSize,
+      total,
+      totalPages,
+      hasNextPage: safePage < totalPages,
+      hasPreviousPage: safePage > 1,
+    },
+    items: pageItems,
+  };
+}
+
 async function listPrestaProducts(client, params = {}, batchSize = 250) {
   let offset = 0;
   const products = [];
@@ -743,6 +870,7 @@ module.exports = {
   inspectProductByReferenceValue,
   listPrestaProducts,
   listPrestaStockAvailables,
+  readPrestaProductsPage,
   readPrestaOverview,
   updatePrestaProductActive,
 };
