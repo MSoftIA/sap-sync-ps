@@ -7,21 +7,18 @@
     <style>
       :root {
         color-scheme: light;
-        --bg: #f3f6fb;
         --surface: #ffffff;
         --surface-soft: #f8fbff;
         --text: #172033;
         --muted: #667085;
         --border: #d9e3f0;
         --primary: #3659e3;
-        --primary-strong: #2236a8;
         --success: #15803d;
         --success-soft: #dcfce7;
         --warning: #b45309;
         --warning-soft: #fef3c7;
         --danger: #b91c1c;
         --danger-soft: #fee2e2;
-        --dark: #0f172a;
         --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
         --radius: 18px;
       }
@@ -169,6 +166,58 @@
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       }
 
+      .sync-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.8fr);
+        gap: 16px;
+      }
+
+      .hero-panel {
+        display: grid;
+        gap: 16px;
+      }
+
+      .hero-title {
+        margin: 0 0 6px;
+        font-size: 1.25rem;
+      }
+
+      .hero-copy {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: 0.88rem;
+        font-weight: 800;
+      }
+
+      .status-ok {
+        background: var(--success-soft);
+        color: var(--success);
+      }
+
+      .status-warn {
+        background: var(--warning-soft);
+        color: var(--warning);
+      }
+
+      .status-error {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 12px;
+      }
+
       .metric-card .label {
         font-size: 0.78rem;
         text-transform: uppercase;
@@ -190,31 +239,32 @@
         color: var(--muted);
       }
 
-      .status-row {
+      .run-facts {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 10px;
+      }
+
+      .fact-row {
+        display: flex;
+        justify-content: space-between;
         gap: 12px;
+        border-bottom: 1px solid #eef2f7;
+        padding-bottom: 10px;
       }
 
-      .status-box {
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 14px;
-        padding: 12px 14px;
+      .fact-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
       }
 
-      .status-box .label {
-        display: block;
-        font-size: 0.76rem;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: #afbddf;
-        margin-bottom: 6px;
+      .fact-label {
+        color: var(--muted);
+        font-size: 0.92rem;
       }
 
-      .status-box .value {
-        font-size: 0.98rem;
+      .fact-value {
         font-weight: 800;
+        text-align: right;
       }
 
       .banner {
@@ -233,38 +283,9 @@
         border: 1px solid #bfdbfe;
       }
 
-      .controls-grid {
+      .action-block {
         display: grid;
         gap: 14px;
-      }
-
-      .controls-row {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-        align-items: end;
-      }
-
-      .field {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        min-width: 170px;
-        flex: 1 1 170px;
-      }
-
-      .field label {
-        font-size: 0.84rem;
-        font-weight: 700;
-        color: #344054;
-      }
-
-      .field input {
-        border: 1px solid #cfd8e3;
-        border-radius: 12px;
-        padding: 11px 12px;
-        font-size: 0.96rem;
-        background: white;
       }
 
       .button-row {
@@ -344,12 +365,63 @@
         background: #b42318;
       }
 
+      .message-box {
+        border-radius: 14px;
+        padding: 14px 16px;
+        line-height: 1.5;
+        font-size: 0.95rem;
+      }
+
+      .message-info {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+      }
+
+      .message-warn {
+        background: #fff7ed;
+        color: #c2410c;
+        border: 1px solid #fdba74;
+      }
+
+      .message-error {
+        background: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+      }
+
+      .field-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .field label {
+        font-size: 0.84rem;
+        font-weight: 700;
+        color: #344054;
+      }
+
+      .field input {
+        border: 1px solid #cfd8e3;
+        border-radius: 12px;
+        padding: 11px 12px;
+        font-size: 0.96rem;
+        background: white;
+      }
+
       .log-box {
         background: #04111f;
         color: #e5eefc;
         border-radius: var(--radius);
-        min-height: 380px;
-        max-height: 560px;
+        min-height: 420px;
+        max-height: 620px;
         overflow-y: auto;
         padding: 16px;
         font-family: Consolas, monospace;
@@ -383,49 +455,6 @@
       .log-line.done-err {
         color: #fca5a5;
         font-weight: 700;
-      }
-
-      .data-list {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 10px 12px;
-        margin: 0;
-      }
-
-      .data-list dt {
-        color: var(--muted);
-        font-size: 0.94rem;
-      }
-
-      .data-list dd {
-        margin: 0;
-        font-weight: 800;
-        text-align: right;
-      }
-
-      .message-box {
-        border-radius: 14px;
-        padding: 14px 16px;
-        line-height: 1.5;
-        font-size: 0.95rem;
-      }
-
-      .message-info {
-        background: #eff6ff;
-        color: #1d4ed8;
-        border: 1px solid #bfdbfe;
-      }
-
-      .message-warn {
-        background: #fff7ed;
-        color: #c2410c;
-        border: 1px solid #fdba74;
-      }
-
-      .message-error {
-        background: #fef2f2;
-        color: #b91c1c;
-        border: 1px solid #fecaca;
       }
 
       .history-table {
@@ -491,6 +520,24 @@
         color: #475467;
       }
 
+      .data-list {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px 12px;
+        margin: 0;
+      }
+
+      .data-list dt {
+        color: var(--muted);
+        font-size: 0.94rem;
+      }
+
+      .data-list dd {
+        margin: 0;
+        font-weight: 800;
+        text-align: right;
+      }
+
       .stat-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -524,6 +571,29 @@
         font-size: 0.92rem;
       }
 
+      details {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: white;
+      }
+
+      summary {
+        cursor: pointer;
+        padding: 14px 16px;
+        font-weight: 800;
+        color: #344054;
+      }
+
+      .details-body {
+        padding: 0 16px 16px;
+      }
+
+      @media (max-width: 980px) {
+        .sync-hero {
+          grid-template-columns: 1fr;
+        }
+      }
+
       @media (max-width: 860px) {
         .topbar {
           align-items: start;
@@ -540,7 +610,7 @@
       <section class="topbar">
         <div class="title">
           <h1>SAP to PrestaShop Sync</h1>
-          <p>Operacion, monitoreo y control del catalogo.</p>
+          <p>Tablero operativo para seguir la sync masiva y detectar dónde se traba.</p>
         </div>
 
         <div class="topbar-meta">
@@ -550,7 +620,12 @@
       </section>
 
       <div class="view-tabs" role="tablist" aria-label="Vistas del tablero">
-        <button id="view-btn-sync" class="active" type="button" onclick="setView('sync')">
+        <button
+          id="view-btn-sync"
+          class="active"
+          type="button"
+          onclick="setView('sync')"
+        >
           Sync
         </button>
         <button id="view-btn-sap" type="button" onclick="setView('sap')">SAP</button>
@@ -561,99 +636,111 @@
 
       <main id="view-sync" class="view active">
         <section class="section">
-          <div class="section-header">
-            <h2 class="section-title">Ultima corrida</h2>
-            <div class="section-note">Resumen de la muestra procesada</div>
-          </div>
+          <div id="running-banner" class="banner">Sync masiva en curso...</div>
 
-          <div class="grid grid-4">
-            <div class="card metric-card">
-              <div class="label">Leidos</div>
-              <div class="value" id="summary-total">-</div>
-              <div class="hint">Productos evaluados en la ultima corrida</div>
+          <div class="sync-hero">
+            <div class="hero-panel">
+              <div class="card">
+                <h2 class="hero-title">Sync masiva</h2>
+                <p class="hero-copy">
+                  Esta vista está pensada para lanzar la sync completa, seguir el log y
+                  entender si la corrida avanza, se corta o termina bien.
+                </p>
+              </div>
+
+              <div class="card">
+                <div class="summary-grid">
+                  <div class="metric-card">
+                    <div class="label">Estado</div>
+                    <div id="sync-status-badge" class="status-badge status-ok">Listo</div>
+                    <div class="hint">Situación actual del proceso</div>
+                  </div>
+                  <div class="metric-card">
+                    <div class="label">Modo</div>
+                    <div class="value" id="sync-mode-label">Dry run</div>
+                    <div class="hint">Dry run no escribe. Write sí aplica cambios.</div>
+                  </div>
+                  <div class="metric-card">
+                    <div class="label">Muestra procesada</div>
+                    <div class="value" id="summary-total">-</div>
+                    <div class="hint">Cantidad del último reporte generado</div>
+                  </div>
+                  <div class="metric-card">
+                    <div class="label">Cambios aplicados</div>
+                    <div class="value" id="summary-executed">-</div>
+                    <div class="hint">Acciones realmente escritas en tienda</div>
+                  </div>
+                  <div class="metric-card">
+                    <div class="label">Revision manual</div>
+                    <div class="value" id="summary-review">-</div>
+                    <div class="hint">Casos que quedaron para revisar</div>
+                  </div>
+                  <div class="metric-card">
+                    <div class="label">Errores</div>
+                    <div class="value" id="summary-errors">-</div>
+                    <div class="hint">Errores del último reporte</div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="card metric-card">
-              <div class="label">Crear</div>
-              <div class="value" id="summary-create">-</div>
-              <div class="hint">No existen en PrestaShop</div>
-            </div>
-            <div class="card metric-card">
-              <div class="label">Actualizar</div>
-              <div class="value" id="summary-update">-</div>
-              <div class="hint">Tienen diferencias para corregir</div>
-            </div>
-            <div class="card metric-card">
-              <div class="label">Errores</div>
-              <div class="value" id="summary-errors">-</div>
-              <div class="hint">Requieren revision manual</div>
+
+            <div class="card card-soft">
+              <div class="run-facts">
+                <div class="fact-row">
+                  <div class="fact-label">Ultima ejecución</div>
+                  <div class="fact-value" id="sync-last-run">Sin reportes</div>
+                </div>
+                <div class="fact-row">
+                  <div class="fact-label">Lectura del proceso</div>
+                  <div class="fact-value" id="sync-headline">Sin actividad reciente</div>
+                </div>
+                <div class="fact-row">
+                  <div class="fact-label">Detectados para crear</div>
+                  <div class="fact-value" id="summary-create">-</div>
+                </div>
+                <div class="fact-row">
+                  <div class="fact-label">Detectados para actualizar</div>
+                  <div class="fact-value" id="summary-update">-</div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
         <section class="section">
           <div class="section-header">
-            <h2 class="section-title">Centro de sync</h2>
-            <div class="section-note">La vista principal queda enfocada en ejecutar y ver el resultado</div>
+            <h2 class="section-title">Acciones</h2>
+            <div class="section-note">Primero probá con dry run. Luego usá write para aplicar.</div>
           </div>
 
-          <div id="running-banner" class="banner">Sync en curso...</div>
-
           <div class="card">
-            <div class="controls-grid">
-              <div class="status-row">
-                <div class="status-box">
-                  <span class="label">Estado</span>
-                  <div class="value" id="sync-status-label">Listo</div>
-                </div>
-                <div class="status-box">
-                  <span class="label">Modo</span>
-                  <div class="value" id="sync-mode-label">Dry run</div>
-                </div>
-                <div class="status-box">
-                  <span class="label">Ultima accion</span>
-                  <div class="value" id="sync-headline">Sin actividad reciente</div>
-                </div>
-              </div>
-
-              <div class="controls-row">
-                <div class="field">
-                  <label for="limit">Lote</label>
-                  <input type="number" id="limit" min="1" placeholder="Ej. 50" />
-                </div>
-
-                <div class="field">
-                  <label for="item-code">Item code puntual</label>
-                  <input
-                    type="text"
-                    id="item-code"
-                    placeholder="Opcional: deja vacio para lote o sync total"
-                  />
-                </div>
-
-                <div class="field">
-                  <label>Modo</label>
-                  <div class="toggle-group">
-                    <button id="btn-dryrun" class="active" type="button" onclick="setMode('dry')">
-                      Dry run
-                    </button>
-                    <button id="btn-write" type="button" onclick="setMode('write')">
-                      Write
-                    </button>
-                  </div>
-                </div>
+            <div class="action-block">
+              <div id="sync-mode-help" class="message-box message-info">
+                Dry run analiza el catálogo y deja trazas. Write usa SAP como fuente de verdad y aplica cambios en PrestaShop.
               </div>
 
               <div class="button-row">
-                <button class="btn-primary" id="btn-run" type="button" onclick="runSync()">
-                  Ejecutar lote
-                </button>
+                <div class="toggle-group">
+                  <button
+                    id="btn-dryrun"
+                    class="active"
+                    type="button"
+                    onclick="setMode('dry')"
+                  >
+                    Dry run
+                  </button>
+                  <button id="btn-write" type="button" onclick="setMode('write')">
+                    Write
+                  </button>
+                </div>
+
                 <button
                   class="btn-dark"
                   id="btn-run-full"
                   type="button"
                   onclick="runSync({ fullCatalog: true })"
                 >
-                  Sync masiva
+                  Iniciar sync masiva
                 </button>
                 <button
                   class="btn-secondary"
@@ -661,9 +748,35 @@
                   type="button"
                   onclick="loadDashboard(true)"
                 >
-                  Refrescar
+                  Refrescar tablero
                 </button>
               </div>
+
+              <details>
+                <summary>Opciones avanzadas</summary>
+                <div class="details-body">
+                  <div class="field-grid">
+                    <div class="field">
+                      <label for="limit">Lote manual</label>
+                      <input type="number" id="limit" min="1" placeholder="Ej. 50" />
+                    </div>
+                    <div class="field">
+                      <label for="item-code">Item code puntual</label>
+                      <input
+                        type="text"
+                        id="item-code"
+                        placeholder="Opcional: correr un artículo o un lote acotado"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="button-row" style="margin-top: 12px">
+                    <button class="btn-primary" id="btn-run" type="button" onclick="runSync()">
+                      Ejecutar lote manual
+                    </button>
+                  </div>
+                </div>
+              </details>
             </div>
           </div>
         </section>
@@ -671,18 +784,20 @@
         <section class="section">
           <div class="section-header">
             <h2 class="section-title">Log en tiempo real</h2>
-            <div class="section-note">Lo importante para reportar errores y seguir el avance</div>
+            <div class="section-note">Este bloque es el centro del seguimiento de la sync masiva.</div>
           </div>
 
           <div id="log-box" class="log-box">
-            <div class="log-line info">Los logs del sync apareceran aqui.</div>
+            <div class="log-line info">Los logs de la sync aparecerán aquí.</div>
           </div>
         </section>
 
         <section class="section">
           <div class="section-header">
-            <h2 class="section-title">Historial</h2>
-            <div class="section-note">Ultimas corridas generadas por el proceso</div>
+            <h2 class="section-title">Historial de ejecuciones</h2>
+            <div class="section-note">
+              La columna “Muestra” es lo que procesó esa corrida, no el tamaño total del catálogo.
+            </div>
           </div>
 
           <div class="history-table">
@@ -695,7 +810,7 @@
                   <th>Actualizar</th>
                   <th>Sin cambio</th>
                   <th>Revision</th>
-                  <th>Ejecutados</th>
+                  <th>Aplicados</th>
                   <th>Errores</th>
                 </tr>
               </thead>
@@ -713,7 +828,7 @@
         <section class="section">
           <div class="section-header">
             <h2 class="section-title">Catalogo SAP</h2>
-            <div class="section-note">Snapshot global del origen de verdad</div>
+            <div class="section-note">Snapshot global del origen de verdad.</div>
           </div>
 
           <div class="grid grid-3">
@@ -765,7 +880,7 @@
         <section class="section">
           <div class="section-header">
             <h2 class="section-title">Catalogo PrestaShop</h2>
-            <div class="section-note">Estado actual reportado por el webservice</div>
+            <div class="section-note">Estado actual reportado por el webservice.</div>
           </div>
 
           <div class="grid grid-3">
@@ -828,79 +943,87 @@
             </div>
 
             <div class="card card-soft">
-              <div class="controls-grid">
-                <div class="controls-row">
-                  <div class="field" style="flex: 2 1 280px">
-                    <label for="control-reference">Referencia o item code</label>
-                    <input type="text" id="control-reference" placeholder="Ej. 61072505" />
-                  </div>
-                  <div class="button-row">
-                    <button class="btn-dark" type="button" onclick="lookupReference()">
-                      Consultar
-                    </button>
-                  </div>
+              <div class="section-header">
+                <h2 class="section-title">Control puntual</h2>
+                <div class="section-note">Consultar un producto puntual en ambos lados.</div>
+              </div>
+
+              <div class="field-grid">
+                <div class="field" style="grid-column: 1 / -1">
+                  <label for="control-reference">Referencia o item code</label>
+                  <input type="text" id="control-reference" placeholder="Ej. 61072505" />
+                </div>
+              </div>
+
+              <div class="button-row" style="margin-top: 12px">
+                <button class="btn-dark" type="button" onclick="lookupReference()">
+                  Consultar
+                </button>
+              </div>
+
+              <div
+                id="control-message"
+                class="message-box message-info"
+                style="margin-top: 14px"
+              >
+                Todavia no consultaste ningun producto.
+              </div>
+
+              <div class="grid grid-2" style="margin-top: 16px">
+                <div>
+                  <h3 style="margin-top: 0">SAP</h3>
+                  <dl class="data-list">
+                    <dt>Item code</dt>
+                    <dd id="control-sap-item">-</dd>
+                    <dt>Nombre</dt>
+                    <dd id="control-sap-name">-</dd>
+                    <dt>Precio</dt>
+                    <dd id="control-sap-price">-</dd>
+                    <dt>Stock</dt>
+                    <dd id="control-sap-stock">-</dd>
+                    <dt>Estado</dt>
+                    <dd id="control-sap-status">-</dd>
+                  </dl>
                 </div>
 
-                <div id="control-message" class="message-box message-info">
-                  Todavia no consultaste ningun producto.
+                <div>
+                  <h3 style="margin-top: 0">PrestaShop</h3>
+                  <dl class="data-list">
+                    <dt>Product ID</dt>
+                    <dd id="control-presta-id">-</dd>
+                    <dt>Referencia</dt>
+                    <dd id="control-presta-reference">-</dd>
+                    <dt>Activo</dt>
+                    <dd id="control-presta-active">-</dd>
+                    <dt>Precio</dt>
+                    <dd id="control-presta-price">-</dd>
+                    <dt>Combinaciones</dt>
+                    <dd id="control-presta-combinations">-</dd>
+                    <dt>Stocks</dt>
+                    <dd id="control-presta-stock-records">-</dd>
+                  </dl>
                 </div>
+              </div>
 
-                <div class="grid grid-2">
-                  <div>
-                    <h3 style="margin-top: 0">SAP</h3>
-                    <dl class="data-list">
-                      <dt>Item code</dt>
-                      <dd id="control-sap-item">-</dd>
-                      <dt>Nombre</dt>
-                      <dd id="control-sap-name">-</dd>
-                      <dt>Precio</dt>
-                      <dd id="control-sap-price">-</dd>
-                      <dt>Stock</dt>
-                      <dd id="control-sap-stock">-</dd>
-                      <dt>Estado</dt>
-                      <dd id="control-sap-status">-</dd>
-                    </dl>
-                  </div>
-
-                  <div>
-                    <h3 style="margin-top: 0">PrestaShop</h3>
-                    <dl class="data-list">
-                      <dt>Product ID</dt>
-                      <dd id="control-presta-id">-</dd>
-                      <dt>Referencia</dt>
-                      <dd id="control-presta-reference">-</dd>
-                      <dt>Activo</dt>
-                      <dd id="control-presta-active">-</dd>
-                      <dt>Precio</dt>
-                      <dd id="control-presta-price">-</dd>
-                      <dt>Combinaciones</dt>
-                      <dd id="control-presta-combinations">-</dd>
-                      <dt>Stocks</dt>
-                      <dd id="control-presta-stock-records">-</dd>
-                    </dl>
-                  </div>
-                </div>
-
-                <div class="button-row">
-                  <button
-                    class="btn-success"
-                    id="btn-activate-product"
-                    type="button"
-                    onclick="changeProductStatus(true)"
-                    disabled
-                  >
-                    Activar
-                  </button>
-                  <button
-                    class="btn-danger"
-                    id="btn-deactivate-product"
-                    type="button"
-                    onclick="changeProductStatus(false)"
-                    disabled
-                  >
-                    Desactivar
-                  </button>
-                </div>
+              <div class="button-row" style="margin-top: 12px">
+                <button
+                  class="btn-success"
+                  id="btn-activate-product"
+                  type="button"
+                  onclick="changeProductStatus(true)"
+                  disabled
+                >
+                  Activar
+                </button>
+                <button
+                  class="btn-danger"
+                  id="btn-deactivate-product"
+                  type="button"
+                  onclick="changeProductStatus(false)"
+                  disabled
+                >
+                  Desactivar
+                </button>
               </div>
             </div>
           </div>
@@ -958,6 +1081,16 @@
         document.getElementById("sync-mode-label").textContent = writeMode
           ? "Write"
           : "Dry run";
+        const badge = document.getElementById("sync-status-badge");
+        if (!syncRunning) {
+          badge.className = "status-badge " + (writeMode ? "status-warn" : "status-ok");
+          badge.textContent = writeMode ? "Write listo" : "Dry run listo";
+        }
+        document.getElementById("sync-mode-help").className =
+          "message-box " + (writeMode ? "message-warn" : "message-info");
+        document.getElementById("sync-mode-help").textContent = writeMode
+          ? "Write aplica cambios reales en PrestaShop usando SAP como fuente de verdad."
+          : "Dry run solo analiza y deja trazas. No modifica productos en PrestaShop.";
       }
 
       function appendLog(text, cls) {
@@ -988,6 +1121,8 @@
           "sapPrice",
           "prestashopProductPrice",
           "sapStock",
+          "childSapLimit",
+          "effectiveSapLimit",
         ];
         const pairs = [];
 
@@ -998,11 +1133,7 @@
           pairs.push(`${key}=${value}`);
         }
 
-        if (!pairs.length) {
-          return "";
-        }
-
-        return " | " + pairs.join(" | ");
+        return pairs.length ? " | " + pairs.join(" | ") : "";
       }
 
       function logJson(raw) {
@@ -1020,8 +1151,30 @@
         }
       }
 
-      function updateSyncStatus(text) {
-        document.getElementById("sync-status-label").textContent = text;
+      function updateSyncStatus(status, running = false) {
+        const badge = document.getElementById("sync-status-badge");
+        if (running) {
+          badge.className = "status-badge status-warn";
+          badge.textContent = "En ejecución";
+          document.getElementById("sync-headline").textContent =
+            "La sync masiva está corriendo. Mirá el log para seguir el avance.";
+          return;
+        }
+
+        if (status === "Completado") {
+          badge.className = "status-badge status-ok";
+          badge.textContent = "Completado";
+          return;
+        }
+
+        if (status === "Con errores") {
+          badge.className = "status-badge status-error";
+          badge.textContent = "Con errores";
+          return;
+        }
+
+        badge.className = "status-badge " + (writeMode ? "status-warn" : "status-ok");
+        badge.textContent = writeMode ? "Write listo" : "Dry run listo";
       }
 
       function renderReports(reports) {
@@ -1044,16 +1197,19 @@
         setText("summary-total", summary.total);
         setText("summary-create", actions.createProduct);
         setText("summary-update", updateCount);
+        setText("summary-executed", actions.executed);
+        setText("summary-review", reviewCount);
         setText("summary-errors", summary.errors);
+
         document.getElementById("sync-headline").textContent =
           summary.total > 0
-            ? `${summary.total} producto(s) analizados`
+            ? `La última ejecución procesó ${summary.total} producto(s).`
             : "Sin actividad reciente";
 
         if (latest.generatedAt) {
-          document.getElementById("last-run-label").textContent = new Date(
-            latest.generatedAt,
-          ).toLocaleString("es");
+          const lastRunText = new Date(latest.generatedAt).toLocaleString("es");
+          document.getElementById("last-run-label").textContent = lastRunText;
+          document.getElementById("sync-last-run").textContent = lastRunText;
         }
 
         const tbody = document.getElementById("history-body");
@@ -1118,7 +1274,6 @@
         setText("presta-total-combinations", presta.totalCombinations);
         setText("presta-total-combinations-detail", presta.totalCombinations);
         setText("presta-status", presta.error ? "No disponible" : "Disponible");
-
         setText("contrast-missing-products", contrast.missingProductsInPrestashop);
         setText(
           "contrast-active-missing",
@@ -1153,7 +1308,7 @@
         const response = await fetch("/api/status");
         const status = await response.json();
         syncRunning = Boolean(status.running);
-        updateSyncStatus(syncRunning ? "Ejecutando" : "Listo");
+        updateSyncStatus(syncRunning ? "Ejecutando" : "Listo", syncRunning);
         document
           .getElementById("running-banner")
           .classList.toggle("visible", syncRunning);
@@ -1177,7 +1332,7 @@
         if (syncRunning) return;
 
         syncRunning = true;
-        updateSyncStatus("Ejecutando");
+        updateSyncStatus("Ejecutando", true);
         document.getElementById("btn-run").disabled = true;
         document.getElementById("btn-run-full").disabled = true;
         document.getElementById("running-banner").classList.add("visible");
@@ -1186,7 +1341,7 @@
         appendLog(
           options.fullCatalog
             ? "Iniciando sync masiva del catalogo completo..."
-            : "Iniciando sync...",
+            : "Iniciando ejecución manual...",
           "info",
         );
 
