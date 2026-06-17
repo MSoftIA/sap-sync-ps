@@ -1,78 +1,75 @@
 # Handoff tecnico para otra IA
 
-## Objetivo de este documento
+## Objetivo
 
-Este documento resume el estado real del proyecto para que otra IA o una
-persona tecnica puedan continuar el trabajo sin empezar desde cero.
+Este documento resume el estado real del proyecto al 2026-06-17 para que otra
+IA o una persona tecnica puedan continuar el trabajo sin rearmar el contexto
+desde cero.
 
-El foco actual es reemplazar o estabilizar la integracion entre SAP Business
-One sobre HANA y PrestaShop, usando como fuente de verdad los datos de SAP.
+El foco ya no es solo “probar una query SAP”, sino mantener y terminar una
+aplicacion propia que sincroniza SAP HANA con PrestaShop y expone un panel web
+operativo.
 
-Desde el 2026-06-17, la orquestacion del proyecto ya no vive como un unico
-flujo monolitico. Quedo separada por dominios para permitir ampliar el alcance
-sin mezclar productos, categorias y pedidos en un solo archivo.
+## Contexto de negocio
 
-## Contexto general
-
-### Cliente
-
-- Almacenes Carballo
-
-### Servidor Windows principal
-
-- Host: `ventasmoviles`
-- IP local observada: `192.1.1.9`
-- SO: Windows Server 2016 Standard
-- Acceso tecnico observado: AnyDesk
-
-### SAP
-
-- Producto: SAP Business One 10
-- Motor: SAP HANA
-- Host HANA: `hanab1`
-- Puerto validado para esta base: `30015`
-- Schema/base objetivo: `BD_CARBALLO`
-
-### PrestaShop
-
-- Dominio observado: `https://carballo.com.do`
-- Acceso por webservice: API key
-- Version observada del stack: PrestaShop 1.7.8.7 sobre Docker
+- Cliente operativo: Almacenes Carballo
+- Fuente de verdad deseada: SAP Business One / HANA
+- Destino de publicacion: PrestaShop
+- Prioridad actual: productos
+- Prioridades siguientes: categorias y luego pedidos
 
 ## Repositorio actual
 
-- Repo GitHub: `MSoftIA/sap-sync-ps`
-- Rama de trabajo usada hasta ahora: `main`
-- Ruta local de este repo:
+- Repo: `MSoftIA/sap-sync-ps`
+- Rama usada hasta ahora: `main`
+- Ruta local:
   `C:\Users\jorge\OneDrive\Documentos\carballo.com.do`
 
-## Objetivo funcional del proyecto
+## Arquitectura del proyecto
 
-Construir un sincronizador controlado que:
+### Backend
 
-1. Lea articulos desde SAP HANA.
-2. Compare contra PrestaShop.
-3. Actualice precio y stock cuando corresponda.
-4. Cree productos faltantes en PrestaShop.
-5. Deje trazabilidad en logs y reportes.
+- `main.js`: entrypoint CLI
+- `server.js`: servidor Express + SSE + API del panel
+- `src/app.js`: orquesta dominios
+- `src/sap.js`: lectura SAP HANA
+- `src/prestashop.js`: cliente del webservice y snapshot de catalogo
+- `src/sync-plan.js`: arma payloads
+- `src/sync-executor.js`: ejecuta cambios reales
+- `src/report.js`: reportes
 
-Regla de negocio principal:
+### Dominios
 
-- SAP es la fuente de verdad.
+- `src/domains/products.js`
+- `src/domains/categories.js`
+- `src/domains/orders.js`
 
-## Estado del reemplazo Node.js
+### Frontend
 
-### Flujo ya implementado
+React + Vite con tres vistas:
 
-El proyecto en Node ya puede:
+- `SyncView`
+- `SapView`
+- `PrestaView`
 
-- leer articulos desde SAP HANA
-- buscar productos por referencia en PrestaShop
-- leer producto padre, combinaciones y stock
-- generar reportes JSON y CSV
-- ejecutar escrituras reales cuando `SYNC_WRITE=true`
+## Scripts reales
 
-### Variables de entorno relevantes
+```powershell
+npm start
+npm run serve
+npm run build
+npm run sync
+npm run test:hana
+npm run lint
+npm run format
+```
+
+Importante:
+
+- `npm start` no es dev server de Vite
+- hace `git fetch`, `git pull --ff-only`, compila y levanta `server.js`
+
+## Variables de entorno clave
 
 ```text
 HANA_SERVER_NODE=hanab1:30015
@@ -87,79 +84,76 @@ PRESTASHOP_ENDPOINT=https://carballo.com.do
 PRESTASHOP_API_KEY=...
 PRESTASHOP_DEFAULT_CATEGORY_ID=...
 PRESTASHOP_LANGUAGE_ID=1
-SYNC_WRITE=true|false
+SYNC_WRITE=false|true
 SYNC_DOMAINS=products
 REPORT_DIR=reports
 REPORT_BASENAME=sap-prestashop-diagnostic
 LOG_LEVEL=info|debug
+UI_PORT=3000
 ```
 
-No incluir secretos reales en prompts ni en documentos de handoff.
+## Estado de dominios
 
-## Estructura de codigo importante
-
-- `main.js`: entrypoint
-- `src/app.js`: orquestacion general
-- `src/sap.js`: conexion HANA y query de articulos
-- `src/prestashop.js`: cliente HTTP del webservice
-- `src/sync-domains.js`: registro de dominios activos para la corrida
-- `src/domains/products.js`: sincronizacion de productos, precio y stock
-- `src/domains/categories.js`: placeholder del dominio de categorias
-- `src/domains/orders.js`: placeholder del dominio de pedidos
-- `src/sync-plan.js`: decide acciones y payloads
-- `src/sync-executor.js`: ejecuta escrituras reales
-- `src/report.js`: genera reportes
-- `src/xml.js`: utilidades XML
-- `docs/arquitectura-fuente-de-verdad-sap.md`: criterio de crecimiento por
-  dominios con SAP como fuente de verdad
-- `docs/tablas-sap-business-one-hana.md`: referencia de tablas SAP ya
-  identificadas para productos, categorias y pedidos
-
-## Objetivo funcional ampliado
-
-El objetivo ya no es solamente reemplazar el sincronizador de articulos.
-
-La direccion definida para el programa es:
-
-```text
-SAP -> PrestaShop
-```
-
-Con SAP como fuente de verdad para estos dominios:
-
-1. productos y variantes
-2. categorias y jerarquias
-3. pedidos / estados
-
-Nota importante:
-
-- para `products` el sentido SAP -> PrestaShop ya esta alineado con el
-  comportamiento esperado.
-- para `categories` tambien es razonable si SAP contiene la clasificacion
-  comercial oficial.
-- para `orders` hace falta definir mejor el negocio, porque en muchos ecommerce
-  los pedidos nacen en PrestaShop y luego se reflejan en SAP. Si aqui se desea
-  que SAP mande tambien en pedidos, hay que precisar si eso significa crear
-  pedidos, actualizar estados, publicar tracking, reflejar facturacion o todo
-  eso junto.
-
-## Estado de dominios al 2026-06-17
-
-| Dominio | Fuente de verdad | Estado | Observacion |
+| Dominio | Estado | Fuente de verdad | Escritura |
 |---|---|---|---|
-| `products` | SAP | activo | sincroniza productos simples, precio y stock |
-| `categories` | SAP | diagnostic | ya lee `OITB` + `QryGroup*` y genera reporte, falta escritura |
-| `orders` | SAP (objetivo), flujo a definir | discovery | requiere aclaracion funcional antes de programar |
+| `products` | activo | SAP | si |
+| `categories` | diagnostico | SAP | no |
+| `orders` | discovery | sin cerrar | no |
 
-## Query SAP validada
+## Estado funcional real
 
-La lectura actual usa tablas estandar de SAP Business One:
+## `products`
+
+### Ya hace
+
+- lee articulos desde SAP
+- compara contra PrestaShop
+- genera plan de accion por fila
+- crea productos simples faltantes
+- actualiza precio y stock en productos simples
+- genera reportes de corrida
+- publica log y progreso por SSE al panel
+
+### Aun no hace bien
+
+- automatizar combinaciones con seguridad
+- resolver todos los casos ambiguos de variantes
+
+## `categories`
+
+### Ya hace
+
+- lee `OITB`
+- traduce `QryGroup*` con `OITG`
+- genera snapshot diagnostico
+- muestra resumen en el panel
+
+### Aun no hace
+
+- crear jerarquia en PrestaShop
+- asociar productos
+- definir categoria por defecto ecommerce
+
+## `orders`
+
+### Ya hace
+
+- lee resumen de `ORDR`
+- muestra abiertos, cerrados, cancelados, ultimos 7 y 30 dias
+
+### Aun no hace
+
+- no sincroniza nada con PrestaShop
+
+## Query SAP vigente para productos
+
+Tablas actuales:
 
 - `OITM`
 - `ITM1`
 - `OITW`
 
-La consulta efectiva arma articulos con:
+Campos clave usados:
 
 - `ItemCode`
 - `ItemName`
@@ -169,272 +163,134 @@ La consulta efectiva arma articulos con:
 - `CodeBars`
 - `Status`
 
-La logica actual filtra por:
+Filtros actuales:
 
-- lista de precios (`SAP_PRICE_LIST`)
-- almacen (`SAP_WAREHOUSE`)
-- opcionalmente un `ItemCode`
-- `LIMIT`
+- `frozenFor = 'N'`
+- `PriceList = SAP_PRICE_LIST`
+- `WhsCode = SAP_WAREHOUSE`
+- `ItemCode` opcional
+- `LIMIT` opcional
 
-## Hallazgos confirmados en PrestaShop
+## Panel web
 
-### 1. El webservice no acepta `PATCH`
+## Vista `Sync`
 
-Se confirmo por errores HTTP 405:
+Sirve para:
 
-- `Method PATCH is not valid`
+- lanzar corrida masiva
+- lanzar corrida puntual
+- elegir dominios
+- elegir dry run o write
+- ver progreso
+- ver log en tiempo real
+- revisar historial
 
-Por eso el proyecto ya fue adaptado a:
+## Vista `SAP`
 
-- usar `PUT` para actualizar productos
-- usar `PUT` para actualizar `stock_available`
+Sirve para:
 
-### 2. Los updates de stock ya estan funcionando
+- ver resumen del catalogo SAP
+- revisar stock total
+- revisar activos/inactivos
 
-Se confirmaron multiples casos con logs como:
+## Vista `PrestaShop`
 
-- `Accion aplicada en PrestaShop`
-- `action":"update_product_stock"`
+Sirve para:
 
-O sea, el canal SAP -> stock PrestaShop ya esta andando en bastantes casos.
+- ver resumen de catalogo PrestaShop
+- ver brecha SAP vs PrestaShop
+- consultar producto puntual por referencia
+- activar/desactivar producto puntual
 
-### 3. Los updates de precio todavia no estan cerrados del todo
+## Endpoints utiles
 
-Se detectaron errores al hacer `PUT` sobre producto por presencia de campos no
-escribibles del XML original.
+- `GET /api/status`
+- `GET /api/catalog-overview`
+- `GET /api/dashboard-summary`
+- `GET /api/domain-analysis`
+- `GET /api/sync-domains`
+- `GET /api/reports`
+- `GET /api/sync`
+- `GET /api/prestashop-control?reference=...`
+- `POST /api/prestashop-control/active`
 
-Errores confirmados:
+## Rendimiento
 
-- `parameter "manufacturer_name" not writable`
-- `parameter "quantity" not writable`
+### Hallazgo principal
 
-Ya se hicieron correcciones para remover esos tags del XML antes del `PUT`.
-Puede haber mas campos no escribibles escondidos.
+El backend es mucho mas lento contra PrestaShop que contra SAP.
 
-### 4. La creacion de productos nuevos es el frente mas delicado
+SAP hoy no es el cuello de botella. El costo viene de:
 
-Primero fallaba con:
+- lecturas HTTP del webservice
+- fan-out de combinaciones
+- escrituras por producto
 
-- `Validation error: "La propiedad Product->name no es valida"`
+### Mejora ya aplicada
 
-Luego se implemento:
+`src/prestashop.js` ya precarga un snapshot con:
 
-- sanitizacion ASCII del nombre
-- uso de `schema=blank` de PrestaShop para construir el XML de alta
-- reintento con nombre conservador basado en `ItemCode`
+- `products`
+- `stock_availables`
 
-Eso permitio que varios productos faltantes se creen en PrestaShop, porque
-ahora aparecen con IDs nuevos.
+Y `src/domains/products.js` ya usa ese snapshot para:
 
-### 5. Algunos productos creados quedaron en estado inconsistente
+- evitar buscar por referencia en PrestaShop para cada producto simple
+- reducir roundtrips en sync masiva
 
-Productos nuevos ya visibles por referencia:
+### Lo siguiente que conviene atacar
 
-- `72111012` -> `6515`
-- `61072510` -> `6516`
-- `61660509` -> `6517`
-- `71260550` -> `6518`
-- `71260570` -> `6519`
-- `71260577` -> `6520`
-- `06870404` -> `6521`
-- `01905505` -> `6522`
-- `06520205` -> `6523`
-- `10090505` -> `6524`
-- `10160505` -> `6525`
-- `22020200` -> `6526`
-- `22020211` -> `6527`
-- `22020213` -> `6528`
-- `22020221` -> `6529`
-- `22020405` -> `6530`
-- `22040205` -> `6531`
-- `22040210` -> `6532`
-- `22040215` -> `6533`
-- `22040220` -> `6534`
-- `22040405` -> `6535`
+1. medir tiempos por fase
+2. concurrencia controlada en escrituras
+3. reducir lecturas de combinaciones
+4. separar claramente logs de negocio vs logs tecnicos
 
-Pero al intentar leer varios de esos productos, PrestaShop respondia:
+## Reportes
 
-- HTTP 500
-- `PHP Notice #8`
-- `Trying to access array offset on value of type bool`
-- archivo `classes/Product.php`, linea `7184`
-
-Interpretacion operativa:
-
-- el alta ya no falla en todos los casos
-- pero varios productos quedaron creados de forma incompleta o inconsistente
-- ahora hace falta reparar o recrear esos productos
-
-Actualizacion 2026-06-16:
-
-- Se valido directamente en la VPS que `getCoverWs()` hacia
-  `return $result['id_image'];` sin comprobar si el producto tenia imagen
-  cover.
-- Se aplico un parche defensivo en
-  `/var/www/carballo.com.do/classes/Product.php`:
-
-```php
-if (!$result || !isset($result['id_image'])) {
-    return 0;
-}
-```
-
-- Backup generado:
-  `/var/www/carballo.com.do/classes/Product.php.codex-bak-20260616`
-- Validacion posterior:
-  `docker exec carballo-web php -l /var/www/html/classes/Product.php`
-- Resultado:
-  `No syntax errors detected in /var/www/html/classes/Product.php`
-
-Ademas, el script Node ahora intenta recuperar el `productId` por referencia si
-PrestaShop devuelve HTTP 500 justo despues del alta.
-
-## Estado operativo observado en la ultima corrida relevante
-
-Archivo revisado: `response.txt`
-
-Resumen del estado:
-
-- `matchedProductOk`: 5
-- `matchedProductDiff`: 18
-- `needsReview`: 45
-- `errors`: 27
-
-Lectura real del estado:
-
-- stock: bastante encaminado
-- precio: parcialmente trabado por XML del producto
-- altas: varias terminan en productos invalidos dentro de PrestaShop
-
-## Archivos y logs utiles
-
-### En el servidor Windows
-
-- repo del reemplazo:
-  `C:\Users\Administrator\Desktop\msoftia\sap-sync-ps`
-- reportes:
-  `C:\Users\Administrator\Desktop\msoftia\sap-sync-ps\reports`
-- logs manuales compartidos durante la investigacion:
-  `si.txt`
-  `response.txt`
-
-### Reportes generados por el proyecto
-
-Por corrida se generan:
+El dominio `products` genera:
 
 - `*.summary.json`
 - `*.rows.json`
 - `*.rows.csv`
 
-Estos archivos son el mejor input para otra IA porque traen:
+El dominio `categories` genera snapshots diagnosticos propios.
+
+Estos reportes son el mejor input para otra IA, porque traen:
 
 - accion propuesta
-- estado
-- diferencias de precio y stock
-- si se ejecuto o no
-- errores por fila
+- diferencias
+- estado de ejecucion
+- errores
+- bloqueos
 
-## Decisiones tecnicas ya tomadas
+## Riesgos y decisiones vigentes
 
-1. SAP es la fuente de verdad.
-2. No depender del ejecutable .NET del proveedor para el reemplazo.
-3. Conectar directo a HANA con usuario propio de solo lectura.
-4. Mantener modo `dry_run` y modo `write` con bandera.
-5. Priorizar primero stock y precio antes que variantes complejas.
-6. Tratar combinaciones con cautela; no automatizar mapeos ambiguos.
+1. SAP sigue siendo la fuente de verdad acordada para productos
+2. combinaciones no deben automatizarse a ciegas
+3. `PRESTASHOP_DEFAULT_CATEGORY_ID` define si una alta puede ejecutarse
+4. `orders` no debe implementarse de memoria: primero hace falta cerrar el
+   flujo de negocio
+5. la documentacion vieja del proyecto puede hablar de scripts o pantallas que
+   ya cambiaron
 
-## Riesgos y puntos sensibles
+## Si otra IA retoma el trabajo
 
-1. La API key de PrestaShop se vio expuesta historicamente en logs del sistema
-   .NET anterior. Debe tratarse como secreto.
-2. Hay productos probablemente corruptos o incompletos en PrestaShop por
-   intentos previos de alta.
-3. El servicio Windows `SS_Servicio_SAP` del proveedor estaba detenido por
-   credenciales incorrectas y no debe reactivarse a ciegas.
-4. La tienda parece ser sensible a XMLs completos con campos no escribibles.
-5. El parche manual en `Product.php` debe preservarse o reaplicarse si el sitio
-   se actualiza o se reemplaza el contenedor.
+Orden sugerido:
 
-## Recomendaciones concretas para la siguiente IA
+1. leer `README.md`
+2. leer `docs/estado-integracion-sap-prestashop.md`
+3. leer `docs/arquitectura-fuente-de-verdad-sap.md`
+4. leer `docs/tablas-sap-business-one-hana.md`
+5. revisar:
+   - `src/domains/products.js`
+   - `src/prestashop.js`
+   - `src/sync-executor.js`
+   - `server.js`
+   - `frontend/src/views/SyncView.tsx`
 
-### Prioridad 1: reparar updates de precio
+## Siguiente linea razonable de trabajo
 
-Objetivo:
-
-- hacer que `update_product_price`
-- y `update_product_price_and_stock`
-
-funcionen sin errores por tags no escribibles.
-
-Camino sugerido:
-
-1. Seguir depurando `buildPutProductXml`.
-2. Remover del XML de `PUT` todo campo no escribible detectado.
-3. Si sigue siendo inestable, considerar construir un XML de `PUT` minimo a
-   partir de `schema=blank` en vez de modificar el XML existente del producto.
-
-### Prioridad 2: reparar o recrear productos creados rotos
-
-Objetivo:
-
-- limpiar los productos nuevos que hoy devuelven HTTP 500 al leerse
-
-Camino sugerido:
-
-1. Detectar los productos creados recientemente por referencia.
-2. Inspeccionar si faltan asociaciones obligatorias:
-   - categoria por defecto
-   - categorias
-   - nombres por idioma
-   - `link_rewrite`
-   - shop associations
-3. Si la reparacion por `PUT` no es estable, evaluar:
-   - borrarlos
-   - recrearlos con un payload mucho mas basico y valido
-
-### Prioridad 3: documentar una estrategia segura de recreacion
-
-Antes de borrar nada, definir:
-
-- criterios de que es un producto "roto"
-- como identificar que fue creado por esta migracion
-- como evitar tocar productos historicos sanos
-
-## Prompts sugeridos para otra IA
-
-### Prompt 1: continuar depuracion tecnica
-
-```text
-Estoy trabajando en un reemplazo Node.js de una integracion SAP Business One HANA -> PrestaShop.
-Lee la documentacion del repo, especialmente docs/handoff-ia-sap-prestashop.md, docs/estado-integracion-sap-prestashop.md y README.md.
-El proyecto ya conecta a HANA y actualiza stock correctamente en varios casos.
-El problema pendiente es doble:
-1) algunos PUT de producto fallan por campos no escribibles del XML,
-2) varios productos nuevos quedaron creados pero al leerlos PrestaShop responde HTTP 500 con un PHP Notice en Product.php linea 7184.
-Necesito que propongas y apliques el siguiente paso mas seguro para reparar precio y altas sin romper productos existentes.
-```
-
-### Prompt 2: analisis centrado en PrestaShop
-
-```text
-Necesito que analices el comportamiento del webservice PrestaShop de este proyecto.
-Contexto:
-- PATCH no es valido
-- PUT de stock ya funciona en muchos casos
-- PUT de producto falla si el XML arrastra campos no escribibles
-- varios productos creados devuelven HTTP 500 al leerse por API
-Revisa src/prestashop.js y src/sync-executor.js, y propone una estrategia robusta para:
-1) actualizar precio,
-2) crear productos validos usando schema blank,
-3) reparar productos ya creados en estado inconsistente.
-```
-
-## Ultimo estado esperado del operador humano
-
-Cada vez que se pruebe una nueva version en el servidor, conviene capturar:
-
-1. salida completa de consola
-2. ultimo `*.summary.json`
-3. ultimo `*.rows.json`
-
-Con eso, otra IA puede continuar casi sin contexto adicional.
+1. mejorar observabilidad del sync masivo
+2. acelerar writes masivos con concurrencia segura
+3. pasar `categories` de diagnostico a plan de accion
+4. definir funcionalmente `orders`

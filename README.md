@@ -1,15 +1,47 @@
 # Sincronizador SAP HANA - PrestaShop
 
-Este repositorio documenta y construye un reemplazo controlado del
-sincronizador actual entre SAP HANA y PrestaShop.
+Este repositorio contiene el reemplazo controlado de la integracion actual
+entre SAP Business One sobre HANA y PrestaShop.
 
-Por defecto el proyecto arranca en modo diagnostico y solo lectura:
+La direccion funcional del proyecto es:
 
-- lee articulos desde SAP HANA
-- consulta productos, combinaciones y stock en PrestaShop
-- registra comparaciones detalladas en consola
-- no escribe cambios en ninguno de los dos sistemas, salvo que se habilite
-  `SYNC_WRITE=true`
+```text
+SAP Business One / HANA -> PrestaShop
+```
+
+Hoy el sistema ya tiene dos caras:
+
+- un backend Node.js que lee SAP, compara contra PrestaShop y puede ejecutar
+  cambios reales
+- un panel web React para operar la sync, revisar el estado del catalogo y
+  consultar dominios separados
+
+## Estado actual
+
+### Operativo hoy
+
+- lectura de articulos desde SAP HANA
+- lectura de resumen de pedidos desde SAP
+- diagnostico de categorias desde SAP (`OITB` + `QryGroup*`)
+- lectura de productos, stock y combinaciones desde PrestaShop
+- comparacion SAP vs PrestaShop
+- reportes `summary.json`, `rows.json` y `rows.csv`
+- modo `dry run`
+- modo `write`
+- altas de productos simples
+- actualizacion de precio y stock sobre producto simple
+- panel web con vistas:
+  - `Sync`
+  - `SAP`
+  - `PrestaShop`
+
+### Con limitaciones conocidas
+
+- combinaciones siguen en modo de revision, no en automatizacion agresiva
+- `categories` ya diagnostica y reporta, pero no escribe en PrestaShop
+- `orders` hoy solo expone resumen operativo desde SAP; no sincroniza pedidos
+- el cuello de botella principal sigue siendo PrestaShop cuando una corrida
+  necesita muchas lecturas o escrituras
 
 ## Requisitos
 
@@ -19,7 +51,7 @@ npm install
 
 ## Variables de entorno
 
-Se recomienda crear un archivo `.env.local` en la raiz del proyecto:
+Se recomienda crear `.env.local` en la raiz:
 
 ```text
 HANA_SERVER_NODE=hanab1:30015
@@ -28,8 +60,8 @@ HANA_PASSWORD=PASSWORD
 HANA_SCHEMA=BD_CARBALLO
 SAP_PRICE_LIST=14
 SAP_WAREHOUSE=AC01
-SAP_ITEM_CODE=61072505
-SAP_LIMIT=5
+SAP_ITEM_CODE=
+SAP_LIMIT=50
 PRESTASHOP_ENDPOINT=https://carballo.com.do
 PRESTASHOP_API_KEY=API_KEY
 PRESTASHOP_DEFAULT_CATEGORY_ID=
@@ -39,210 +71,230 @@ SYNC_DOMAINS=products
 REPORT_DIR=reports
 REPORT_BASENAME=sap-prestashop-diagnostic
 LOG_LEVEL=info
+UI_PORT=3000
 ```
 
-Cuando existe `.env.local`, sus valores prevalecen sobre variables viejas que
-hayan quedado cargadas en la sesion de PowerShell.
+Notas:
 
-Recomendacion actual:
+- `SAP_ITEM_CODE` vacio + `SAP_LIMIT=0` permite corrida masiva
+- `SYNC_DOMAINS` sigue existiendo como fallback tecnico
+- desde la interfaz web ya se puede elegir dominio sin editar el `.env.local`
+- `PRESTASHOP_DEFAULT_CATEGORY_ID` es obligatorio para altas automáticas de
+  productos
 
-- usar `.env.local` para secretos y defaults tecnicos
-- usar la interfaz web para elegir que dominios correr (`products`,
-  `categories`, `orders`)
+## Scripts reales del proyecto
 
-## Scripts disponibles
+### Levantar panel web
 
-Probar solo la lectura desde SAP:
+```powershell
+npm start
+```
+
+Hace esto:
+
+1. limpia pantalla
+2. hace `git fetch`
+3. hace `git pull --ff-only origin main`
+4. compila frontend con Vite
+5. levanta `server.js`
+
+### Levantar solo el servidor ya compilado
+
+```powershell
+npm run serve
+```
+
+### Compilar frontend
+
+```powershell
+npm run build
+```
+
+### Ejecutar sync por consola
+
+```powershell
+npm run sync
+```
+
+### Probar solo conexion y lectura HANA
 
 ```powershell
 npm run test:hana
 ```
 
-Formatear el codigo:
+### Formato y validacion
 
 ```powershell
 npm run format
-```
-
-Validar estilo:
-
-```powershell
 npm run lint
 ```
 
-Ejecutar el flujo actual completo:
+## Arquitectura del backend
 
-```powershell
-npm run dev
-```
+### Backend principal
 
-Levantar el panel web:
+- `main.js`: entrypoint CLI
+- `server.js`: servidor Express y API del panel
+- `src/app.js`: orquestador de dominios
+- `src/env.js`: carga de `.env.local`
+- `src/logger.js`: logs JSON estructurados
+- `src/report.js`: reportes y snapshots
 
-```powershell
-npm run ui
-```
+### Dominio SAP
 
-Para ver mas detalle tecnico en consola durante una corrida:
+- `src/sap.js`
 
-```text
-LOG_LEVEL=debug
-```
+Lee:
 
-Para permitir escrituras reales en PrestaShop:
+- productos desde `OITM`, `ITM1`, `OITW`
+- diagnostico de categorias desde `OITB` y `OITG`
+- resumen de pedidos desde `ORDR`
 
-```text
-SYNC_WRITE=true
-```
+### Dominio PrestaShop
 
-## Estructura
+- `src/prestashop.js`
 
-- `main.js`: punto de entrada
-- `server.js`: servidor Express del panel web
-- `src/app.js`: orquestacion del flujo
-- `src/sap.js`: lectura desde SAP HANA
-- `src/prestashop.js`: cliente y parsing de PrestaShop
-- `src/sync-domains.js`: seleccion y registro de dominios de sincronizacion
-- `src/domains/products.js`: dominio actual de productos, precios y stock
-- `src/domains/categories.js`: base del dominio de categorias
-- `src/domains/orders.js`: base del dominio de pedidos
-- `src/xml.js`: utilidades XML
-- `src/env.js`: carga y validacion de entorno
-- `src/logger.js`: salida JSON estructurada
-- `src/report.js`: generacion de reportes y resumenes
+Responsabilidades:
 
-## Documentacion del proyecto
+- cliente del webservice
+- parseo XML
+- lectura de productos, stocks y combinaciones
+- snapshot en memoria de PrestaShop para corridas masivas
+- utilidades de actualizacion puntual
 
-- `docs/inventario-entorno.md`: levantamiento tecnico del servidor y su entorno
-- `docs/estado-integracion-sap-prestashop.md`: estado de la integracion
-  historica y del reemplazo en curso
-- `docs/arquitectura-fuente-de-verdad-sap.md`: criterio objetivo de SAP como
-  fuente de verdad por dominios
-- `docs/handoff-ia-sap-prestashop.md`: contexto de continuidad para otra IA o
-  tecnico
-- `docs/resumen-trabajo-realizado.md`: resumen ejecutivo de lo ya investigado
+### Dominios de sync
 
-## Estado actual
+- `src/sync-domains.js`
+- `src/domains/products.js`
+- `src/domains/categories.js`
+- `src/domains/orders.js`
 
-El script resuelve:
+Estado actual:
 
-- producto por referencia en PrestaShop
-- detalle del producto padre
-- combinaciones del producto
-- detalle individual de cada combinacion
-- stock disponible por producto y por combinacion
+| Dominio | Estado | Escritura real |
+|---|---|---|
+| `products` | activo | si, con cautela |
+| `categories` | diagnostico | no |
+| `orders` | discovery | no |
 
-Esto nos permite validar con mas precision como se relaciona un `ItemCode`
-de SAP con una combinacion concreta de PrestaShop antes de automatizar
-escrituras.
+### Planificacion y ejecucion
 
-## Dominios objetivo
+- `src/sync-plan.js`: arma payloads y decide defaults
+- `src/sync-executor.js`: ejecuta `create` y `update`
+- `src/xml.js`: helpers XML
 
-La integracion ya quedo preparada para crecer por dominios separados:
+## Flujo operativo del dominio `products`
 
-- `products`: productos, precios, stock y variantes
-- `categories`: categorias y jerarquias comerciales
-- `orders`: pedidos y estados
-
-Hoy el dominio realmente operativo es `products`.
-
-El dominio `categories` ya puede ejecutarse en modo diagnostico: lee SAP,
-propone categoria principal desde `OITB` y reporta propiedades activas
-`QryGroup*` usando el catalogo de `OITG`.
-
-El dominio `orders` sigue en fase de descubrimiento y por ahora solo deja
-trazas informativas para poder extender el programa sin volver a mezclar toda
-la logica en un unico flujo.
-
-Cada dominio publica su propio estado interno para que la orquestacion y el
-panel puedan saber:
-
-- si ya esta implementado o no
-- si SAP es su fuente de verdad
-- si genera reportes operativos
-- cual es su alcance previsto
-
-Para seleccionar dominios se usa:
-
-```text
-SYNC_DOMAINS=products
-```
-
-Esa variable sigue existiendo como fallback tecnico, pero la operacion diaria
-ya puede hacerse desde el panel web mediante la segmentacion visual de sync.
-
-Ejemplo para correr solo el diagnostico de categorias:
-
-```text
-SYNC_DOMAINS=categories
-```
-
-Mas adelante soportara corridas como:
-
-```text
-SYNC_DOMAINS=products,categories,orders
-```
-
-## Diagnostico masivo
-
-Para revisar muchos productos, deja `SAP_ITEM_CODE` vacio y ajusta `SAP_LIMIT`
-al lote que quieras analizar.
-
-Al final de cada corrida el script genera:
-
-- un resumen JSON
-- un detalle completo en JSON
-- un CSV facil de abrir en Excel
-
-Cuando un producto existe en SAP y no existe en PrestaShop, el reporte lo
-marca como `create_from_sap`. Esa es la senal para crearlo en la tienda, ya que
-SAP se considera la fuente de verdad.
-
-El reporte tambien propone un plan de accion por fila, por ejemplo:
-
-- `create_product`
-- `update_product_price`
-- `update_product_stock`
-- `update_product_price_and_stock`
-- `skip_no_change`
-- `review_combination_mapping`
-
-Para los candidatos a creacion, el dry-run arma un payload propuesto. Si falta
-`PRESTASHOP_DEFAULT_CATEGORY_ID`, la fila queda bloqueada para revision antes de
-crear el producto.
-
-Si `SYNC_WRITE=true`, el proceso intenta ejecutar de verdad:
-
-- `create_product`
-- `update_product_stock`
-- `update_product_price`
-- `update_product_price_and_stock`
-
-Por ahora la escritura real se enfoca en productos simples y en actualizaciones
-directas del producto padre. Las combinaciones siguen quedando en revision para
-evitar decisiones incorrectas sobre variantes.
-
-Todos los archivos quedan en la carpeta configurada por `REPORT_DIR`.
+1. leer articulos SAP
+2. precargar snapshot de PrestaShop
+3. buscar coincidencia por referencia
+4. decidir si corresponde:
+   - crear
+   - actualizar precio
+   - actualizar stock
+   - actualizar precio y stock
+   - dejar en revision
+   - no hacer nada
+5. ejecutar si `SYNC_WRITE=true`
+6. generar reportes
 
 ## Panel web
 
-El panel web sirve para operar y contrastar el estado del catalogo:
+El panel usa Express + React y expone tres vistas:
 
-- lanzar el sync en modo `dry run` o `write`
-- ver el log en tiempo real
-- revisar el historial de corridas
-- consultar un snapshot agregado de SAP
-- consultar un snapshot agregado de PrestaShop
-- comparar ambas fuentes con un bloque de contraste
+### 1. `Sync`
 
-Actualmente el panel muestra, como minimo:
+Pensada para operacion diaria:
 
-- SAP: schema, warehouse, price list, total de productos, activos, inactivos,
-  productos con stock, productos sin stock y stock total
-- PrestaShop: total de productos, activos, inactivos y total de combinaciones
-- contraste: gap de productos, activos e inactivos entre SAP y PrestaShop
+- lanzar corrida masiva
+- correr lote puntual
+- elegir dominios
+- elegir `dry run` o `write`
+- seguir progreso por SSE
+- leer log en tiempo real
+- revisar historial
 
-El endpoint interno que alimenta ese bloque es:
+### 2. `SAP`
 
-```text
-GET /api/catalog-overview
-```
+Pensada para lectura de la fuente de verdad:
+
+- catalogo total
+- activos
+- stock total
+- detalle por warehouse y price list
+
+### 3. `PrestaShop`
+
+Pensada para contraste y control puntual:
+
+- resumen del catalogo PrestaShop
+- brecha contra SAP
+- lookup por referencia
+- activar/desactivar un producto puntual
+
+## Endpoints principales
+
+### Estado general
+
+- `GET /api/status`
+- `GET /api/catalog-overview`
+- `GET /api/dashboard-summary`
+- `GET /api/domain-analysis`
+- `GET /api/sync-domains`
+- `GET /api/reports`
+
+### Sync
+
+- `GET /api/sync`
+
+Usa SSE para publicar logs y estado de la corrida.
+
+### Control puntual de PrestaShop
+
+- `GET /api/prestashop-control?reference=...`
+- `POST /api/prestashop-control/active`
+
+## Reportes
+
+Cada corrida del dominio `products` genera:
+
+- `*.summary.json`
+- `*.rows.json`
+- `*.rows.csv`
+
+Los reportes incluyen:
+
+- estado por fila
+- accion propuesta
+- si la accion fue ejecutada o no
+- diferencias de precio y stock
+- bloqueos y errores
+
+El dominio `categories` genera snapshots propios con resumen y filas de
+diagnostico.
+
+## Rendimiento
+
+Para reducir el costo de las corridas masivas, el proyecto ya precarga un
+snapshot de PrestaShop con:
+
+- `products`
+- `stock_availables`
+
+Eso evita repetir la busqueda remota por referencia en cada articulo simple y
+mejora bastante el throughput de lectura.
+
+El siguiente frente de optimizacion natural sigue siendo:
+
+- reducir fan-out sobre combinaciones
+- controlar concurrencia de escrituras
+- medir por fase cuanto tarda SAP, PrestaShop y el executor
+
+## Documentacion del proyecto
+
+- [docs/inventario-entorno.md](C:\Users\jorge\OneDrive\Documentos\carballo.com.do\docs\inventario-entorno.md)
+- [docs/estado-integracion-sap-prestashop.md](C:\Users\jorge\OneDrive\Documentos\carballo.com.do\docs\estado-integracion-sap-prestashop.md)
+- [docs/arquitectura-fuente-de-verdad-sap.md](C:\Users\jorge\OneDrive\Documentos\carballo.com.do\docs\arquitectura-fuente-de-verdad-sap.md)
+- [docs/tablas-sap-business-one-hana.md](C:\Users\jorge\OneDrive\Documentos\carballo.com.do\docs\tablas-sap-business-one-hana.md)
+- [docs/handoff-ia-sap-prestashop.md](C:\Users\jorge\OneDrive\Documentos\carballo.com.do\docs\handoff-ia-sap-prestashop.md)
+- [docs/resumen-trabajo-realizado.md](C:\Users\jorge\OneDrive\Documentos\carballo.com.do\docs\resumen-trabajo-realizado.md)

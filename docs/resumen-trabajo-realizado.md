@@ -2,382 +2,188 @@
 
 ## Objetivo
 
-El objetivo de este trabajo fue empezar a entender y documentar el entorno que
-utiliza Almacenes Carballo para SAP Business One, PrestaShop y sus
-integraciones, porque el cliente no tenia visibilidad clara de como estaba
-armado ni que dependia del proveedor anterior.
+El objetivo de este trabajo fue tomar control progresivo del entorno SAP /
+PrestaShop del cliente, reducir la dependencia del proveedor anterior y dejar
+una base tecnica propia, documentada y operable.
 
-El foco principal fue la integracion SAP Business One -> PrestaShop, aunque
-durante el levantamiento tambien aparecieron otros sistemas y tareas que
-conviene dejar documentados.
+## Resultado general hasta hoy
 
-## Alcance de la revision
+Ya no estamos en una etapa de descubrimiento puro. El proyecto quedo en un
+estado intermedio mucho mas util:
 
-Hasta ahora revise informacion de solo lectura en el servidor Windows
-`ventasmoviles` y en archivos/logs relacionados con las integraciones. Tambien
-avance en un reemplazo controlado en Node.js para validar que podemos leer SAP
-HANA y comparar contra PrestaShop sin depender del ejecutable del proveedor.
+- el entorno historico fue relevado
+- la integracion .NET del proveedor fue identificada
+- las tablas SAP relevantes fueron documentadas
+- el reemplazo propio en Node.js ya existe
+- el panel web ya existe
+- el dominio `products` ya es operativo
 
-No se debe asumir todavia que la infraestructura pertenece fisicamente al
-cliente. Lo confirmado es que el entorno contiene datos y sistemas utilizados
-por Almacenes Carballo. La titularidad de servidores, licencias, hosting,
-credenciales y codigo fuente todavia debe confirmarse contractual y
-operativamente.
+## 1. Lo que se documento del entorno
 
-## Infraestructura identificada
+Quedaron documentados:
 
-### Servidor Windows
+- servidor Windows `ventasmoviles`
+- relacion con SAP Business One y SAP HANA
+- integracion historica .NET con PrestaShop
+- tareas y componentes auxiliares relevantes
+- tablas SAP importantes para productos, categorias y pedidos
 
-Se identifico el servidor:
-
-```text
-ventasmoviles
-IP local: 192.1.1.9
-Windows Server 2016 Standard
-```
-
-Este servidor funciona como punto administrativo y de integraciones. Tiene:
-
-- SAP Business One Client.
-- SAP HANA Studio.
-- SAP Business One Integration.
-- SAP DI API y SDK.
-- IIS y FTP.
-- RabbitMQ.
-- Bavel o componentes relacionados.
-- MobaXterm.
-- AnyDesk y Zoho Assist.
-- Herramientas de integracion desarrolladas por terceros.
-
-Tambien se confirmo que es una maquina virtual VMware, pero falta identificar
-el host fisico, responsable del hipervisor y esquema de respaldos.
-
-### Servidor SAP HANA
-
-Desde `ventasmoviles` se confirmo conectividad hacia:
-
-```text
-hanab1
-IP local: 192.1.1.149
-```
-
-El puerto HANA `30013` responde desde `ventasmoviles`, y para el reemplazo
-Node.js se valido lectura efectiva contra:
-
-```text
-hanab1:30015
-Schema: BD_CARBALLO
-```
-
-Esto confirma que SAP HANA no esta dentro de la computadora Windows
-`ventasmoviles`, sino en otro servidor de la misma red. Lo que todavia no se
-ha confirmado es si ese servidor esta en instalaciones del cliente, del
-proveedor o en infraestructura alojada por un tercero.
-
-## Integracion historica SAP - PrestaShop
-
-Se localizo una aplicacion .NET personalizada usada para sincronizar SAP con
-PrestaShop:
-
-```text
-C:\Users\Administrator\Desktop\Soluciones sap\Servicio
-```
-
-Componentes relevantes:
-
-- `ConfigSapService.exe`
-- `ConfigSapService.xml`
-- `Soluciones.sap.dll`
-- `SS.ServiceLayer.dll`
-- `Bukimedia.PrestaSharp.dll`
-- `RestSharp.dll`
-- `Telerik.WinControls*.dll`
-- carpeta `log`
-
-La aplicacion usa una configuracion XML con:
-
-- servidor SAP
-- base de datos
-- usuario y password SAP
-- version de SAP
-- `QueryArticulos`
-- endpoint PrestaShop
-- API key de PrestaShop
-
-Esto confirma que la integracion lee informacion de SAP y actualiza
-PrestaShop mediante webservice. La consulta observada trabaja principalmente
-con articulos, precios y existencias.
-
-No se encontro evidencia de que esta aplicacion sincronice pedidos, clientes o
-facturas desde PrestaShop hacia SAP.
-
-## Servicio del proveedor
-
-Se identifico el servicio:
-
-```text
-SS_Servicio_SAP
-```
-
-Ruta:
-
-```text
-C:\Program Files\Soluciones Sap\SS_Servicio_SAP\SapService.exe
-```
-
-Estado observado:
-
-- configurado como automatico
-- detenido
-- asignado a `VENTASMOVILES\Administrator`
-
-En eventos de Windows se encontro que el servicio no inicia porque la
-contrasena configurada para esa cuenta es incorrecta. Por tanto, el servicio
-automatico no parece operativo actualmente.
-
-No recomiendo iniciarlo ni corregir la credencial sin entender primero si hay
-otra instancia manual activa, ya que podria duplicar sincronizaciones contra
-PrestaShop.
-
-## Comportamiento observado de la integracion
-
-Los logs de la aplicacion .NET permitieron confirmar un ciclo como este:
-
-```text
-Conexion con SAP
--> ejecucion de QueryArticulos
--> busqueda/lectura de producto en PrestaShop
--> lectura de combinaciones
--> actualizacion de precio o datos
--> actualizacion del producto
--> escritura en logs
-```
-
-Tambien se observo que, al presionar `Iniciar`, la aplicacion puede ejecutar
-un bucle continuo que procesa el mismo articulo cada pocos segundos. En el
-caso revisado, la consulta estaba filtrada al articulo `61072505`.
-
-Esto es importante porque no parece haber deteccion de cambios antes de enviar
-actualizaciones. Aunque el valor no cambie, el sistema puede volver a escribir
-el producto completo en PrestaShop.
-
-## Hallazgos sobre PrestaShop
-
-Se confirmo que PrestaShop esta disponible por webservice y que la integracion
-lo consume usando API key.
-
-Tambien se identifico el entorno de la tienda:
-
-- PrestaShop `1.7.8.7`.
-- MariaDB `10.6`.
-- Docker.
-- Nginx como proxy.
-- Apache/PHP dentro del contenedor.
-- Ruta observada: `/var/www/carballo.com.do`.
-
-Durante la revision se detectaron errores transitorios al actualizar
-categorias en PrestaShop. El error observado fue HTTP `500` con codigo interno
-`85`:
-
-```text
-Error occurred while setting the categories value
-```
-
-La categoria involucrada existia, estaba activa y pertenecia a la tienda
-correcta. Esto apunta mas a un problema del proceso de actualizacion o a un
-fallo transitorio que a una categoria inexistente.
-
-Tambien se confirmo que la API key de PrestaShop aparece completa dentro de
-algunos logs generados por la aplicacion .NET. Esto es un riesgo importante:
-la clave debe rotarse y los logs historicos deben tratarse como informacion
-sensible.
-
-## Otros sistemas encontrados
-
-### B1ReportSender
-
-Se localizo una aplicacion separada:
-
-```text
-C:\Task\Envio masivo (B1ReportSender)
-```
-
-Esta aplicacion genera y envia estados de cuenta usando datos de SAP HANA y
-Crystal Reports. Tiene tareas programadas semanales.
-
-Problema confirmado:
-
-- usa `mail.smtp2go.com`
-- los envios fallan porque la cuenta SMTP autenticada no tiene permiso para
-  enviar
-- las tareas terminan con codigo `1`
-
-Este sistema no es la prioridad principal, pero queda documentado porque es
-otra dependencia operativa del entorno.
-
-### Accesos remotos
-
-Ademas de AnyDesk, se encontro Zoho Assist desatendido. Tambien estan activos
-RDP y WinRM a nivel de servicio. Esto requiere revisar quienes tienen acceso,
-quien administra esas cuentas y si existe historial de conexiones.
-
-## Aclaracion importante sobre propiedad y control
-
-No se puede afirmar todavia que SAP, HANA, los servidores o las licencias sean
-propiedad directa del cliente.
-
-Lo correcto es decir:
-
-```text
-Se identifico un entorno SAP Business One utilizado para la operacion de
-Almacenes Carballo, compuesto al menos por ventasmoviles y hanab1.
-No se ha confirmado la titularidad, ubicacion fisica ni control contractual de
-esta infraestructura.
-```
-
-Posibles escenarios:
-
-1. Infraestructura del cliente administrada por el proveedor.
-2. Infraestructura del proveedor dedicada al cliente.
-3. Infraestructura compartida del proveedor.
-4. Infraestructura alquilada a un tercero.
-
-Esto debe aclararse con contratos, licencias, accesos administrativos,
-respaldos y titularidad del hosting.
-
-## Reemplazo propio en Node.js
-
-Ademas del levantamiento, se empezo a construir un reemplazo controlado:
-
-```text
-Repositorio: carballo.com.do
-Tecnologia: Node.js
-Objetivo: SAP HANA -> PrestaShop
-```
-
-El proyecto ya tiene:
-
-- lectura desde SAP HANA usando `@sap/hana-client`
-- usuario dedicado `PS_SYNC`
-- lectura de productos y stock desde PrestaShop
-- comparacion de datos
-- reportes JSON y CSV
-- modo seguro `dry-run`
-- modo escritura controlado por `SYNC_WRITE=true`
-- panel web Express para revisar informacion agregada
-
-Lectura HANA confirmada:
-
-```text
-hanab1:30015
-Schema: BD_CARBALLO
-Usuario: PS_SYNC
-```
-
-Producto validado desde SAP:
-
-```text
-ItemCode: 61072505
-Almacen: AC01
-Precio observado: 4013.568000
-Existencia observada: 51.999800
-```
-
-## Estado tecnico del reemplazo
-
-### Funciona
-
-- Conectar a SAP HANA.
-- Leer articulos desde `BD_CARBALLO`.
-- Buscar productos por referencia en PrestaShop.
-- Leer productos, combinaciones y stock.
-- Generar reportes.
-- Actualizar stock en PrestaShop en varios casos.
-
-### Parcial
-
-- Actualizacion de precio.
-- Creacion de productos nuevos.
-- Recuperacion de productos creados cuando PrestaShop responde error.
-
-### Pendiente o riesgoso
-
-- Manejo de combinaciones.
-- Reparacion de productos creados en estado inconsistente.
-- Definir payload minimo y estable para `PUT` de productos.
-- Evitar escribir campos no permitidos por PrestaShop.
-
-Errores confirmados en PrestaShop durante escritura:
-
-- `PATCH` no esta soportado.
-- `manufacturer_name` no es escribible.
-- `quantity` no es escribible en el XML de producto.
-- algunos productos nuevos devolvian HTTP 500 por falta de imagen cover.
-
-Se aplico un parche defensivo en `Product.php` para que PrestaShop no falle
-cuando un producto no tiene imagen cover. Ese cambio debe conservarse o
-reaplicarse si se actualiza o reemplaza el contenedor.
-
-## Riesgos principales
-
-1. No se tiene todavia codigo fuente ni instalador del integrador .NET del
-   proveedor.
-2. La API key de PrestaShop quedo expuesta en logs.
-3. El servicio automatico del proveedor esta detenido por credencial invalida.
-4. No se sabe aun si el cliente controla servidores, licencias y respaldos.
-5. El integrador actual puede escribir repetidamente sobre PrestaShop sin
-   detectar cambios.
-6. Hay productos nuevos creados por pruebas que podrian estar incompletos.
-7. IIS, FTP, RDP, WinRM, AnyDesk y Zoho Assist amplian la superficie de acceso.
-8. El servidor tiene poco espacio disponible en algunas unidades.
-
-## Documentos generados
-
-Durante este trabajo se generaron tres documentos principales:
+Documentos principales:
 
 - `docs/inventario-entorno.md`
+- `docs/tablas-sap-business-one-hana.md`
 - `docs/estado-integracion-sap-prestashop.md`
-- `docs/handoff-ia-sap-prestashop.md`
 
-Este archivo resume los tres en un formato mas compacto para explicar el
-avance general.
+## 2. Lo que se construyo
 
-## Proximos pasos recomendados
+Se construyo un reemplazo propio con:
 
-1. Rotar la API key de PrestaShop y crear una clave dedicada con permisos
-   minimos.
-2. Pedir al proveedor codigo fuente, instalador, documentacion y diagrama de
-   la integracion actual.
-3. Confirmar titularidad y acceso a:
-   - SAP Business One
-   - licencias
-   - HANA
-   - servidores o VMs
-   - VMware
-   - hosting PrestaShop
-   - respaldos
-4. No activar `SS_Servicio_SAP` hasta confirmar que no existe otra ejecucion
-   manual activa.
-5. Terminar de estabilizar el reemplazo Node.js para:
-   - actualizar stock
-   - actualizar precio
-   - crear productos sanos
-   - manejar productos existentes con combinaciones
-6. Revisar y reparar productos creados en estado inconsistente.
-7. Crear un procedimiento documentado de operacion, respaldo y recuperacion.
+- Node.js
+- Express
+- React
+- Vite
+- `@sap/hana-client`
+
+Este reemplazo ya permite:
+
+- conectar a SAP HANA
+- leer catalogo SAP
+- leer PrestaShop por webservice
+- comparar ambos lados
+- generar reportes
+- ejecutar sync real en productos simples
+
+## 3. Como quedo organizado el proyecto
+
+El proyecto ya no vive como una sync monolitica.
+
+Hoy esta separado por dominios:
+
+| Dominio | Estado |
+|---|---|
+| `products` | activo |
+| `categories` | diagnostico |
+| `orders` | discovery |
+
+Esto fue una decision importante, porque evita mezclar:
+
+- productos
+- categorias
+- pedidos
+
+en un solo flujo dificil de mantener.
+
+## 4. Estado funcional por dominio
+
+### `products`
+
+Es el dominio mas maduro.
+
+Ya hace:
+
+- detectar faltantes en PrestaShop
+- actualizar precio
+- actualizar stock
+- crear productos simples
+- dejar en revision casos ambiguos
+- producir reportes
+
+### `categories`
+
+Ya tiene lectura y diagnostico.
+
+Hoy:
+
+- toma grupo principal desde `OITB`
+- traduce `QryGroup*` con `OITG`
+- genera snapshot y resumen
+
+Todavia no escribe en PrestaShop.
+
+### `orders`
+
+Ya no es un placeholder vacio.
+
+Hoy:
+
+- lee resumen desde `ORDR`
+- publica volumen total
+- muestra abiertos, cerrados, cancelados y actividad reciente
+
+Todavia no sincroniza pedidos.
+
+## 5. Panel web
+
+Se construyo un panel web operativo con tres vistas:
+
+- `Sync`
+- `SAP`
+- `PrestaShop`
+
+### La vista `Sync`
+
+Es el centro operativo actual:
+
+- corrida masiva
+- corrida puntual
+- seleccion de dominios
+- dry run / write
+- progreso
+- log en tiempo real
+- historial
+
+### La vista `SAP`
+
+Resume la fuente de verdad.
+
+### La vista `PrestaShop`
+
+Muestra brecha de catalogo y control puntual por referencia.
+
+## 6. Reportes
+
+Cada corrida del dominio `products` deja:
+
+- resumen JSON
+- filas JSON
+- CSV
+
+Y `categories` ya deja snapshots diagnosticos propios.
+
+Esto es importante porque el proyecto ya no depende solo de mirar consola: hay
+salidas reutilizables para auditoria, soporte y analisis posterior.
+
+## 7. Principal hallazgo tecnico reciente
+
+El backend no estaba lento por SAP. El problema grande esta en PrestaShop.
+
+Lo que hoy mas cuesta es:
+
+- buscar productos por referencia
+- leer stock
+- leer combinaciones
+- hacer muchas llamadas HTTP por corrida
+
+Para eso ya se aplico una mejora:
+
+- snapshot de PrestaShop en memoria para productos y stocks
+
+Con eso se redujo parte del fan-out en corridas masivas.
+
+## 8. Que sigue abierto
+
+1. mejorar rendimiento del dominio `products`
+2. endurecer observabilidad del sync masivo
+3. convertir `categories` en dominio con plan de accion y escritura
+4. definir de verdad el flujo de `orders`
+5. seguir alineando documentacion y codigo para que no se separen otra vez
 
 ## Conclusion
 
-El entorno ya esta mucho mas claro que al inicio. SAP Business One y HANA
-existen como parte del entorno usado por Carballo, pero la integracion con
-PrestaShop depende de software .NET del proveedor anterior y no se cuenta aun
-con codigo fuente ni documentacion suficiente.
+El trabajo ya produjo algo concreto: no solo entendimos mejor el entorno, sino
+que dejamos una base propia funcionando y documentada.
 
-El reemplazo propio en Node.js ya demostro que es posible leer directamente
-desde SAP HANA y actualizar stock en PrestaShop. Todavia falta estabilizar
-precio, altas de productos y combinaciones antes de considerarlo listo para
-produccion.
-
-La prioridad inmediata es reducir riesgos: proteger credenciales, confirmar
-propiedad y accesos, y continuar el reemplazo de forma controlada sin activar
-procesos duplicados.
+La parte mas adelantada es `products`. La parte mas importante a mediano plazo
+es no volver a mezclar todo en una sola integracion opaca: el camino correcto
+ya quedo marcado por dominios, con SAP como fuente de verdad y con operacion
+visible desde el panel.

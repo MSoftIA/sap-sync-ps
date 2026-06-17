@@ -2,111 +2,135 @@
 
 ## Objetivo
 
-La direccion del proyecto queda definida asi:
+La direccion funcional del proyecto queda definida asi:
 
 ```text
 SAP Business One / HANA -> PrestaShop
 ```
 
-Eso significa que el programa debe tomar las decisiones principales desde SAP y
-reflejarlas en PrestaShop de forma controlada, auditable y gradual.
+La idea no es hacer una sync opaca, sino una operacion:
+
+- auditable
+- separada por dominios
+- con dry run antes de write
+- con reportes y trazabilidad
 
 ## Dominios funcionales
 
-Para no volver a mezclar toda la integracion en un solo flujo, el programa se
-organiza por dominios:
+El programa ya esta organizado por dominios.
 
-### 1. `products`
+## 1. `products`
 
-Responsabilidad:
+### Responsabilidad
 
 - crear productos faltantes en PrestaShop
 - actualizar precio
 - actualizar stock
-- decidir cuando un producto requiere revision manual
-- preparar el terreno para variantes o combinaciones
+- decidir cuando un caso queda en revision
+- comparar combinaciones sin automatizar mapeos ambiguos
 
-Estado actual:
+### Estado actual
 
-- operativo
+- activo
 
-Notas:
+### Capacidad actual
 
-- hoy es el unico dominio que realmente ejecuta logica de negocio
-- las variantes todavia se inspeccionan con cautela
-- no conviene automatizar mapeos ambiguos de combinaciones hasta cerrar la
-  regla de correspondencia
+- lectura SAP operativa
+- lectura PrestaShop operativa
+- sync real de productos simples
+- creacion de productos simples
+- actualizacion de precio y stock
+- reportes operativos por corrida
 
-### 2. `categories`
+### Restricciones actuales
 
-Responsabilidad esperada:
+- combinaciones siguen en modo de revision
+- si la referencia o el match no es claro, el sistema no fuerza write
+
+## 2. `categories`
+
+### Responsabilidad esperada
 
 - leer la clasificacion oficial desde SAP
-- construir o actualizar la jerarquia en PrestaShop
-- asociar productos a sus categorias correctas
-- mantener categoria por defecto coherente
+- diagnosticar jerarquia y categorias candidatas
+- crear o alinear categorias en PrestaShop
+- asociar productos a categoria principal y secundarias
 
-Estado actual:
+### Estado actual
 
-- pendiente
+- diagnostico operativo
 
-Preguntas de negocio que faltan:
+### Capacidad actual
 
-1. cual es la fuente exacta en SAP:
-   - `ItmsGrpCod`
-   - grupos de consulta `QryGroup*`
-   - UDFs
-   - una tabla propia del cliente
-2. una categoria SAP se corresponde con una sola categoria PrestaShop o con
-   varias?
-3. que categoria debe ser la predeterminada cuando un producto cae en varias?
+- lee `OITB` como grupo principal
+- lee `OITG` para traducir `QryGroup*`
+- genera snapshot y reporte propio
+- publica resumen en el panel
 
-Implementacion recomendada:
+### Lo que aun no hace
 
-1. construir lectura SAP solo para categorias
-2. generar un reporte dry-run de mapeo
-3. crear/arreglar jerarquia en PrestaShop
-4. recien despues asociar productos
+- no crea categorias en PrestaShop
+- no reasigna productos
+- no define todavia una jerarquia ecommerce final
 
-### 3. `orders`
+### Preguntas de negocio pendientes
 
-Responsabilidad esperada:
+1. si `ItmsGrpCod` alcanza como categoria principal
+2. si `QryGroup*` deben convertirse en categorias, atributos o filtros
+3. como decidir categoria por defecto cuando SAP expone varias clasificaciones
 
-- definir el rol de SAP respecto a pedidos
-- sincronizar estados, tracking o documentos si aplica
+## 3. `orders`
 
-Estado actual:
+### Responsabilidad esperada
 
-- en descubrimiento
+- aclarar el rol real de SAP respecto a pedidos
+- eventualmente publicar estados, tracking o reflejo comercial
 
-Advertencia importante:
+### Estado actual
 
-En muchos ecommerce, los pedidos nacen en PrestaShop y luego se reflejan en
-SAP. Por eso este dominio no debe programarse a ciegas solo porque exista el
-objetivo general de "SAP fuente de verdad".
+- discovery
 
-Primero hay que aclarar si aqui significa:
+### Capacidad actual
 
-- publicar estados desde SAP hacia PrestaShop
-- publicar tracking
-- reflejar facturacion
-- crear pedidos en PrestaShop desde SAP
-- o simplemente comparar ambos lados
+- el proyecto ya lee resumen operativo de `ORDR`
+- el panel ya muestra volumen, abiertos, cerrados, cancelados y ultima fecha
+
+### Lo que aun no hace
+
+- no crea pedidos
+- no actualiza estados
+- no refleja tracking
+- no mueve informacion hacia PrestaShop
+
+### Advertencia importante
+
+Este es el dominio mas sensible a una mala suposicion.
+
+En muchos ecommerce:
+
+```text
+PrestaShop crea el pedido
+SAP lo recibe o lo procesa
+SAP luego devuelve estado o tracking
+```
+
+Por eso aqui no conviene programar “SAP manda” sin una definicion funcional del
+negocio.
 
 ## Regla operativa por defecto
 
-Antes de habilitar escritura real en un dominio nuevo, el flujo recomendado es:
+Antes de habilitar escritura real en un dominio nuevo, el orden sigue siendo:
 
 1. leer SAP
 2. leer PrestaShop
 3. comparar
-4. producir plan de accion
+4. proponer plan de accion
 5. generar reporte
-6. habilitar escritura solo cuando el mapeo ya este validado
+6. habilitar write solo cuando el mapeo sea confiable
 
-## Resultado esperado de cada dominio
+## Contrato comun por dominio
 
-Cada dominio debe poder devolver una estructura uniforme:
+Cada dominio devuelve una estructura uniforme:
 
 ```json
 {
@@ -121,34 +145,47 @@ Cada dominio debe poder devolver una estructura uniforme:
 }
 ```
 
-Esto permite que el programa:
+Esto permite:
 
-- muestre el estado real por dominio
-- sepa que dominios generan reportes
-- crezca sin reescribir la orquestacion general
+- que el backend orqueste dominios distintos
+- que el panel pueda mostrar el estado de cada uno
+- que el proyecto crezca sin volver a una sola sync monolitica
+
+## Orquestacion actual
+
+La orquestacion vive en:
+
+- `src/app.js`
+- `src/sync-domains.js`
+
+El registro hoy es:
+
+| Dominio | `status` | `writesReports` |
+|---|---|---|
+| `products` | `active` | `true` |
+| `categories` | `diagnostic` | `false` |
+| `orders` | `discovery` | `false` |
 
 ## Orden recomendado de implementacion
 
-1. cerrar `products`
-   - productos simples
-   - precio
-   - stock
-   - altas confiables
-   - variantes bien mapeadas
-2. avanzar `categories`
-   - lectura SAP
-   - mapeo
-   - dry-run
-   - escritura real
-3. recien despues cerrar `orders`
-   - con definicion funcional validada por negocio
+1. seguir cerrando `products`
+   - observabilidad
+   - performance
+   - variantes mas confiables
+2. pasar `categories` de diagnostico a write
+   - jerarquia
+   - mapping SAP -> PrestaShop
+   - categoria principal
+3. definir funcionalmente `orders`
+   - recien despues escribir codigo de sync
 
-## Decision tecnica actual
+## Decision tecnica vigente
 
-El proyecto ya debe considerarse orientado a:
+El proyecto ya debe considerarse alineado con estas reglas:
 
-- orquestacion por dominios
-- SAP como fuente de verdad
-- dry-run antes de write
-- trazabilidad por logs y reportes
-- crecimiento incremental sin volver a una integracion monolitica
+- SAP como fuente de verdad principal
+- dominios separados
+- dry run antes de write
+- panel para operacion
+- reportes para trazabilidad
+- crecimiento incremental en lugar de reescrituras opacas
