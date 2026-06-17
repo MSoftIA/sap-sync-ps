@@ -158,6 +158,16 @@ export interface PrestaControlResult {
   } | null
 }
 
+export interface PrestaProductSummary {
+  productId: number
+  reference: string
+  name: string
+  active: '1' | '0'
+  price: number
+  combinations: number
+  stock: number
+}
+
 export type View = 'sync' | 'sap' | 'presta'
 export type TagTone = 'green' | 'amber' | 'red' | 'gray'
 export type MessageKind = 'info' | 'warn' | 'error'

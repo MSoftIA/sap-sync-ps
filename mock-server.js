@@ -284,6 +284,21 @@ app.get("/api/sync-domains", (_req, res) => {
   res.json(MOCK_SYNC_DOMAINS);
 });
 
+app.get("/api/prestashop/products", (_req, res) => {
+  const items = MOCK_ARTICLES
+    .filter((_, i) => i % 10 !== 3)   // ~10% no publicados en PS (brecha)
+    .map((a, i) => ({
+      productId: 1000 + i,
+      reference: a.itemCode,
+      name: a.itemName,
+      active: (a.status === 'Y' && i % 8 !== 0) ? '1' : '0',  // algunos inactivos extra
+      price: a.price,
+      combinations: i % 7 === 0 ? Math.floor(Math.random() * 4) + 2 : 0,
+      stock: i % 7 === 0 ? 0 : a.stock,  // combos reportan stock 0 (se maneja a nivel combo)
+    }));
+  res.json({ total: items.length, items });
+});
+
 app.get("/api/sap/articles", (_req, res) => {
   res.json({ total: MOCK_ARTICLES.length, items: MOCK_ARTICLES });
 });

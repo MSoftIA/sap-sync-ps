@@ -5,6 +5,7 @@ import { MessageBox } from '../components/MessageBox'
 import { Skeleton } from '../components/Skeleton'
 import { EmptyState } from '../components/EmptyState'
 import { BarChart } from '../components/BarChart'
+import { PrestaCatalog } from '../components/PrestaCatalog'
 import { fmt, money } from '../utils'
 import { lookupReference, changeProductStatus } from '../api/prestashop'
 
@@ -103,6 +104,7 @@ export function PrestaView({ overview, onRefresh }: Props) {
     <main>
       <div className="subnav">
         <button type="button" onClick={() => document.getElementById('presta-summary')?.scrollIntoView({ behavior: 'smooth' })}>Resumen</button>
+        <button type="button" onClick={() => document.getElementById('presta-catalogo')?.scrollIntoView({ behavior: 'smooth' })}>Catálogo</button>
         <button type="button" onClick={() => document.getElementById('presta-gap')?.scrollIntoView({ behavior: 'smooth' })}>Brechas</button>
         <button type="button" onClick={() => document.getElementById('presta-control')?.scrollIntoView({ behavior: 'smooth' })}>Control puntual</button>
       </div>
@@ -151,6 +153,15 @@ export function PrestaView({ overview, onRefresh }: Props) {
             </div>
           </div>
         )}
+      </section>
+
+      {/* Catálogo de productos */}
+      <section id="presta-catalogo" className="section">
+        <div className="section-header">
+          <h2 className="section-title">Catálogo de productos</h2>
+          <div className="section-note">Todos los productos leídos desde PrestaShop.</div>
+        </div>
+        <PrestaCatalog />
       </section>
 
       <section id="presta-gap" className="section">
