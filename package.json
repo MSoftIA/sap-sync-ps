@@ -5,7 +5,7 @@
   "description": "Sincronizacion SAP HANA a PrestaShop con panel web React.",
   "type": "commonjs",
   "scripts": {
-    "start": "powershell -NoProfile -Command \"Clear-Host; git fetch origin; git pull --ff-only origin main\"; node server.js",
+    "start": "powershell -NoProfile -Command \"Clear-Host; git fetch origin; git pull --ff-only origin main\"; npm run build && node server.js",
     "serve": "node server.js",
     "build": "vite build",
     "sync": "node main.js",
