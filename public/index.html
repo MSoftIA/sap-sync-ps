@@ -583,6 +583,10 @@
         <div id="action-summary" class="message-box message-info">
           Todavia no hay suficiente informacion para recomendar una accion.
         </div>
+        <div class="microcopy">
+          La brecha del catalogo se calcula contra el estado real de PrestaShop. Solo cambia cuando una corrida en modo
+          `Aplicar cambios` crea o actualiza productos efectivamente en la tienda.
+        </div>
       </div>
     </section>
 
@@ -618,7 +622,11 @@
 
           <div class="button-row">
             <button class="btn-primary" id="btn-run" type="button" onclick="runSync()">Iniciar sincronizacion</button>
+            <button class="btn-dark" id="btn-run-full" type="button" onclick="runSync({ fullCatalog: true })">Sync masiva</button>
             <button class="btn-secondary" id="btn-refresh-overview" type="button" onclick="loadDashboard(true)">Actualizar tablero</button>
+          </div>
+          <div class="microcopy">
+            `Iniciar sincronizacion` usa el filtro y/o limite cargado. `Sync masiva` recorre el catalogo completo de SAP.
           </div>
         </div>
       </div>
@@ -1059,21 +1067,31 @@
       await loadReports();
     }
 
-    function runSync() {
+    function runSync(options = {}) {
       if (syncRunning) return;
 
       syncRunning = true;
       document.getElementById("btn-run").disabled = true;
+      document.getElementById("btn-run-full").disabled = true;
       document.getElementById("running-banner").classList.add("info");
       document.getElementById("log-box").innerHTML = "";
-      appendLog("Iniciando sync...", "info");
+      appendLog(
+        options.fullCatalog
+          ? "Iniciando sync masiva del catalogo completo..."
+          : "Iniciando sync...",
+        "info",
+      );
 
       const itemCode = document.getElementById("item-code").value.trim();
       const limit = document.getElementById("limit").value.trim();
       const params = new URLSearchParams();
 
-      if (itemCode) params.set("itemCode", itemCode);
-      if (limit) params.set("limit", limit);
+      if (options.fullCatalog) {
+        params.set("fullCatalog", "true");
+      } else {
+        if (itemCode) params.set("itemCode", itemCode);
+        if (limit) params.set("limit", limit);
+      }
       params.set("write", writeMode ? "true" : "false");
 
       const es = new EventSource("/api/sync?" + params.toString());
@@ -1095,6 +1113,7 @@
           es.close();
           syncRunning = false;
           document.getElementById("btn-run").disabled = false;
+          document.getElementById("btn-run-full").disabled = false;
           document.getElementById("running-banner").classList.remove("info");
           loadDashboard(true);
         }
@@ -1105,6 +1124,7 @@
         es.close();
         syncRunning = false;
         document.getElementById("btn-run").disabled = false;
+        document.getElementById("btn-run-full").disabled = false;
         document.getElementById("running-banner").classList.remove("info");
       };
     }

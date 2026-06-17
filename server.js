@@ -340,7 +340,7 @@ app.get("/api/sync", (req, res) => {
     return;
   }
 
-  const { itemCode, limit, write } = req.query;
+  const { itemCode, limit, write, fullCatalog } = req.query;
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -348,12 +348,17 @@ app.get("/api/sync", (req, res) => {
   res.flushHeaders();
 
   const childEnv = { ...process.env };
-  if (itemCode && itemCode.trim()) {
+  if (fullCatalog === "true") {
+    delete childEnv.SAP_ITEM_CODE;
+    childEnv.SAP_LIMIT = "0";
+  } else if (itemCode && itemCode.trim()) {
     childEnv.SAP_ITEM_CODE = itemCode.trim();
   } else {
     delete childEnv.SAP_ITEM_CODE;
   }
-  if (limit && limit.trim()) {
+  if (fullCatalog === "true") {
+    childEnv.SAP_LIMIT = "0";
+  } else if (limit && limit.trim()) {
     childEnv.SAP_LIMIT = limit.trim();
   } else {
     delete childEnv.SAP_LIMIT;

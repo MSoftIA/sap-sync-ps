@@ -29,6 +29,10 @@ function getSapConfig() {
 
 function buildArticleQuery({ schema, priceList, warehouse, itemCode, limit }) {
   const itemFilter = itemCode ? 'AND I."ItemCode" = ?' : "";
+  const limitClause =
+    Number.isFinite(limit) && Number(limit) > 0
+      ? " LIMIT " + Number(limit)
+      : "";
 
   return {
     sql:
@@ -50,9 +54,7 @@ function buildArticleQuery({ schema, priceList, warehouse, itemCode, limit }) {
       'AND P."PriceList" = ? ' +
       'AND C."WhsCode" = ? ' +
       itemFilter +
-      " " +
-      "LIMIT " +
-      limit,
+      limitClause,
     params: itemCode
       ? [priceList, warehouse, itemCode]
       : [priceList, warehouse],
