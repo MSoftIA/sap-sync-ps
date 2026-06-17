@@ -535,7 +535,7 @@ Estado actual de esos dominios:
 | Dominio | Estado |
 |---|---|
 | `products` | operativo |
-| `categories` | preparado como placeholder |
+| `categories` | diagnostico operativo |
 | `orders` | preparado como placeholder |
 
 Fuente de verdad definida para esta arquitectura:

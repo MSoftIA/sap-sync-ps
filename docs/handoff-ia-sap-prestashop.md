@@ -146,7 +146,7 @@ Nota importante:
 | Dominio | Fuente de verdad | Estado | Observacion |
 |---|---|---|---|
 | `products` | SAP | activo | sincroniza productos simples, precio y stock |
-| `categories` | SAP | planned | falta query SAP y regla de mapeo |
+| `categories` | SAP | diagnostic | ya lee `OITB` + `QryGroup*` y genera reporte, falta escritura |
 | `orders` | SAP (objetivo), flujo a definir | discovery | requiere aclaracion funcional antes de programar |
 
 ## Query SAP validada

@@ -22,7 +22,7 @@ const DOMAIN_REGISTRY = {
     runner: runCategoryDomain,
     writesReports: false,
     sourceOfTruth: "sap",
-    status: "planned",
+    status: "diagnostic",
     scope: [
       "arbol de categorias",
       "mapeo jerarquico",

@@ -139,9 +139,13 @@ La integracion ya quedo preparada para crecer por dominios separados:
 
 Hoy el dominio realmente operativo es `products`.
 
-Los dominios `categories` y `orders` ya existen en la orquestacion, pero por
-ahora solo dejan trazas informativas para poder extender el programa sin volver
-a mezclar toda la logica en un unico flujo.
+El dominio `categories` ya puede ejecutarse en modo diagnostico: lee SAP,
+propone categoria principal desde `OITB` y reporta propiedades activas
+`QryGroup*` usando el catalogo de `OITG`.
+
+El dominio `orders` sigue en fase de descubrimiento y por ahora solo deja
+trazas informativas para poder extender el programa sin volver a mezclar toda
+la logica en un unico flujo.
 
 Cada dominio publica su propio estado interno para que la orquestacion y el
 panel puedan saber:
@@ -155,6 +159,12 @@ Para seleccionar dominios se usa:
 
 ```text
 SYNC_DOMAINS=products
+```
+
+Ejemplo para correr solo el diagnostico de categorias:
+
+```text
+SYNC_DOMAINS=categories
 ```
 
 Mas adelante soportara corridas como:

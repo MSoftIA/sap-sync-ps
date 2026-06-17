@@ -84,6 +84,100 @@ function mapSapRow(row) {
   };
 }
 
+function buildCategoryDiagnosticQuery({ schema, itemCode, limit }) {
+  const propertyFields = Array.from({ length: 64 }, (_, index) => {
+    const position = index + 1;
+    return `I."QryGroup${position}" AS "QryGroup${position}"`;
+  }).join(", ");
+  const itemFilter = itemCode ? 'AND I."ItemCode" = ?' : "";
+  const limitClause =
+    Number.isFinite(limit) && Number(limit) > 0
+      ? " LIMIT " + Number(limit)
+      : "";
+
+  return {
+    sql:
+      "SELECT " +
+      'I."ItemCode", I."ItemName", I."ItmsGrpCod", B."ItmsGrpNam", ' +
+      propertyFields +
+      ' FROM "' +
+      schema +
+      '"."OITM" I ' +
+      'LEFT JOIN "' +
+      schema +
+      '"."OITB" B ON B."ItmsGrpCod" = I."ItmsGrpCod" ' +
+      "WHERE 1 = 1 " +
+      itemFilter +
+      ' ORDER BY I."ItemCode"' +
+      limitClause,
+    params: itemCode ? [itemCode] : [],
+  };
+}
+
+function mapPropertyCatalogRow(row) {
+  return {
+    code: Number(row.ItmsTypCod),
+    name: row.ItmsGrpNam,
+    userSign: row.UserSign,
+  };
+}
+
+function readSapCategoryPropertyCatalog(log) {
+  const config = getSapConfig();
+  const conn = hana.createConnection();
+  const sql =
+    'SELECT "ItmsTypCod", "ItmsGrpNam", "UserSign" ' +
+    'FROM "' +
+    config.query.schema +
+    '"."OITG" ' +
+    'ORDER BY "ItmsTypCod"';
+
+  try {
+    if (log) {
+      log("info", "Consultando catalogo SAP de propiedades de articulos", {
+        schema: config.query.schema,
+      });
+    }
+
+    conn.connect(config.connection);
+    return conn.exec(sql).map(mapPropertyCatalogRow);
+  } finally {
+    try {
+      conn.disconnect();
+    } catch {}
+  }
+}
+
+function mapCategoryDiagnosticRow(row, propertyMap) {
+  const activePropertyCodes = [];
+  const activePropertyNames = [];
+
+  for (let index = 1; index <= 64; index += 1) {
+    const field = `QryGroup${index}`;
+    if (String(row[field] || "").toUpperCase() !== "Y") {
+      continue;
+    }
+
+    activePropertyCodes.push(index);
+    activePropertyNames.push(propertyMap.get(index) || `QryGroup${index}`);
+  }
+
+  return {
+    itemCode: row.ItemCode,
+    itemName: row.ItemName,
+    itemGroupCode: Number(row.ItmsGrpCod),
+    itemGroupName: row.ItmsGrpNam || "",
+    activePropertyCodes,
+    activePropertyNames,
+    activePropertyCount: activePropertyCodes.length,
+    proposedPrestaCategory: row.ItmsGrpNam || "",
+    proposedPrestaCategoryPath: row.ItmsGrpNam
+      ? [row.ItmsGrpNam]
+      : ["SIN_GRUPO_SAP"],
+    hasMainCategory: Boolean(row.ItmsGrpNam),
+  };
+}
+
 function readSapOverview(log) {
   const config = getSapConfig();
   const conn = hana.createConnection();
@@ -225,10 +319,69 @@ function readSapArticleByCode(log, itemCode) {
   }
 }
 
+function readSapCategoryDiagnostics(log) {
+  const config = getSapConfig();
+  const conn = hana.createConnection();
+
+  log("info", "Configuracion SAP cargada para categories", {
+    serverNode: config.connection.serverNode,
+    uid: config.connection.uid,
+    schema: config.query.schema,
+    itemCode: config.query.itemCode,
+    limit: config.query.limit,
+  });
+
+  try {
+    const propertyCatalog = readSapCategoryPropertyCatalog(log);
+    const propertyMap = new Map(
+      propertyCatalog.map((property) => [property.code, property.name]),
+    );
+
+    connectSap(conn, log, config);
+
+    const query = buildCategoryDiagnosticQuery(config.query);
+    log("info", "Ejecutando query SAP para categories", {
+      params: query.params,
+      itemCodeFilterApplied: Boolean(config.query.itemCode),
+      limitApplied:
+        Number.isFinite(config.query.limit) && Number(config.query.limit) > 0,
+      effectiveLimit:
+        Number.isFinite(config.query.limit) && Number(config.query.limit) > 0
+          ? Number(config.query.limit)
+          : "sin limite",
+    });
+
+    const startedAt = Date.now();
+    const rows = conn.exec(query.sql, query.params);
+    const diagnostics = rows.map((row) =>
+      mapCategoryDiagnosticRow(row, propertyMap),
+    );
+
+    log("info", "Query SAP de categories completada", {
+      rows: diagnostics.length,
+      propertyCatalogSize: propertyCatalog.length,
+      elapsedMs: Date.now() - startedAt,
+    });
+
+    return {
+      propertyCatalog,
+      diagnostics,
+    };
+  } finally {
+    try {
+      conn.disconnect();
+      log("info", "Conexion SAP cerrada");
+    } catch {}
+  }
+}
+
 module.exports = {
   buildArticleQuery,
+  buildCategoryDiagnosticQuery,
   getSapConfig,
   readSapArticleByCode,
   readSapArticles,
+  readSapCategoryDiagnostics,
+  readSapCategoryPropertyCatalog,
   readSapOverview,
 };

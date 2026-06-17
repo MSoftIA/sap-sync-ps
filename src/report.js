@@ -20,8 +20,13 @@ function csvEscape(value) {
 }
 
 function createRunReportPaths() {
+  return createDomainReportPaths();
+}
+
+function createDomainReportPaths(options = {}) {
   const reportDir = env("REPORT_DIR", "reports");
-  const baseName = env("REPORT_BASENAME", "sap-prestashop-diagnostic");
+  const baseName =
+    options.baseName || env("REPORT_BASENAME", "sap-prestashop-diagnostic");
   const timestamp = timestampForFile();
   const dir = path.join(process.cwd(), reportDir);
 
@@ -206,6 +211,72 @@ function writeRunReports(log, results) {
   return { paths, summary };
 }
 
+function writeDomainSnapshot(log, { domain, summary, rows, csvHeaders }) {
+  const baseName = `${env("REPORT_BASENAME", "sap-prestashop-diagnostic")}-${domain}`;
+  const paths = createDomainReportPaths({ baseName });
+
+  fs.writeFileSync(
+    paths.summaryPath,
+    JSON.stringify(
+      {
+        generatedAt: new Date().toISOString(),
+        domain,
+        summary,
+      },
+      null,
+      2,
+    ) + "\n",
+    "utf8",
+  );
+
+  fs.writeFileSync(
+    paths.rowsPath,
+    JSON.stringify(
+      {
+        generatedAt: new Date().toISOString(),
+        domain,
+        rows,
+      },
+      null,
+      2,
+    ) + "\n",
+    "utf8",
+  );
+
+  if (Array.isArray(csvHeaders) && csvHeaders.length > 0) {
+    const lines = [csvHeaders.join(",")];
+
+    for (const row of rows) {
+      const values = csvHeaders.map((header) => {
+        const value = row[header];
+        if (Array.isArray(value)) {
+          return csvEscape(value.join(" | "));
+        }
+        if (value && typeof value === "object") {
+          return csvEscape(JSON.stringify(value));
+        }
+        return csvEscape(value);
+      });
+
+      lines.push(values.join(","));
+    }
+
+    fs.writeFileSync(paths.csvPath, lines.join("\n") + "\n", "utf8");
+  }
+
+  log("info", "Reporte de dominio generado", {
+    domain,
+    summaryPath: paths.summaryPath,
+    rowsPath: paths.rowsPath,
+    csvPath: paths.csvPath,
+    summary,
+  });
+
+  return { paths, summary };
+}
+
 module.exports = {
+  createDomainReportPaths,
   writeRunReports,
+  writeDomainSnapshot,
 };
