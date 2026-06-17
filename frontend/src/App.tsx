@@ -1,6 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { CatalogOverview, Report, DomainAnalysis } from './types'
 import { AppProvider, useAppContext } from './context/AppContext'
+import { ToastProvider } from './context/ToastContext'
+import { ToastContainer } from './components/ToastContainer'
+import { Sidebar } from './components/Sidebar'
 import { SyncView } from './views/SyncView'
 import { SapView } from './views/SapView'
 import { PrestaView } from './views/PrestaView'
@@ -58,57 +61,42 @@ function AppContent() {
     loadAll(false)
   }, [loadAll])
 
+  const latestActions = reports[0]?.recommendedActions ?? {}
+  const syncBadge = latestActions.createProduct ?? 0
+
   return (
-    <div className="page">
-      {/* TopBar */}
-      <section className="topbar">
-        <div className="title">
-          <h1>SAP to PrestaShop Sync</h1>
-          <p>Tablero operativo para seguir la sync masiva y detectar dónde se traba.</p>
-        </div>
-        <div className="topbar-meta">
-          <div>Ultimo reporte: <strong>{lastRunLabel}</strong></div>
-          <div>Catalogo: <strong>{overviewLabel}</strong></div>
-        </div>
-      </section>
+    <div className="layout">
+      <Sidebar
+        currentView={currentView}
+        onNavigate={setCurrentView}
+        lastRunLabel={lastRunLabel}
+        overviewLabel={overviewLabel}
+        badges={{ sync: syncBadge }}
+      />
 
-      {/* AppNav */}
-      <nav className="app-nav">
-        <div className="app-nav-group">
-          {(['sync', 'sap', 'presta'] as const).map((view, i) => (
-            <button
-              key={view}
-              className={currentView === view ? 'active' : ''}
-              type="button"
-              onClick={() => { setCurrentView(view); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-            >
-              {['Sync', 'SAP', 'PrestaShop'][i]}
-            </button>
-          ))}
-        </div>
-        <div className="app-nav-group">
-          <button type="button" onClick={() => loadAll(true)}>Refrescar</button>
-        </div>
-      </nav>
+      <div className="main-content">
+        {currentView === 'sync' && (
+          <SyncView
+            reports={reports}
+            domainAnalysis={domainAnalysis}
+            onRefresh={() => loadAll(true)}
+          />
+        )}
+        {currentView === 'sap' && <SapView overview={overview} onRefresh={() => loadAll(true)} />}
+        {currentView === 'presta' && <PrestaView overview={overview} onRefresh={() => loadAll(true)} />}
+      </div>
 
-      {/* Vistas */}
-      {currentView === 'sync' && (
-        <SyncView
-          reports={reports}
-          domainAnalysis={domainAnalysis}
-          onRefresh={() => loadAll(true)}
-        />
-      )}
-      {currentView === 'sap' && <SapView overview={overview} />}
-      {currentView === 'presta' && <PrestaView overview={overview} />}
+      <ToastContainer />
     </div>
   )
 }
 
 export function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <ToastProvider>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </ToastProvider>
   )
 }

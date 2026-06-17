@@ -150,6 +150,7 @@ function parseCombinationDetails(xml) {
 function parseStockAvailables(xml) {
   return parseXmlBlocks(xml, "stock_available").map((block) => ({
     id: Number(xmlText(block, "id")),
+    productId: Number(xmlText(block, "id_product") || 0),
     productAttributeId: Number(xmlText(block, "id_product_attribute") || 0),
     quantity: Number(xmlText(block, "quantity") || 0),
   }));
@@ -218,6 +219,110 @@ async function readPrestaOverview(client, log) {
   };
 }
 
+async function listPrestaProducts(client, params = {}, batchSize = 250) {
+  let offset = 0;
+  const products = [];
+
+  while (true) {
+    const xml = await client.get("products", {
+      display: "[id,reference,active,id_category_default,price]",
+      limit: `${offset},${batchSize}`,
+      ...params,
+    });
+    const batch = parseProductSummaryList(xml);
+    products.push(...batch);
+
+    if (batch.length < batchSize) {
+      break;
+    }
+
+    offset += batchSize;
+  }
+
+  return products;
+}
+
+async function listPrestaStockAvailables(client, params = {}, batchSize = 250) {
+  let offset = 0;
+  const rows = [];
+
+  while (true) {
+    const xml = await client.get("stock_availables", {
+      display: "full",
+      limit: `${offset},${batchSize}`,
+      ...params,
+    });
+    const batch = parseStockAvailables(xml);
+    rows.push(...batch);
+
+    if (batch.length < batchSize) {
+      break;
+    }
+
+    offset += batchSize;
+  }
+
+  return rows;
+}
+
+function groupBy(items, getKey) {
+  const map = new Map();
+
+  for (const item of items) {
+    const key = getKey(item);
+    const current = map.get(key) || [];
+    current.push(item);
+    map.set(key, current);
+  }
+
+  return map;
+}
+
+async function buildPrestaCatalogSnapshot(client, log) {
+  log("info", "Precargando snapshot de PrestaShop", {
+    resources: ["products", "stock_availables"],
+  });
+
+  const startedAt = Date.now();
+  const [products, stockAvailables] = await Promise.all([
+    listPrestaProducts(client),
+    listPrestaStockAvailables(client),
+  ]);
+
+  const productsByReference = groupBy(products, (product) => product.reference);
+  const productsById = new Map(
+    products.map((product) => [product.id, product]),
+  );
+  const stockByProductId = groupBy(stockAvailables, (stock) => stock.productId);
+  const productsWithCombinations = new Set(
+    stockAvailables
+      .filter((stock) => Number(stock.productAttributeId) > 0)
+      .map((stock) => Number(stock.productId)),
+  );
+
+  const snapshot = {
+    products,
+    stockAvailables,
+    productsByReference,
+    productsById,
+    stockByProductId,
+    productsWithCombinations,
+    combinationCache: new Map(),
+    attributeValueCache: new Map(),
+    attributeGroupCache: new Map(),
+  };
+
+  log("info", "Snapshot de PrestaShop listo", {
+    products: products.length,
+    stockRows: stockAvailables.length,
+    references: productsByReference.size,
+    productsWithCombinations: productsWithCombinations.size,
+    elapsedMs: Date.now() - startedAt,
+  });
+
+  return snapshot;
+}
+
 async function inspectProductByReferenceValue(client, reference, log) {
   const searchXml = await client.get("products", {
     display: "[id,reference,active,id_category_default,price]",
@@ -270,6 +375,163 @@ async function inspectProductByReferenceValue(client, reference, log) {
     productId,
     ...product,
     matchCount: productIds.length,
+    combinationIds: combinations.map((item) => item.id),
+    stockIds: stockAvailables.map((item) => item.id),
+    combinations,
+    stockAvailables,
+  };
+}
+
+async function getAttributeValueDetailsCached(client, snapshot, id) {
+  if (snapshot.attributeValueCache.has(id)) {
+    return snapshot.attributeValueCache.get(id);
+  }
+
+  const xml = await client.get("product_option_values/" + id);
+  const value = {
+    id,
+    groupId: Number(xmlText(xml, "id_attribute_group") || 0),
+    name: xmlLanguageText(xml, "name"),
+  };
+  snapshot.attributeValueCache.set(id, value);
+  return value;
+}
+
+async function getAttributeGroupDetailsCached(client, snapshot, id) {
+  if (snapshot.attributeGroupCache.has(id)) {
+    return snapshot.attributeGroupCache.get(id);
+  }
+
+  const xml = await client.get("product_options/" + id);
+  const group = {
+    id,
+    name: xmlLanguageText(xml, "name"),
+  };
+  snapshot.attributeGroupCache.set(id, group);
+  return group;
+}
+
+async function enrichCombinationsCached(
+  client,
+  snapshot,
+  productId,
+  baseCombinations,
+) {
+  const cached = snapshot.combinationCache.get(productId);
+  if (cached) {
+    return cached;
+  }
+
+  const detailedCombinations = await Promise.all(
+    baseCombinations.map(async (combination) => {
+      const xml = await client.get("combinations/" + combination.id);
+      const details = parseCombinationDetails(xml);
+      return {
+        ...combination,
+        ...details,
+      };
+    }),
+  );
+
+  const optionValueIds = [
+    ...new Set(
+      detailedCombinations.flatMap((combination) => combination.optionValueIds),
+    ),
+  ];
+
+  if (optionValueIds.length === 0) {
+    const result = detailedCombinations.map((combination) => ({
+      ...combination,
+      optionValues: [],
+    }));
+    snapshot.combinationCache.set(productId, result);
+    return result;
+  }
+
+  const attributeValues = await Promise.all(
+    optionValueIds.map(async (id) =>
+      getAttributeValueDetailsCached(client, snapshot, id),
+    ),
+  );
+  const attributeValueMap = new Map(
+    attributeValues.map((item) => [item.id, item]),
+  );
+
+  const groupIds = [
+    ...new Set(
+      attributeValues
+        .map((item) => item.groupId)
+        .filter((groupId) => Number.isFinite(groupId) && groupId > 0),
+    ),
+  ];
+  const groups = await Promise.all(
+    groupIds.map(async (id) =>
+      getAttributeGroupDetailsCached(client, snapshot, id),
+    ),
+  );
+  const groupMap = new Map(groups.map((item) => [item.id, item]));
+
+  const result = detailedCombinations.map((combination) => ({
+    ...combination,
+    optionValues: combination.optionValueIds.map((id) => {
+      const value = attributeValueMap.get(id);
+      const group = value ? groupMap.get(value.groupId) : null;
+
+      return {
+        id,
+        groupId: value ? value.groupId : null,
+        groupName: group ? group.name : "",
+        name: value ? value.name : "",
+      };
+    }),
+  }));
+
+  snapshot.combinationCache.set(productId, result);
+  return result;
+}
+
+async function inspectProductByReferenceFromSnapshot(
+  client,
+  snapshot,
+  reference,
+  log,
+) {
+  const matches = snapshot.productsByReference.get(reference) || [];
+
+  if (log) {
+    log("debug", "Busqueda producto PrestaShop", {
+      reference,
+      productIds: matches.map((item) => item.id),
+      matches: matches.length,
+      source: "snapshot",
+    });
+  }
+
+  if (matches.length === 0) {
+    return null;
+  }
+
+  const product = matches[0];
+  const stockAvailables = snapshot.stockByProductId.get(product.id) || [];
+  let combinations = [];
+
+  if (snapshot.productsWithCombinations.has(product.id)) {
+    const combinationsXml = await client.get("combinations", {
+      display: "full",
+      "filter[id_product]": product.id,
+    });
+    combinations = await enrichCombinationsCached(
+      client,
+      snapshot,
+      product.id,
+      parseCombinationList(combinationsXml),
+    );
+  }
+
+  return {
+    productId: product.id,
+    ...product,
+    matchCount: matches.length,
     combinationIds: combinations.map((item) => item.id),
     stockIds: stockAvailables.map((item) => item.id),
     combinations,
@@ -434,7 +696,42 @@ async function inspectProductByReference(client, article, log) {
   };
 }
 
+async function inspectProductByReferenceCached(client, snapshot, article, log) {
+  const inspection = await inspectProductByReferenceFromSnapshot(
+    client,
+    snapshot,
+    article.itemCode,
+    log,
+  );
+
+  if (!inspection) {
+    if (log) {
+      log("warn", "Producto no encontrado en PrestaShop", {
+        reference: article.itemCode,
+      });
+    }
+    return null;
+  }
+
+  if (inspection.matchCount > 1) {
+    log("warn", "Referencia duplicada en PrestaShop", {
+      reference: article.itemCode,
+      productIds: [inspection.productId],
+    });
+  }
+
+  return {
+    ...inspection,
+    bestMatch: findBestPrestaMatch(
+      article,
+      inspection.combinations,
+      inspection.stockAvailables,
+    ),
+  };
+}
+
 module.exports = {
+  buildPrestaCatalogSnapshot,
   countPrestaResources,
   createPrestaClient,
   findBestPrestaMatch,
@@ -442,7 +739,10 @@ module.exports = {
   getPrestaConfig,
   hasPrestaConfig,
   inspectProductByReference,
+  inspectProductByReferenceCached,
   inspectProductByReferenceValue,
+  listPrestaProducts,
+  listPrestaStockAvailables,
   readPrestaOverview,
   updatePrestaProductActive,
 };

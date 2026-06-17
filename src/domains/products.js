@@ -1,7 +1,8 @@
 const {
+  buildPrestaCatalogSnapshot,
   createPrestaClient,
   hasPrestaConfig,
-  inspectProductByReference,
+  inspectProductByReferenceCached,
 } = require("../prestashop");
 const { readSapArticles } = require("../sap");
 const { executeSyncAction, isWriteEnabled } = require("../sync-executor");
@@ -191,6 +192,18 @@ function buildResultRow(article, inspection) {
   };
 }
 
+function shouldLogProgress(index, total) {
+  if (total <= 100) {
+    return true;
+  }
+
+  if (index === 0 || index === total - 1) {
+    return true;
+  }
+
+  return (index + 1) % 25 === 0;
+}
+
 async function runProductDomain(log) {
   log("info", "Dominio products iniciado", {
     writeEnabled: isWriteEnabled(),
@@ -225,21 +238,27 @@ async function runProductDomain(log) {
   }
 
   const prestaClient = createPrestaClient(log);
+  const prestaSnapshot = await buildPrestaCatalogSnapshot(prestaClient, log);
   const results = [];
 
   for (const [index, article] of articles.entries()) {
-    log("info", "Progreso de dominio", {
-      domain: "products",
-      current: index + 1,
-      total: totalArticles,
-      percent:
-        totalArticles > 0 ? Math.round(((index + 1) / totalArticles) * 100) : 0,
-      itemCode: article.itemCode,
-    });
+    if (shouldLogProgress(index, totalArticles)) {
+      log("info", "Progreso de dominio", {
+        domain: "products",
+        current: index + 1,
+        total: totalArticles,
+        percent:
+          totalArticles > 0
+            ? Math.round(((index + 1) / totalArticles) * 100)
+            : 0,
+        itemCode: article.itemCode,
+      });
+    }
 
     try {
-      const inspection = await inspectProductByReference(
+      const inspection = await inspectProductByReferenceCached(
         prestaClient,
+        prestaSnapshot,
         article,
         log,
       );
@@ -315,8 +334,8 @@ async function runProductDomain(log) {
         productPrice: inspection.productPrice,
         combinationIds: inspection.combinationIds,
         stockIds: inspection.stockIds,
-        combinations: inspection.combinations,
-        stockAvailables: inspection.stockAvailables,
+        combinationCount: inspection.combinations.length,
+        stockRowCount: inspection.stockAvailables.length,
       });
 
       logComparison(log, article, inspection);

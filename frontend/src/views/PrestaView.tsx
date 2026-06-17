@@ -1,16 +1,23 @@
 import { useState } from 'react'
 import type { CatalogOverview, PrestaControlResult } from '../types'
+import { useToast } from '../context/ToastContext'
 import { MessageBox } from '../components/MessageBox'
-import { fmt, money, fmtDate } from '../utils'
+import { Skeleton } from '../components/Skeleton'
+import { EmptyState } from '../components/EmptyState'
+import { BarChart } from '../components/BarChart'
+import { fmt, money } from '../utils'
 import { lookupReference, changeProductStatus } from '../api/prestashop'
 
 interface Props {
   overview: CatalogOverview | null
+  onRefresh: () => void
 }
 
-export function PrestaView({ overview }: Props) {
+export function PrestaView({ overview, onRefresh }: Props) {
   const presta = overview?.prestashop ?? {}
   const contrast = overview?.contrast ?? null
+  const loading = overview === null
+  const { addToast } = useToast()
 
   const [reference, setReference] = useState('')
   const [lookup, setLookup] = useState<PrestaControlResult | null>(null)
@@ -77,22 +84,23 @@ export function PrestaView({ overview }: Props) {
     try {
       const res = await changeProductStatus(lookup.prestashop.productId, active)
       setLookupMsg({ text: res.message, kind: 'info' })
+      addToast({ message: res.message, kind: 'success' })
       const data = await lookupReference(reference.trim())
       setLookup(data)
       renderLookupMsg(data)
     } catch (err) {
-      setLookupMsg({ text: 'No pude cambiar el estado: ' + (err instanceof Error ? err.message : String(err)), kind: 'error' })
+      const msg = 'No pude cambiar el estado: ' + (err instanceof Error ? err.message : String(err))
+      setLookupMsg({ text: msg, kind: 'error' })
+      addToast({ message: msg, kind: 'error' })
     }
   }
 
-  const psStatus = presta.error ? 'No disponible' : 'Disponible'
   const canChangeStatus = Boolean(lookup?.prestashop?.productId)
-
   const sapData = lookup?.sap
   const psData = lookup?.prestashop
 
   return (
-    <main className="view active">
+    <main>
       <div className="subnav">
         <button type="button" onClick={() => document.getElementById('presta-summary')?.scrollIntoView({ behavior: 'smooth' })}>Resumen</button>
         <button type="button" onClick={() => document.getElementById('presta-gap')?.scrollIntoView({ behavior: 'smooth' })}>Brechas</button>
@@ -104,63 +112,116 @@ export function PrestaView({ overview }: Props) {
           <h2 className="section-title">Catálogo PrestaShop</h2>
           <div className="section-note">Lectura actual del webservice.</div>
         </div>
-        <div className="grid grid-3">
-          <div className="card metric-card">
-            <div className="label">Total productos</div>
-            <div className="value">{fmt(presta.totalProducts)}</div>
-            <div className="hint">Productos encontrados por API</div>
+
+        {loading ? (
+          <div className="grid grid-3">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="card metric-card">
+                <Skeleton width="60%" height={12} />
+                <Skeleton width="40%" height={40} />
+                <Skeleton width="80%" height={12} />
+              </div>
+            ))}
           </div>
-          <div className="card metric-card">
-            <div className="label">Activos</div>
-            <div className="value">{fmt(presta.activeProducts)}</div>
-            <div className="hint">Productos activos en tienda</div>
+        ) : presta.error ? (
+          <div className="card">
+            <EmptyState
+              icon="!"
+              title="No se pudo conectar a PrestaShop"
+              description={presta.error}
+              action={{ label: 'Reintentar', onClick: onRefresh }}
+            />
           </div>
-          <div className="card metric-card">
-            <div className="label">Combinaciones</div>
-            <div className="value">{fmt(presta.totalCombinations)}</div>
-            <div className="hint">Total de variaciones detectadas</div>
+        ) : (
+          <div className="grid grid-3">
+            <div className="card metric-card">
+              <div className="label">Total productos</div>
+              <div className="value">{fmt(presta.totalProducts)}</div>
+              <div className="hint">Productos encontrados por API</div>
+            </div>
+            <div className="card metric-card">
+              <div className="label">Activos</div>
+              <div className="value">{fmt(presta.activeProducts)}</div>
+              <div className="hint">Productos activos en tienda</div>
+            </div>
+            <div className="card metric-card">
+              <div className="label">Combinaciones</div>
+              <div className="value">{fmt(presta.totalCombinations)}</div>
+              <div className="hint">Total de variaciones detectadas</div>
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
       <section id="presta-gap" className="section">
-        <div className="grid grid-4">
-          <div className="card stat-box">
-            <div className="label">Faltan en PrestaShop</div>
-            <div className="value">{fmt(contrast?.missingProductsInPrestashop)}</div>
+        {loading ? (
+          <div className="grid grid-4">
+            {[0,1,2,3].map(i => (
+              <div key={i} className="card stat-box">
+                <Skeleton width="70%" height={12} />
+                <Skeleton width="40%" height={32} />
+              </div>
+            ))}
           </div>
-          <div className="card stat-box">
-            <div className="label">Activos SAP no publicados</div>
-            <div className="value">{fmt(contrast?.activeProductsMissingInPrestashop)}</div>
-          </div>
-          <div className="card stat-box">
-            <div className="label">Extra en PrestaShop</div>
-            <div className="value">{fmt(contrast?.extraProductsInPrestashop)}</div>
-          </div>
-          <div className="card stat-box">
-            <div className="label">Estado API</div>
-            <div className="value">{psStatus}</div>
-          </div>
-        </div>
+        ) : (
+          <>
+            <div className="grid grid-4">
+              <div className="card stat-box">
+                <div className="label">Faltan en PrestaShop</div>
+                <div className="value">{fmt(contrast?.missingProductsInPrestashop)}</div>
+              </div>
+              <div className="card stat-box">
+                <div className="label">Activos SAP no publicados</div>
+                <div className="value">{fmt(contrast?.activeProductsMissingInPrestashop)}</div>
+              </div>
+              <div className="card stat-box">
+                <div className="label">Extra en PrestaShop</div>
+                <div className="value">{fmt(contrast?.extraProductsInPrestashop)}</div>
+              </div>
+              <div className="card stat-box">
+                <div className="label">Estado API</div>
+                <div className="value">{presta.error ? 'No disponible' : 'Disponible'}</div>
+              </div>
+            </div>
+
+            {contrast && (
+              <div className="card" style={{ marginTop: 16 }}>
+                <div className="section-note" style={{ marginBottom: 12 }}>Brecha SAP vs PrestaShop</div>
+                <BarChart items={[
+                  { label: 'SAP total',      value: (overview?.sap?.totalProducts ?? 0), color: '#3659e3' },
+                  { label: 'PrestaShop',     value: (presta.totalProducts ?? 0), color: '#6ea8fe' },
+                  { label: 'Faltan en PS',   value: (contrast.missingProductsInPrestashop ?? 0), color: '#b91c1c' },
+                  { label: 'Extra en PS',    value: (contrast.extraProductsInPrestashop ?? 0), color: '#b45309' },
+                ]} />
+              </div>
+            )}
+          </>
+        )}
       </section>
 
       <section id="presta-control" className="section">
         <div className="grid grid-2">
           <div className="card">
-            <dl className="data-list">
-              <dt>Total productos</dt>
-              <dd>{fmt(presta.totalProducts)}</dd>
-              <dt>Activos</dt>
-              <dd>{fmt(presta.activeProducts)}</dd>
-              <dt>Inactivos</dt>
-              <dd>{fmt(presta.inactiveProducts)}</dd>
-              <dt>Total combinaciones</dt>
-              <dd>{fmt(presta.totalCombinations)}</dd>
-              <dt>Productos extra</dt>
-              <dd>{fmt(contrast?.extraProductsInPrestashop)}</dd>
-              <dt>Inactivos extra</dt>
-              <dd>{fmt(contrast?.inactiveProductsExtraInPrestashop)}</dd>
-            </dl>
+            {loading ? (
+              <div style={{ display: 'grid', gap: 12 }}>
+                {[0,1,2,3,4,5].map(i => <Skeleton key={i} width="100%" height={18} />)}
+              </div>
+            ) : (
+              <dl className="data-list">
+                <dt>Total productos</dt>
+                <dd>{fmt(presta.totalProducts)}</dd>
+                <dt>Activos</dt>
+                <dd>{fmt(presta.activeProducts)}</dd>
+                <dt>Inactivos</dt>
+                <dd>{fmt(presta.inactiveProducts)}</dd>
+                <dt>Total combinaciones</dt>
+                <dd>{fmt(presta.totalCombinations)}</dd>
+                <dt>Productos extra</dt>
+                <dd>{fmt(contrast?.extraProductsInPrestashop)}</dd>
+                <dt>Inactivos extra</dt>
+                <dd>{fmt(contrast?.inactiveProductsExtraInPrestashop)}</dd>
+              </dl>
+            )}
           </div>
 
           <div className="card card-soft">

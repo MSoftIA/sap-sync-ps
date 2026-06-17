@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import type { Report, DomainAnalysis, SyncProgress } from '../types'
 import { useAppContext, defaultProgress } from '../context/AppContext'
+import { useToast } from '../context/ToastContext'
 import { DomainCard } from '../components/DomainCard'
 import { LogBox } from '../components/LogBox'
 import type { LogEntry } from '../components/LogBox'
@@ -8,6 +9,9 @@ import { MessageBox } from '../components/MessageBox'
 import { ProgressBar } from '../components/ProgressBar'
 import { StatusBadge } from '../components/StatusBadge'
 import { Tag } from '../components/Tag'
+import { BarChart } from '../components/BarChart'
+import { ConfirmModal } from '../components/ConfirmModal'
+import { EmptyState } from '../components/EmptyState'
 import { fmt, fmtDate } from '../utils'
 import { startSyncStream } from '../api/sync'
 
@@ -57,13 +61,16 @@ function parseLogLine(raw: string): { text: string; cls: LogEntry['cls']; progre
 
 export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
   const { writeMode, setWriteMode, syncRunning, setSyncRunning,
-    selectedDomains, setSelectedDomains, availableDomains, currentProgress, setCurrentProgress } = useAppContext()
+    selectedDomains, setSelectedDomains, availableDomains, setCurrentProgress } = useAppContext()
+  const { addToast } = useToast()
 
   const [logEntries, setLogEntries] = useState<LogEntry[]>([])
   const [progress, setProgress] = useState<SyncProgress>(defaultProgress)
   const [statusLabel, setStatusLabel] = useState<string>('Listo')
   const [itemCode, setItemCode] = useState('')
   const [limit, setLimit] = useState('')
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [pendingFullCatalog, setPendingFullCatalog] = useState(false)
 
   const latest = reports[0] ?? null
   const latestActions = latest?.recommendedActions ?? {}
@@ -87,7 +94,18 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
     setSelectedDomains(next)
   }
 
+  function requestSync(fullCatalog: boolean) {
+    if (syncRunning) return
+    if (writeMode) {
+      setPendingFullCatalog(fullCatalog)
+      setShowConfirm(true)
+    } else {
+      runSync(fullCatalog)
+    }
+  }
+
   const runSync = useCallback((fullCatalog = false) => {
+    setShowConfirm(false)
     if (syncRunning) return
 
     setSyncRunning(true)
@@ -133,7 +151,12 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
         es.close()
         setSyncRunning(false)
         setStatusLabel(ok ? 'Completado' : 'Con errores')
-        if (ok) setProgress(prev => ({ ...prev, percent: 100, known: true }))
+        if (ok) {
+          setProgress(prev => ({ ...prev, percent: 100, known: true }))
+          addToast({ message: 'Sync completado exitosamente.', kind: 'success' })
+        } else {
+          addToast({ message: `Sync finalizo con codigo ${msg.code}. Revisa el log.`, kind: 'error' })
+        }
         onRefresh()
       }
     }
@@ -143,8 +166,9 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
       es.close()
       setSyncRunning(false)
       setStatusLabel('Con errores')
+      addToast({ message: 'Error de conexion con el servidor.', kind: 'error' })
     }
-  }, [syncRunning, writeMode, activeDomains, itemCode, limit])
+  }, [syncRunning, writeMode, activeDomains, itemCode, limit, addToast])
 
   // Domain analysis data
   const products = domainAnalysis?.domains?.products
@@ -177,8 +201,24 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
   const progressPercent = statusLabel === 'Completado' ? 100 : progress.percent
   const progressKnown = statusLabel === 'Completado' ? true : progress.known
 
+  const hasLastRun = (latestSummary.total ?? 0) > 0
+  const chartItems = hasLastRun ? [
+    { label: 'Crear', value: latestActions.createProduct ?? 0, color: '#15803d' },
+    { label: 'Actualizar', value: updateCount, color: '#b45309' },
+    { label: 'Sin cambio', value: latestActions.skipNoChange ?? 0, color: '#667085' },
+    { label: 'Revisión', value: reviewCount, color: '#b91c1c' },
+  ] : []
+
   return (
-    <main className="view active">
+    <main>
+      {showConfirm && (
+        <ConfirmModal
+          domains={activeDomains}
+          onConfirm={() => runSync(pendingFullCatalog)}
+          onCancel={() => setShowConfirm(false)}
+        />
+      )}
+
       <div className="subnav">
         {['sync-summary', 'sync-actions', 'sync-analysis', 'sync-progress', 'sync-logs', 'sync-history'].map((id, i) => (
           <button key={id} type="button" onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })}>
@@ -239,6 +279,13 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
                   <div className="hint">Casos pendientes</div>
                 </div>
               </div>
+
+              {hasLastRun && (
+                <div style={{ marginTop: 16 }}>
+                  <div className="section-note" style={{ marginBottom: 10 }}>Distribución última corrida</div>
+                  <BarChart items={chartItems} />
+                </div>
+              )}
             </div>
           </div>
 
@@ -342,7 +389,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
                 className="btn-dark"
                 type="button"
                 disabled={syncRunning}
-                onClick={() => runSync(true)}
+                onClick={() => requestSync(true)}
               >
                 {writeMode ? 'Sincronizar productos con PrestaShop' : 'Analizar catálogo completo'}
               </button>
@@ -372,7 +419,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
                   </div>
                 </div>
                 <div className="button-row" style={{ marginTop: 12 }}>
-                  <button className="btn-primary" type="button" disabled={syncRunning} onClick={() => runSync(false)}>
+                  <button className="btn-primary" type="button" disabled={syncRunning} onClick={() => requestSync(false)}>
                     Ejecutar corrida puntual
                   </button>
                 </div>
@@ -539,18 +586,26 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
           <h2 className="section-title">Historial de ejecuciones</h2>
           <div className="section-note">La muestra es lo procesado en esa corrida.</div>
         </div>
-        <div className="history-table">
-          <table>
-            <thead>
-              <tr>
-                <th>Fecha</th><th>Muestra</th><th>Crear</th><th>Actualizar</th>
-                <th>Sin cambio</th><th>Revision</th><th>Aplicados</th><th>Errores</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reports.length === 0
-                ? <tr><td colSpan={8} className="empty">Sin reportes todavia.</td></tr>
-                : reports.map((r, i) => {
+        {reports.length === 0 ? (
+          <div className="card">
+            <EmptyState
+              icon="○"
+              title="Sin corridas registradas"
+              description="Ejecuta una sincronización para ver el historial aquí."
+              action={{ label: 'Ir a Ejecutar', onClick: () => document.getElementById('sync-actions')?.scrollIntoView({ behavior: 'smooth' }) }}
+            />
+          </div>
+        ) : (
+          <div className="history-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th><th>Muestra</th><th>Crear</th><th>Actualizar</th>
+                  <th>Sin cambio</th><th>Revision</th><th>Aplicados</th><th>Errores</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reports.map((r, i) => {
                   const a = r.recommendedActions ?? {}
                   const s = r.summary ?? {}
                   const upd = (a.updateProductPrice ?? 0) + (a.updateProductStock ?? 0) + (a.updateProductPriceAndStock ?? 0)
@@ -570,9 +625,10 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
                     </tr>
                   )
                 })}
-            </tbody>
-          </table>
-        </div>
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </main>
   )
