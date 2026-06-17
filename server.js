@@ -32,7 +32,7 @@ let overviewCache = {
 };
 const MAX_SYNC_LOG_LINES = 5000;
 
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "dist")));
 app.use(express.json());
 
 function createSseClient(res) {
@@ -644,6 +644,11 @@ app.get("/api/sync", (req, res) => {
       activeSync.clients.delete(client);
     }
   });
+});
+
+// SPA fallback — sirve index.html para rutas no-API (debe ir después de todas las rutas /api)
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
 app.listen(PORT, () => {

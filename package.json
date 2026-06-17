@@ -2,22 +2,29 @@
   "name": "carballo-sap-prestashop-sync",
   "version": "0.1.0",
   "private": true,
-  "description": "Scripts de investigacion para sincronizacion SAP HANA a PrestaShop.",
+  "description": "Sincronizacion SAP HANA a PrestaShop con panel web React.",
   "type": "commonjs",
   "scripts": {
-    "format": "prettier --write \"*.js\" \"src/**/*.js\" \"scripts/**/*.js\"",
+    "start": "powershell -NoProfile -Command \"Clear-Host; git fetch origin; git pull --ff-only origin main\"; node server.js",
+    "serve": "node server.js",
+    "build": "vite build",
+    "sync": "node main.js",
+    "test:hana": "node scripts/test-hana.js",
     "lint": "prettier --check \"*.js\" \"src/**/*.js\" \"scripts/**/*.js\"",
-    "sync": "node .\\main.js",
-    "ui": "node .\\server.js",
-    "start": "node .\\server.js",
-    "dev": "powershell -NoProfile -Command Clear-Host; git fetch origin; git pull --ff-only origin main; npm run ui",
-    "test:hana": "node scripts/test-hana.js"
+    "format": "prettier --write \"*.js\" \"src/**/*.js\" \"scripts/**/*.js\""
   },
   "dependencies": {
     "@sap/hana-client": "^2.25.29",
-    "express": "^4.22.2"
+    "express": "^4.22.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "prettier": "^3.8.4"
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.1",
+    "prettier": "^3.8.4",
+    "typescript": "^5.5.0",
+    "vite": "^5.4.0"
   }
 }
