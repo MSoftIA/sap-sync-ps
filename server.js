@@ -25,9 +25,69 @@ let overviewCache = {
   updatedAt: 0,
   payload: null,
 };
+const MAX_SYNC_LOG_LINES = 5000;
 
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.json());
+
+function createSseClient(res) {
+  const keepAliveTimer = setInterval(() => {
+    try {
+      res.write(": keepalive\n\n");
+    } catch {}
+  }, 15000);
+
+  return {
+    res,
+    keepAliveTimer,
+  };
+}
+
+function sendSse(client, obj) {
+  try {
+    client.res.write(`data: ${JSON.stringify(obj)}\n\n`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function closeSseClient(client) {
+  clearInterval(client.keepAliveTimer);
+}
+
+function attachSyncClient(syncState, client) {
+  syncState.clients.add(client);
+
+  sendSse(client, {
+    type: "status",
+    running: true,
+    attached: true,
+    startedAt: syncState.startedAt,
+  });
+
+  for (const entry of syncState.logBuffer) {
+    sendSse(client, entry);
+  }
+}
+
+function broadcastSync(syncState, obj) {
+  for (const client of [...syncState.clients]) {
+    const ok = sendSse(client, obj);
+    if (!ok) {
+      closeSseClient(client);
+      syncState.clients.delete(client);
+    }
+  }
+}
+
+function pushSyncLog(syncState, entry) {
+  syncState.logBuffer.push(entry);
+  if (syncState.logBuffer.length > MAX_SYNC_LOG_LINES) {
+    syncState.logBuffer.shift();
+  }
+  broadcastSync(syncState, entry);
+}
 
 function buildContrast(sap, prestashop) {
   if (!sap || !prestashop || sap.error || prestashop.error) {
@@ -206,7 +266,16 @@ app.get("/api/reports", (req, res) => {
 });
 
 app.get("/api/status", (req, res) => {
-  res.json({ running: !!activeSync });
+  res.json(
+    activeSync
+      ? {
+          running: true,
+          startedAt: activeSync.startedAt,
+          pid: activeSync.proc.pid,
+          logLines: activeSync.logBuffer.length,
+        }
+      : { running: false },
+  );
 });
 
 app.get("/api/catalog-overview", async (req, res) => {
@@ -335,17 +404,24 @@ app.post("/api/prestashop-control/active", async (req, res) => {
 });
 
 app.get("/api/sync", (req, res) => {
-  if (activeSync) {
-    res.status(409).json({ error: "Ya hay un sync en curso" });
-    return;
-  }
-
   const { itemCode, limit, write, fullCatalog } = req.query;
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
+  const client = createSseClient(res);
+
+  if (activeSync) {
+    attachSyncClient(activeSync, client);
+    req.on("close", () => {
+      closeSseClient(client);
+      if (activeSync) {
+        activeSync.clients.delete(client);
+      }
+    });
+    return;
+  }
 
   const childEnv = { ...process.env };
   if (fullCatalog === "true") {
@@ -365,23 +441,22 @@ app.get("/api/sync", (req, res) => {
   }
   childEnv.SYNC_WRITE = write === "true" ? "true" : "false";
 
-  const send = (obj) => {
-    try {
-      res.write(`data: ${JSON.stringify(obj)}\n\n`);
-    } catch {
-      // client disconnected
-    }
-  };
-
   const proc = spawn("node", ["main.js"], { env: childEnv, cwd: __dirname });
-  activeSync = proc;
+  const syncState = {
+    proc,
+    clients: new Set(),
+    logBuffer: [],
+    startedAt: new Date().toISOString(),
+  };
+  activeSync = syncState;
+  attachSyncClient(syncState, client);
 
   const handleChunk = (type) => (chunk) => {
     chunk
       .toString()
       .split("\n")
       .filter(Boolean)
-      .forEach((line) => send({ type, line }));
+      .forEach((line) => pushSyncLog(syncState, { type, line }));
   };
 
   proc.stdout.on("data", handleChunk("log"));
@@ -389,16 +464,20 @@ app.get("/api/sync", (req, res) => {
 
   proc.on("close", (code) => {
     overviewCache = { updatedAt: 0, payload: null };
-    send({ type: "done", code });
-    activeSync = null;
-    // No llamamos res.end() aqui. El cliente cierra con es.close()
-    // lo que dispara req.on('close') y limpia el socket
+    broadcastSync(syncState, { type: "done", code });
+    for (const connectedClient of syncState.clients) {
+      closeSseClient(connectedClient);
+    }
+    if (activeSync === syncState) {
+      activeSync = null;
+    }
   });
 
   req.on("close", () => {
-    if (activeSync === proc) {
-      proc.kill();
-      activeSync = null;
+    closeSseClient(client);
+    syncState.clients.delete(client);
+    if (activeSync === syncState) {
+      activeSync.clients.delete(client);
     }
   });
 });
