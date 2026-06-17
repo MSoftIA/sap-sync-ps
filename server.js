@@ -14,7 +14,11 @@ const {
   readPrestaOverview,
   updatePrestaProductActive,
 } = require("./src/prestashop");
-const { readSapArticleByCode, readSapOverview } = require("./src/sap");
+const {
+  readSapArticleByCode,
+  readSapOrdersOverview,
+  readSapOverview,
+} = require("./src/sap");
 const { log } = require("./src/logger");
 const { listSyncDomains } = require("./src/sync-domains");
 
@@ -186,6 +190,20 @@ function getLatestDomainSummary(domainKey) {
 function buildDomainAnalysisSummary() {
   const products = getLatestDomainSummary("products");
   const categories = getLatestDomainSummary("categories");
+  let sapOverview = null;
+  let orders = null;
+
+  try {
+    sapOverview = readSapOverview(log);
+  } catch {}
+
+  try {
+    orders = readSapOrdersOverview(log);
+  } catch (error) {
+    orders = {
+      error: error.message,
+    };
+  }
 
   return {
     generatedAt: new Date().toISOString(),
@@ -210,18 +228,38 @@ function buildDomainAnalysisSummary() {
             available: true,
             generatedAt: categories.generatedAt || null,
             summary: categories.summary || {},
+            alignment: sapOverview
+              ? {
+                  expectedOperationalCatalog: sapOverview.totalProducts,
+                  reportCatalog: Number(categories.summary?.total || 0),
+                  isAligned:
+                    Number(categories.summary?.total || 0) ===
+                    Number(sapOverview.totalProducts || 0),
+                }
+              : null,
           }
         : {
             key: "categories",
             available: false,
             summary: null,
           },
-      orders: {
-        key: "orders",
-        available: false,
-        summary: null,
-        note: "Dominio en discovery. Todavia no genera reportes propios.",
-      },
+      orders:
+        orders && !orders.error
+          ? {
+              key: "orders",
+              available: true,
+              generatedAt: new Date().toISOString(),
+              summary: orders,
+              note: "Lectura operativa de pedidos desde SAP. Aun no escribe en PrestaShop.",
+            }
+          : {
+              key: "orders",
+              available: false,
+              summary: null,
+              note:
+                (orders && orders.error) ||
+                "No se pudo leer el resumen de pedidos desde SAP.",
+            },
     },
   };
 }

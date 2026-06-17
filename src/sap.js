@@ -84,7 +84,13 @@ function mapSapRow(row) {
   };
 }
 
-function buildCategoryDiagnosticQuery({ schema, itemCode, limit }) {
+function buildCategoryDiagnosticQuery({
+  schema,
+  priceList,
+  warehouse,
+  itemCode,
+  limit,
+}) {
   const propertyFields = Array.from({ length: 64 }, (_, index) => {
     const position = index + 1;
     return `I."QryGroup${position}" AS "QryGroup${position}"`;
@@ -103,15 +109,79 @@ function buildCategoryDiagnosticQuery({ schema, itemCode, limit }) {
       ' FROM "' +
       schema +
       '"."OITM" I ' +
+      'INNER JOIN "' +
+      schema +
+      '"."ITM1" P ON P."ItemCode" = I."ItemCode" ' +
+      'INNER JOIN "' +
+      schema +
+      '"."OITW" C ON C."ItemCode" = I."ItemCode" ' +
       'LEFT JOIN "' +
       schema +
       '"."OITB" B ON B."ItmsGrpCod" = I."ItmsGrpCod" ' +
-      "WHERE 1 = 1 " +
+      "WHERE I.\"frozenFor\" = 'N' " +
+      'AND P."PriceList" = ? ' +
+      'AND C."WhsCode" = ? ' +
       itemFilter +
       ' ORDER BY I."ItemCode"' +
       limitClause,
-    params: itemCode ? [itemCode] : [],
+    params: itemCode
+      ? [priceList, warehouse, itemCode]
+      : [priceList, warehouse],
   };
+}
+
+function readSapOrdersOverview(log) {
+  const config = getSapConfig();
+  const conn = hana.createConnection();
+  const sql =
+    "SELECT " +
+    'COUNT(*) AS "TotalOrders", ' +
+    'SUM(CASE WHEN O."DocStatus" = \'O\' AND O."CANCELED" = \'N\' THEN 1 ELSE 0 END) AS "OpenOrders", ' +
+    'SUM(CASE WHEN O."DocStatus" = \'C\' AND O."CANCELED" = \'N\' THEN 1 ELSE 0 END) AS "ClosedOrders", ' +
+    'SUM(CASE WHEN O."CANCELED" = \'Y\' THEN 1 ELSE 0 END) AS "CanceledOrders", ' +
+    'COUNT(DISTINCT O."CardCode") AS "UniqueCustomers", ' +
+    'MAX(O."DocDate") AS "LatestDocDate", ' +
+    'MAX(O."DocNum") AS "LatestDocNum", ' +
+    'SUM(CASE WHEN O."DocDate" >= ADD_DAYS(CURRENT_DATE, -30) THEN 1 ELSE 0 END) AS "OrdersLast30Days", ' +
+    'SUM(CASE WHEN O."DocDate" >= ADD_DAYS(CURRENT_DATE, -7) THEN 1 ELSE 0 END) AS "OrdersLast7Days" ' +
+    'FROM "' +
+    config.query.schema +
+    '"."ORDR" O';
+
+  try {
+    if (log) {
+      log("info", "Consultando resumen SAP de pedidos", {
+        schema: config.query.schema,
+      });
+    }
+
+    conn.connect(config.connection);
+    const rows = conn.exec(sql);
+    const row = rows[0] || {};
+
+    return {
+      source: "sap",
+      schema: config.query.schema,
+      totalOrders: Number(row.TotalOrders || 0),
+      openOrders: Number(row.OpenOrders || 0),
+      closedOrders: Number(row.ClosedOrders || 0),
+      canceledOrders: Number(row.CanceledOrders || 0),
+      uniqueCustomers: Number(row.UniqueCustomers || 0),
+      ordersLast30Days: Number(row.OrdersLast30Days || 0),
+      ordersLast7Days: Number(row.OrdersLast7Days || 0),
+      latestDocNum:
+        row.LatestDocNum === null || row.LatestDocNum === undefined
+          ? null
+          : Number(row.LatestDocNum),
+      latestDocDate: row.LatestDocDate
+        ? new Date(row.LatestDocDate).toISOString()
+        : null,
+    };
+  } finally {
+    try {
+      conn.disconnect();
+    } catch {}
+  }
 }
 
 function mapPropertyCatalogRow(row) {
@@ -383,5 +453,6 @@ module.exports = {
   readSapArticles,
   readSapCategoryDiagnostics,
   readSapCategoryPropertyCatalog,
+  readSapOrdersOverview,
   readSapOverview,
 };
