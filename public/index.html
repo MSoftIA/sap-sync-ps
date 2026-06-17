@@ -868,11 +868,60 @@
       box.scrollTop = box.scrollHeight;
     }
 
+    function formatLogValue(value) {
+      if (value === undefined || value === null || value === "") return "";
+      if (Array.isArray(value)) return value.length ? value.join(", ") : "";
+      if (typeof value === "object") return JSON.stringify(value);
+      return String(value);
+    }
+
+    function buildLogDetails(obj) {
+      const preferredKeys = [
+        "itemCode",
+        "reference",
+        "productId",
+        "matches",
+        "action",
+        "status",
+        "details",
+        "recoveredProductId",
+        "payloadSummary",
+        "sapPrice",
+        "prestashopProductPrice",
+        "sapStock",
+      ];
+      const pairs = [];
+
+      for (const key of preferredKeys) {
+        if (!(key in obj)) continue;
+        const value = formatLogValue(obj[key]);
+        if (!value) continue;
+        pairs.push(`${key}=${value}`);
+      }
+
+      if (pairs.length > 0) {
+        return " | " + pairs.join(" | ");
+      }
+
+      const extraPairs = Object.entries(obj)
+        .filter(([key]) => !["ts", "level", "message"].includes(key))
+        .map(([key, value]) => [key, formatLogValue(value)])
+        .filter(([, value]) => value);
+
+      if (!extraPairs.length) {
+        return "";
+      }
+
+      return " | " + extraPairs.map(([key, value]) => `${key}=${value}`).join(" | ");
+    }
+
     function logJson(raw) {
       try {
         const obj = JSON.parse(raw);
         const time = obj.ts ? new Date(obj.ts).toLocaleTimeString("es") : "";
-        const text = `[${time}] ${obj.level ? obj.level.toUpperCase() : "INFO"} ${obj.message || raw}`;
+        const text =
+          `[${time}] ${obj.level ? obj.level.toUpperCase() : "INFO"} ${obj.message || raw}` +
+          buildLogDetails(obj);
         const cls = obj.level === "error" ? "error" : obj.level === "warn" ? "warn" : "info";
         appendLog(text, cls);
       } catch {

@@ -235,6 +235,13 @@ async function run() {
       );
 
       if (!inspection) {
+        log("info", "Articulo SAP sin coincidencia en PrestaShop", {
+          itemCode: article.itemCode,
+          sapPrice: article.price,
+          sapStock: article.stock,
+          action: "create_product",
+        });
+
         const createdRow = {
           status: "create_from_sap",
           action: "create_product",
@@ -278,6 +285,14 @@ async function run() {
           createdRow,
           log,
         );
+        log("info", "Resultado de sincronizacion", {
+          itemCode: createdRow.itemCode,
+          action: createdRow.action,
+          status: createdRow.execution.status,
+          details: createdRow.execution.details,
+          payloadSummary: createdRow.payloadSummary,
+          productId: createdRow.execution.productId || null,
+        });
         results.push(createdRow);
         continue;
       }
@@ -297,6 +312,14 @@ async function run() {
       logComparison(article, inspection);
       const row = buildResultRow(article, inspection);
       row.execution = await executeSyncAction(prestaClient, row, log);
+      log("info", "Resultado de sincronizacion", {
+        itemCode: row.itemCode,
+        action: row.action,
+        status: row.execution.status,
+        details: row.execution.details,
+        payloadSummary: row.payloadSummary,
+        productId: row.productId || row.execution.productId || null,
+      });
       results.push(row);
     } catch (error) {
       log("error", "Fallo inspeccionando articulo", {
