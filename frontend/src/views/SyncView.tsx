@@ -417,8 +417,11 @@ export function SyncView({ reports, domainAnalysis, loading, onRefresh }: Props)
               <button
                 className="btn-secondary"
                 type="button"
+                disabled={loading || syncRunning}
                 onClick={onRefresh}
+                style={{ display: 'flex', alignItems: 'center', gap: 7 }}
               >
+                {loading && <span className="spinner-dark" />}
                 Refrescar tablero
               </button>
             </div>
@@ -656,5 +659,3 @@ export function SyncView({ reports, domainAnalysis, loading, onRefresh }: Props)
     </main>
   )
 }
-
-
