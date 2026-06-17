@@ -3,6 +3,7 @@ import { Skeleton } from '../components/Skeleton'
 import { EmptyState } from '../components/EmptyState'
 import { BarChart } from '../components/BarChart'
 import { Tag } from '../components/Tag'
+import { SapCatalog } from '../components/SapCatalog'
 import { fmt, number, fmtDate } from '../utils'
 
 interface Props {
@@ -23,7 +24,8 @@ export function SapView({ overview, domainAnalysis, onRefresh }: Props) {
   return (
     <main>
       <div className="subnav">
-        <button type="button" onClick={() => document.getElementById('sap-productos')?.scrollIntoView({ behavior: 'smooth' })}>Productos</button>
+        <button type="button" onClick={() => document.getElementById('sap-productos')?.scrollIntoView({ behavior: 'smooth' })}>Resumen</button>
+        <button type="button" onClick={() => document.getElementById('sap-catalogo')?.scrollIntoView({ behavior: 'smooth' })}>Catálogo</button>
         <button type="button" onClick={() => document.getElementById('sap-categorias')?.scrollIntoView({ behavior: 'smooth' })}>Categorías</button>
         <button type="button" onClick={() => document.getElementById('sap-pedidos')?.scrollIntoView({ behavior: 'smooth' })}>Pedidos</button>
         <button type="button" onClick={() => document.getElementById('sap-detalle')?.scrollIntoView({ behavior: 'smooth' })}>Detalle</button>
@@ -86,6 +88,15 @@ export function SapView({ overview, domainAnalysis, onRefresh }: Props) {
             </div>
           </>
         )}
+      </section>
+
+      {/* Catálogo de artículos */}
+      <section id="sap-catalogo" className="section">
+        <div className="section-header">
+          <h2 className="section-title">Catálogo de artículos</h2>
+          <div className="section-note">Todos los artículos leídos desde SAP HANA.</div>
+        </div>
+        <SapCatalog />
       </section>
 
       {/* Categorías */}

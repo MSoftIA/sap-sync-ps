@@ -1122,6 +1122,97 @@ summary {
   text-align: right;
 }
 
+/* ── Catalog (SAP product list) ─────────────────────── */
+.catalog-toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.catalog-search {
+  flex: 1;
+  min-width: 200px;
+  border: 1px solid #cfd8e3;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 0.92rem;
+  background: white;
+}
+
+.catalog-search:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.catalog-filter-group {
+  display: inline-flex;
+  border: 1px solid #ccd6e3;
+  border-radius: 10px;
+  overflow: hidden;
+  background: white;
+}
+
+.catalog-filter-group button {
+  border-radius: 0;
+  background: white;
+  color: #475467;
+  padding: 9px 13px;
+  font-size: 0.85rem;
+  min-width: unset;
+}
+
+.catalog-filter-group button.active {
+  background: var(--primary);
+  color: white;
+}
+
+.catalog-info {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.catalog-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.row-inactive td {
+  opacity: 0.55;
+}
+
+.stock-zero {
+  color: var(--danger);
+  font-weight: 800;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagination-label {
+  font-size: 0.88rem;
+  color: var(--muted);
+  min-width: 80px;
+  text-align: center;
+}
+
 /* ── Accion cards (sync resumen) ────────────────────── */
 .action-cards {
   display: grid;
