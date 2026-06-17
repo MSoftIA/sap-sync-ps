@@ -413,13 +413,14 @@ app.post("/api/prestashop-control/active", async (req, res) => {
 });
 
 app.get("/api/sync", (req, res) => {
-  const { itemCode, limit, write, fullCatalog } = req.query;
+  const { itemCode, limit, write, fullCatalog, syncDomains } = req.query;
 
   log("info", "Solicitud sync recibida", {
     itemCode: itemCode ? String(itemCode).trim() : "",
     limit: limit ? String(limit).trim() : "",
     write: write === "true",
     fullCatalog: fullCatalog === "true",
+    syncDomains: syncDomains ? String(syncDomains).trim() : "",
   });
 
   res.setHeader("Content-Type", "text/event-stream");
@@ -456,14 +457,19 @@ app.get("/api/sync", (req, res) => {
     delete childEnv.SAP_LIMIT;
   }
   childEnv.SYNC_WRITE = write === "true" ? "true" : "false";
+  if (syncDomains && String(syncDomains).trim()) {
+    childEnv.SYNC_DOMAINS = String(syncDomains).trim();
+  }
 
   log("info", "Overrides aplicados al proceso sync", {
     requestedItemCode: itemCode ? String(itemCode).trim() : "",
     requestedLimit: limit ? String(limit).trim() : "",
     fullCatalogRequested: fullCatalog === "true",
+    requestedSyncDomains: syncDomains ? String(syncDomains).trim() : "",
     childSapItemCode: childEnv.SAP_ITEM_CODE || "",
     childSapLimit: childEnv.SAP_LIMIT || "",
     childSyncWrite: childEnv.SYNC_WRITE,
+    childSyncDomains: childEnv.SYNC_DOMAINS || "",
   });
 
   const proc = spawn("node", ["main.js"], { env: childEnv, cwd: __dirname });

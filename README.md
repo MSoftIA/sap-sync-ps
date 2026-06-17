@@ -44,6 +44,12 @@ LOG_LEVEL=info
 Cuando existe `.env.local`, sus valores prevalecen sobre variables viejas que
 hayan quedado cargadas en la sesion de PowerShell.
 
+Recomendacion actual:
+
+- usar `.env.local` para secretos y defaults tecnicos
+- usar la interfaz web para elegir que dominios correr (`products`,
+  `categories`, `orders`)
+
 ## Scripts disponibles
 
 Probar solo la lectura desde SAP:
@@ -160,6 +166,9 @@ Para seleccionar dominios se usa:
 ```text
 SYNC_DOMAINS=products
 ```
+
+Esa variable sigue existiendo como fallback tecnico, pero la operacion diaria
+ya puede hacerse desde el panel web mediante la segmentacion visual de sync.
 
 Ejemplo para correr solo el diagnostico de categorias:
 

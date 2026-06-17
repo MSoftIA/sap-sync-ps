@@ -365,6 +365,88 @@
         background: #b42318;
       }
 
+      .domain-picker {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid #dbe4f0;
+        border-radius: 16px;
+        background: #f8fbff;
+      }
+
+      .domain-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .domain-title {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 800;
+      }
+
+      .domain-subtitle {
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+
+      .domain-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .domain-actions button {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        border-radius: 10px;
+      }
+
+      .domain-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 10px;
+      }
+
+      .domain-card {
+        border: 1px solid #dbe4f0;
+        border-radius: 14px;
+        background: white;
+        padding: 12px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .domain-card label {
+        display: flex;
+        gap: 10px;
+        align-items: start;
+        cursor: pointer;
+      }
+
+      .domain-card input[type="checkbox"] {
+        margin-top: 2px;
+      }
+
+      .domain-card-title {
+        font-weight: 800;
+      }
+
+      .domain-card-copy {
+        color: var(--muted);
+        font-size: 0.86rem;
+        line-height: 1.4;
+      }
+
+      .domain-meta {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
       .message-box {
         border-radius: 14px;
         padding: 14px 16px;
@@ -719,6 +801,34 @@
                 Dry run analiza el catálogo y deja trazas. Write usa SAP como fuente de verdad y aplica cambios en PrestaShop.
               </div>
 
+              <div class="domain-picker">
+                <div class="domain-header">
+                  <div>
+                    <div class="domain-title">Segmentación de sync</div>
+                    <div class="domain-subtitle">
+                      Elegí desde la interfaz qué dominios quieres correr. El `.env` queda reservado para secretos y defaults técnicos.
+                    </div>
+                  </div>
+
+                  <div class="domain-actions">
+                    <button class="btn-secondary" type="button" onclick="selectOnlyDomain('products')">
+                      Solo productos
+                    </button>
+                    <button class="btn-secondary" type="button" onclick="selectAllDomains()">
+                      Todos
+                    </button>
+                  </div>
+                </div>
+
+                <div id="sync-domain-grid" class="domain-grid">
+                  <div class="empty">Cargando dominios...</div>
+                </div>
+
+                <div id="sync-domain-help" class="message-box message-info">
+                  Se usará `products` por defecto.
+                </div>
+              </div>
+
               <div class="button-row">
                 <div class="toggle-group">
                   <button
@@ -1036,6 +1146,8 @@
       let syncRunning = false;
       let currentLookup = null;
       let currentView = "sync";
+      let availableSyncDomains = [];
+      let selectedSyncDomains = ["products"];
 
       function fmt(value) {
         if (value === undefined || value === null || value === "") return "-";
@@ -1061,6 +1173,124 @@
 
       function setText(id, value) {
         document.getElementById(id).textContent = fmt(value);
+      }
+
+      function normalizeDomainSelection() {
+        const knownKeys = new Set(availableSyncDomains.map((domain) => domain.key));
+        selectedSyncDomains = selectedSyncDomains.filter((key) => knownKeys.has(key));
+        if (!selectedSyncDomains.length) {
+          selectedSyncDomains = knownKeys.has("products")
+            ? ["products"]
+            : availableSyncDomains[0]
+              ? [availableSyncDomains[0].key]
+              : [];
+        }
+      }
+
+      function renderDomainSelector() {
+        const container = document.getElementById("sync-domain-grid");
+
+        if (!availableSyncDomains.length) {
+          container.innerHTML = '<div class="empty">No pude cargar los dominios.</div>';
+          updateDomainHelp();
+          return;
+        }
+
+        normalizeDomainSelection();
+
+        container.innerHTML = availableSyncDomains
+          .map((domain) => {
+            const checked = selectedSyncDomains.includes(domain.key) ? "checked" : "";
+            const statusClass =
+              domain.status === "active"
+                ? "green"
+                : domain.status === "diagnostic"
+                  ? "amber"
+                  : "gray";
+            const statusLabel =
+              domain.status === "active"
+                ? "Activo"
+                : domain.status === "diagnostic"
+                  ? "Diagnóstico"
+                  : domain.status === "discovery"
+                    ? "Discovery"
+                    : "Planned";
+            const scope = Array.isArray(domain.scope) ? domain.scope.join(", ") : "";
+
+            return `
+              <div class="domain-card">
+                <label>
+                  <input
+                    type="checkbox"
+                    value="${domain.key}"
+                    ${checked}
+                    onchange="toggleDomain('${domain.key}')"
+                  />
+                  <div>
+                    <div class="domain-card-title">${domain.key}</div>
+                    <div class="domain-card-copy">${scope || "Sin descripción"}</div>
+                  </div>
+                </label>
+                <div class="domain-meta">
+                  <span class="tag ${statusClass}">${statusLabel}</span>
+                  <span class="tag gray">Fuente: ${fmt(domain.sourceOfTruth)}</span>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+
+        updateDomainHelp();
+      }
+
+      function updateDomainHelp() {
+        const el = document.getElementById("sync-domain-help");
+        const selected = availableSyncDomains.filter((domain) =>
+          selectedSyncDomains.includes(domain.key),
+        );
+
+        if (!selected.length) {
+          el.className = "message-box message-warn";
+          el.textContent =
+            "No hay dominios seleccionados. Voy a volver a usar `products` para evitar una corrida vacía.";
+          return;
+        }
+
+        const domainList = selected.map((domain) => domain.key).join(", ");
+        const statusNotes = selected
+          .map((domain) => `${domain.key}: ${domain.status}`)
+          .join(" | ");
+
+        el.className = "message-box message-info";
+        el.textContent =
+          `La próxima corrida usará: ${domainList}. ` +
+          `Estado actual por dominio: ${statusNotes}.`;
+      }
+
+      function toggleDomain(key) {
+        if (selectedSyncDomains.includes(key)) {
+          selectedSyncDomains = selectedSyncDomains.filter((item) => item !== key);
+        } else {
+          selectedSyncDomains = [...selectedSyncDomains, key];
+        }
+
+        normalizeDomainSelection();
+        renderDomainSelector();
+      }
+
+      function selectOnlyDomain(key) {
+        selectedSyncDomains = [key];
+        renderDomainSelector();
+      }
+
+      function selectAllDomains() {
+        selectedSyncDomains = availableSyncDomains.map((domain) => domain.key);
+        renderDomainSelector();
+      }
+
+      function getSelectedDomains() {
+        normalizeDomainSelection();
+        return [...selectedSyncDomains];
       }
 
       function setView(view) {
@@ -1316,6 +1546,13 @@
         document.getElementById("btn-run-full").disabled = syncRunning;
       }
 
+      async function loadSyncDomains() {
+        const response = await fetch("/api/sync-domains");
+        const data = await response.json();
+        availableSyncDomains = Array.isArray(data.domains) ? data.domains : [];
+        renderDomainSelector();
+      }
+
       async function loadDashboard(forceRefresh) {
         document.getElementById("overview-label").textContent = "Actualizando...";
 
@@ -1347,6 +1584,7 @@
 
         const itemCode = document.getElementById("item-code").value.trim();
         const limit = document.getElementById("limit").value.trim();
+        const domains = getSelectedDomains();
         const params = new URLSearchParams();
 
         if (options.fullCatalog) {
@@ -1357,6 +1595,8 @@
         }
 
         params.set("write", writeMode ? "true" : "false");
+        params.set("syncDomains", domains.join(","));
+        appendLog("Dominios seleccionados: " + domains.join(", "), "info");
         const es = new EventSource("/api/sync?" + params.toString());
 
         es.onmessage = (event) => {
@@ -1538,7 +1778,7 @@
 
       setView(currentView);
       setMode("dry");
-      loadDashboard(false).catch((error) => {
+      Promise.all([loadSyncDomains(), loadDashboard(false)]).catch((error) => {
         document.getElementById("overview-label").textContent =
           "No pude cargar el tablero";
         appendLog(error.message, "error");
