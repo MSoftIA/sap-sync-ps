@@ -1,24 +1,29 @@
 import { useState } from 'react'
-import type { CatalogOverview, PrestaControlResult } from '../types'
+import type { CatalogOverview, DomainAnalysis, PrestaControlResult } from '../types'
 import { useToast } from '../context/ToastContext'
 import { MessageBox } from '../components/MessageBox'
 import { Skeleton } from '../components/Skeleton'
 import { EmptyState } from '../components/EmptyState'
 import { BarChart } from '../components/BarChart'
 import { PrestaCatalog } from '../components/PrestaCatalog'
-import { fmt, money } from '../utils'
+import { fmt, fmtDate, money } from '../utils'
 import { lookupReference, changeProductStatus } from '../api/prestashop'
 
 interface Props {
   overview: CatalogOverview | null
+  domainAnalysis: DomainAnalysis | null
   onRefresh: () => void
 }
 
-export function PrestaView({ overview, onRefresh }: Props) {
+export function PrestaView({ overview, domainAnalysis, onRefresh }: Props) {
   const presta = overview?.prestashop ?? {}
   const contrast = overview?.contrast ?? null
   const loading = overview === null
   const { addToast } = useToast()
+  const categories = domainAnalysis?.domains?.categories
+  const orders = domainAnalysis?.domains?.orders
+  const categorySummary = (categories?.summary ?? {}) as Record<string, unknown>
+  const ordersSummary = (orders?.summary ?? {}) as Record<string, unknown>
 
   const [reference, setReference] = useState('')
   const [lookup, setLookup] = useState<PrestaControlResult | null>(null)
@@ -40,7 +45,10 @@ export function PrestaView({ overview, onRefresh }: Props) {
       setLookup(data)
       renderLookupMsg(data)
     } catch (err) {
-      setLookupMsg({ text: 'Error al consultar: ' + (err instanceof Error ? err.message : String(err)), kind: 'error' })
+      setLookupMsg({
+        text: 'Error al consultar: ' + (err instanceof Error ? err.message : String(err)),
+        kind: 'error',
+      })
     } finally {
       setLookupLoading(false)
     }
@@ -64,7 +72,10 @@ export function PrestaView({ overview, onRefresh }: Props) {
       return
     }
     if (!cmp?.existsInSap && cmp?.existsInPrestashop) {
-      setLookupMsg({ text: 'El producto existe en PrestaShop pero no lo pude localizar en SAP con esa referencia.', kind: 'warn' })
+      setLookupMsg({
+        text: 'El producto existe en PrestaShop pero no lo pude localizar en SAP con esa referencia.',
+        kind: 'warn',
+      })
       return
     }
     if (cmp?.samePrice) {
@@ -103,21 +114,32 @@ export function PrestaView({ overview, onRefresh }: Props) {
   return (
     <main>
       <div className="subnav">
-        <button type="button" onClick={() => document.getElementById('presta-summary')?.scrollIntoView({ behavior: 'smooth' })}>Resumen</button>
-        <button type="button" onClick={() => document.getElementById('presta-catalogo')?.scrollIntoView({ behavior: 'smooth' })}>Catálogo</button>
-        <button type="button" onClick={() => document.getElementById('presta-gap')?.scrollIntoView({ behavior: 'smooth' })}>Brechas</button>
-        <button type="button" onClick={() => document.getElementById('presta-control')?.scrollIntoView({ behavior: 'smooth' })}>Control puntual</button>
+        <button type="button" onClick={() => document.getElementById('presta-summary')?.scrollIntoView({ behavior: 'smooth' })}>
+          Resumen
+        </button>
+        <button type="button" onClick={() => document.getElementById('presta-catalog')?.scrollIntoView({ behavior: 'smooth' })}>
+          Catalogo
+        </button>
+        <button type="button" onClick={() => document.getElementById('presta-domains')?.scrollIntoView({ behavior: 'smooth' })}>
+          Categorias y pedidos
+        </button>
+        <button type="button" onClick={() => document.getElementById('presta-gap')?.scrollIntoView({ behavior: 'smooth' })}>
+          Brechas
+        </button>
+        <button type="button" onClick={() => document.getElementById('presta-control')?.scrollIntoView({ behavior: 'smooth' })}>
+          Control puntual
+        </button>
       </div>
 
       <section id="presta-summary" className="section">
         <div className="section-header">
-          <h2 className="section-title">Catálogo PrestaShop</h2>
+          <h2 className="section-title">Catalogo PrestaShop</h2>
           <div className="section-note">Lectura actual del webservice.</div>
         </div>
 
         {loading ? (
           <div className="grid grid-3">
-            {[0, 1, 2].map(i => (
+            {[0, 1, 2].map((i) => (
               <div key={i} className="card metric-card">
                 <Skeleton width="60%" height={12} />
                 <Skeleton width="40%" height={40} />
@@ -155,19 +177,83 @@ export function PrestaView({ overview, onRefresh }: Props) {
         )}
       </section>
 
-      {/* Catálogo de productos */}
-      <section id="presta-catalogo" className="section">
+      <section id="presta-catalog" className="section">
         <div className="section-header">
-          <h2 className="section-title">Catálogo de productos</h2>
-          <div className="section-note">Todos los productos leídos desde PrestaShop.</div>
+          <h2 className="section-title">Catalogo de productos</h2>
+          <div className="section-note">Todos los productos leidos desde PrestaShop.</div>
         </div>
         <PrestaCatalog />
+      </section>
+
+      <section id="presta-domains" className="section">
+        <div className="section-header">
+          <h2 className="section-title">Categorias y pedidos</h2>
+          <div className="section-note">
+            Datos complementarios ya disponibles para la integracion con PrestaShop.
+          </div>
+        </div>
+
+        <div className="grid grid-2">
+          <div className="card">
+            <div className="section-header">
+              <h2 className="section-title">Categorias</h2>
+              <div className="section-note">
+                {categories?.generatedAt
+                  ? `Ultimo diagnostico: ${fmtDate(categories.generatedAt)}`
+                  : 'Sin diagnostico reciente'}
+              </div>
+            </div>
+            <dl className="data-list">
+              <dt>Catalogo evaluado</dt>
+              <dd>{fmt(categorySummary.total)}</dd>
+              <dt>Categorias SAP unicas</dt>
+              <dd>{fmt(categorySummary.uniqueMainCategories)}</dd>
+              <dt>Propiedades activas</dt>
+              <dd>{fmt(categorySummary.uniqueActiveProperties)}</dd>
+              <dt>Sin categoria principal</dt>
+              <dd>{fmt(categorySummary.rowsWithoutMainCategory)}</dd>
+              <dt>Alineado con SAP</dt>
+              <dd>
+                {categories?.alignment
+                  ? categories.alignment.isAligned
+                    ? 'Si'
+                    : `No (${fmt(categories.alignment.reportCatalog)} vs ${fmt(categories.alignment.expectedOperationalCatalog)})`
+                  : 'Sin validar'}
+              </dd>
+            </dl>
+          </div>
+
+          <div className="card">
+            <div className="section-header">
+              <h2 className="section-title">Pedidos</h2>
+              <div className="section-note">
+                {orders?.generatedAt
+                  ? `Ultima lectura: ${fmtDate(orders.generatedAt)}`
+                  : 'Sin lectura reciente'}
+              </div>
+            </div>
+            <dl className="data-list">
+              <dt>Pedidos 30 dias</dt>
+              <dd>{fmt(ordersSummary.ordersLast30Days)}</dd>
+              <dt>Abiertos</dt>
+              <dd>{fmt(ordersSummary.openOrders)}</dd>
+              <dt>Cerrados</dt>
+              <dd>{fmt(ordersSummary.closedOrders)}</dd>
+              <dt>Cancelados</dt>
+              <dd>{fmt(ordersSummary.canceledOrders)}</dd>
+              <dt>Clientes unicos</dt>
+              <dd>{fmt(ordersSummary.uniqueCustomers)}</dd>
+              <dt>Ultimo DocNum</dt>
+              <dd>{fmt(ordersSummary.latestDocNum)}</dd>
+            </dl>
+          </div>
+        </div>
       </section>
 
       <section id="presta-gap" className="section">
         {loading ? (
           <div className="grid grid-4">
-            {[0,1,2,3].map(i => (
+            {[0, 1, 2, 3].map((i) => (
               <div key={i} className="card stat-box">
                 <Skeleton width="70%" height={12} />
                 <Skeleton width="40%" height={32} />
@@ -197,13 +283,17 @@ export function PrestaView({ overview, onRefresh }: Props) {
 
             {contrast && (
               <div className="card" style={{ marginTop: 16 }}>
-                <div className="section-note" style={{ marginBottom: 12 }}>Brecha SAP vs PrestaShop</div>
-                <BarChart items={[
-                  { label: 'SAP total',      value: (overview?.sap?.totalProducts ?? 0), color: '#3659e3' },
-                  { label: 'PrestaShop',     value: (presta.totalProducts ?? 0), color: '#6ea8fe' },
-                  { label: 'Faltan en PS',   value: (contrast.missingProductsInPrestashop ?? 0), color: '#b91c1c' },
-                  { label: 'Extra en PS',    value: (contrast.extraProductsInPrestashop ?? 0), color: '#b45309' },
-                ]} />
+                <div className="section-note" style={{ marginBottom: 12 }}>
+                  Brecha SAP vs PrestaShop
+                </div>
+                <BarChart
+                  items={[
+                    { label: 'SAP total', value: overview?.sap?.totalProducts ?? 0, color: '#3659e3' },
+                    { label: 'PrestaShop', value: presta.totalProducts ?? 0, color: '#6ea8fe' },
+                    { label: 'Faltan en PS', value: contrast.missingProductsInPrestashop ?? 0, color: '#b91c1c' },
+                    { label: 'Extra en PS', value: contrast.extraProductsInPrestashop ?? 0, color: '#b45309' },
+                  ]}
+                />
               </div>
             )}
           </>
@@ -215,7 +305,9 @@ export function PrestaView({ overview, onRefresh }: Props) {
           <div className="card">
             {loading ? (
               <div style={{ display: 'grid', gap: 12 }}>
-                {[0,1,2,3,4,5].map(i => <Skeleton key={i} width="100%" height={18} />)}
+                {[0, 1, 2, 3, 4, 5].map((i) => (
+                  <Skeleton key={i} width="100%" height={18} />
+                ))}
               </div>
             ) : (
               <dl className="data-list">
@@ -302,10 +394,20 @@ export function PrestaView({ overview, onRefresh }: Props) {
             </div>
 
             <div className="button-row" style={{ marginTop: 12 }}>
-              <button className="btn-success" type="button" disabled={!canChangeStatus} onClick={() => handleChangeStatus(true)}>
+              <button
+                className="btn-success"
+                type="button"
+                disabled={!canChangeStatus}
+                onClick={() => handleChangeStatus(true)}
+              >
                 Activar
               </button>
-              <button className="btn-danger" type="button" disabled={!canChangeStatus} onClick={() => handleChangeStatus(false)}>
+              <button
+                className="btn-danger"
+                type="button"
+                disabled={!canChangeStatus}
+                onClick={() => handleChangeStatus(false)}
+              >
                 Desactivar
               </button>
             </div>

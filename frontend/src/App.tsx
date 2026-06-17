@@ -83,7 +83,13 @@ function AppContent() {
           />
         )}
         {currentView === 'sap' && <SapView overview={overview} domainAnalysis={domainAnalysis} onRefresh={() => loadAll(true)} />}
-        {currentView === 'presta' && <PrestaView overview={overview} onRefresh={() => loadAll(true)} />}
+        {currentView === 'presta' && (
+          <PrestaView
+            overview={overview}
+            domainAnalysis={domainAnalysis}
+            onRefresh={() => loadAll(true)}
+          />
+        )}
       </div>
 
       <ToastContainer />
