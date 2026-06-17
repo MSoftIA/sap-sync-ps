@@ -406,6 +406,13 @@ app.post("/api/prestashop-control/active", async (req, res) => {
 app.get("/api/sync", (req, res) => {
   const { itemCode, limit, write, fullCatalog } = req.query;
 
+  log("info", "Solicitud sync recibida", {
+    itemCode: itemCode ? String(itemCode).trim() : "",
+    limit: limit ? String(limit).trim() : "",
+    write: write === "true",
+    fullCatalog: fullCatalog === "true",
+  });
+
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
@@ -440,6 +447,15 @@ app.get("/api/sync", (req, res) => {
     delete childEnv.SAP_LIMIT;
   }
   childEnv.SYNC_WRITE = write === "true" ? "true" : "false";
+
+  log("info", "Overrides aplicados al proceso sync", {
+    requestedItemCode: itemCode ? String(itemCode).trim() : "",
+    requestedLimit: limit ? String(limit).trim() : "",
+    fullCatalogRequested: fullCatalog === "true",
+    childSapItemCode: childEnv.SAP_ITEM_CODE || "",
+    childSapLimit: childEnv.SAP_LIMIT || "",
+    childSyncWrite: childEnv.SYNC_WRITE,
+  });
 
   const proc = spawn("node", ["main.js"], { env: childEnv, cwd: __dirname });
   const syncState = {

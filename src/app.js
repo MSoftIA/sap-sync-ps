@@ -13,7 +13,12 @@ const { buildActionPayload } = require("./sync-plan");
 function logEnvLoad() {
   const result = loadEnvFile(".env.local", { override: false });
   if (result.found) {
-    log("info", ".env.local cargado");
+    log("info", ".env.local cargado", {
+      file: result.file,
+      effectiveSapItemCode: process.env.SAP_ITEM_CODE || "",
+      effectiveSapLimit: process.env.SAP_LIMIT || "",
+      effectiveSyncWrite: process.env.SYNC_WRITE || "",
+    });
     return;
   }
 

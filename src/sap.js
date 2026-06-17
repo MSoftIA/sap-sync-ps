@@ -155,13 +155,25 @@ function readSapArticles(log) {
     warehouse: config.query.warehouse,
     itemCode: config.query.itemCode,
     limit: config.query.limit,
+    rawEnvSapItemCode: process.env.SAP_ITEM_CODE || "",
+    rawEnvSapLimit: process.env.SAP_LIMIT || "",
   });
 
   try {
     connectSap(conn, log, config);
 
     const query = buildArticleQuery(config.query);
-    log("info", "Ejecutando query SAP", { params: query.params });
+    log("info", "Ejecutando query SAP", {
+      params: query.params,
+      itemCodeFilterApplied: Boolean(config.query.itemCode),
+      limitApplied:
+        Number.isFinite(config.query.limit) && Number(config.query.limit) > 0,
+      effectiveLimit:
+        Number.isFinite(config.query.limit) && Number(config.query.limit) > 0
+          ? Number(config.query.limit)
+          : "sin limite",
+      sqlHasLimitClause: /\sLIMIT\s/i.test(query.sql),
+    });
 
     const startedAt = Date.now();
     const rows = conn.exec(query.sql, query.params);
