@@ -112,6 +112,8 @@ No incluir secretos reales en prompts ni en documentos de handoff.
 - `src/xml.js`: utilidades XML
 - `docs/arquitectura-fuente-de-verdad-sap.md`: criterio de crecimiento por
   dominios con SAP como fuente de verdad
+- `docs/tablas-sap-business-one-hana.md`: referencia de tablas SAP ya
+  identificadas para productos, categorias y pedidos
 
 ## Objetivo funcional ampliado
 
