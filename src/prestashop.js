@@ -128,6 +128,34 @@ function parseProductSummaryList(xml) {
   );
 }
 
+function parseCategorySummary(categoryXml) {
+  return {
+    id: Number(xmlText(categoryXml, "id") || 0),
+    parentId: Number(xmlText(categoryXml, "id_parent") || 0),
+    active: xmlText(categoryXml, "active"),
+    name: xmlLanguageText(categoryXml, "name"),
+  };
+}
+
+function parseCategorySummaryList(xml) {
+  return parseXmlBlocks(xml, "category").map((block) =>
+    parseCategorySummary(block),
+  );
+}
+
+function parseOrderSummary(orderXml) {
+  return {
+    id: Number(xmlText(orderXml, "id") || 0),
+    reference: xmlText(orderXml, "reference"),
+    currentState: xmlText(orderXml, "current_state"),
+    dateAdd: xmlText(orderXml, "date_add"),
+  };
+}
+
+function parseOrderSummaryList(xml) {
+  return parseXmlBlocks(xml, "order").map((block) => parseOrderSummary(block));
+}
+
 function parseCombinationList(xml) {
   return parseXmlBlocks(xml, "combination").map((block) => ({
     id: Number(xmlText(block, "id")),
@@ -216,6 +244,33 @@ async function readPrestaOverview(client, log) {
     activeProducts,
     inactiveProducts,
     totalCombinations,
+  };
+}
+
+async function readPrestaOrdersOverview(client, log) {
+  if (log) {
+    log("info", "Consultando resumen PrestaShop de pedidos", {
+      resources: ["orders"],
+    });
+  }
+
+  const orders = await listPrestaOrders(client);
+  const threshold = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  let ordersLast30Days = 0;
+
+  for (const order of orders) {
+    const createdAt = order.dateAdd ? new Date(order.dateAdd).getTime() : NaN;
+    if (Number.isFinite(createdAt) && createdAt >= threshold) {
+      ordersLast30Days += 1;
+    }
+  }
+
+  return {
+    source: "prestashop",
+    totalOrders: orders.length,
+    ordersLast30Days,
+    latestReference: orders[0] ? orders[0].reference || null : null,
+    latestDateAdd: orders[0] ? orders[0].dateAdd || null : null,
   };
 }
 
@@ -367,6 +422,53 @@ async function listPrestaProducts(client, params = {}, batchSize = 250) {
   }
 
   return products;
+}
+
+async function listPrestaCategories(client, params = {}, batchSize = 250) {
+  let offset = 0;
+  const categories = [];
+
+  while (true) {
+    const xml = await client.get("categories", {
+      display: "[id,id_parent,active,name]",
+      limit: `${offset},${batchSize}`,
+      ...params,
+    });
+    const batch = parseCategorySummaryList(xml);
+    categories.push(...batch);
+
+    if (batch.length < batchSize) {
+      break;
+    }
+
+    offset += batchSize;
+  }
+
+  return categories;
+}
+
+async function listPrestaOrders(client, params = {}, batchSize = 250) {
+  let offset = 0;
+  const orders = [];
+
+  while (true) {
+    const xml = await client.get("orders", {
+      display: "[id,reference,current_state,date_add]",
+      sort: "[date_add_DESC,id_DESC]",
+      limit: `${offset},${batchSize}`,
+      ...params,
+    });
+    const batch = parseOrderSummaryList(xml);
+    orders.push(...batch);
+
+    if (batch.length < batchSize) {
+      break;
+    }
+
+    offset += batchSize;
+  }
+
+  return orders;
 }
 
 async function listPrestaStockAvailables(client, params = {}, batchSize = 250) {
@@ -868,8 +970,11 @@ module.exports = {
   inspectProductByReference,
   inspectProductByReferenceCached,
   inspectProductByReferenceValue,
+  listPrestaCategories,
+  listPrestaOrders,
   listPrestaProducts,
   listPrestaStockAvailables,
+  readPrestaOrdersOverview,
   readPrestaProductsPage,
   readPrestaOverview,
   updatePrestaProductActive,

@@ -22,7 +22,7 @@ const DOMAIN_REGISTRY = {
     runner: runCategoryDomain,
     writesReports: false,
     sourceOfTruth: "sap",
-    status: "diagnostic",
+    status: "active",
     scope: [
       "arbol de categorias",
       "mapeo jerarquico",
@@ -34,7 +34,7 @@ const DOMAIN_REGISTRY = {
     runner: runOrderDomain,
     writesReports: false,
     sourceOfTruth: "sap",
-    status: "discovery",
+    status: "diagnostic",
     scope: [
       "definicion del flujo de negocio",
       "estados de pedido",

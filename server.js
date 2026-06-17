@@ -192,6 +192,7 @@ function getLatestDomainSummary(domainKey) {
 function buildDomainAnalysisSummary() {
   const products = getLatestDomainSummary("products");
   const categories = getLatestDomainSummary("categories");
+  const orderReport = getLatestDomainSummary("orders");
   let sapOverview = null;
   let orders = null;
 
@@ -246,7 +247,16 @@ function buildDomainAnalysisSummary() {
             summary: null,
           },
       orders:
-        orders && !orders.error
+        orderReport
+          ? {
+              key: "orders",
+              available: true,
+              generatedAt: orderReport.generatedAt || null,
+              summary: orderReport.summary || {},
+              note:
+                "Lectura operativa de pedidos desde SAP. La escritura en PrestaShop sigue bloqueada hasta definir el flujo funcional.",
+            }
+          : orders && !orders.error
           ? {
               key: "orders",
               available: true,

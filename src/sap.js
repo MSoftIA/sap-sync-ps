@@ -317,6 +317,65 @@ function readSapOrdersOverview(log) {
   }
 }
 
+function readSapOrdersSnapshot(log, options = {}) {
+  const config = getSapConfig();
+  const conn = hana.createConnection();
+  const limit = Math.max(1, Number(options.limit) || 200);
+  const sql =
+    "SELECT " +
+    'O."DocEntry", O."DocNum", O."CardCode", O."CardName", ' +
+    'O."DocDate", O."DocStatus", O."CANCELED", O."DocTotal", ' +
+    'O."NumAtCard", O."Comments", ' +
+    'COUNT(L."LineNum") AS "LineCount", ' +
+    'COUNT(DISTINCT L."ItemCode") AS "DistinctItems", ' +
+    'COALESCE(SUM(L."Quantity"), 0) AS "TotalQuantity" ' +
+    'FROM "' +
+    config.query.schema +
+    '"."ORDR" O ' +
+    'LEFT JOIN "' +
+    config.query.schema +
+    '"."RDR1" L ON L."DocEntry" = O."DocEntry" ' +
+    'GROUP BY ' +
+    'O."DocEntry", O."DocNum", O."CardCode", O."CardName", ' +
+    'O."DocDate", O."DocStatus", O."CANCELED", O."DocTotal", ' +
+    'O."NumAtCard", O."Comments" ' +
+    'ORDER BY O."DocDate" DESC, O."DocEntry" DESC ' +
+    "LIMIT " +
+    limit;
+
+  try {
+    if (log) {
+      log("info", "Consultando snapshot SAP de pedidos", {
+        schema: config.query.schema,
+        limit,
+      });
+    }
+
+    conn.connect(config.connection);
+    const rows = conn.exec(sql);
+
+    return rows.map((row) => ({
+      docEntry: Number(row.DocEntry || 0),
+      docNum: Number(row.DocNum || 0),
+      cardCode: row.CardCode || "",
+      cardName: row.CardName || "",
+      docDate: row.DocDate ? new Date(row.DocDate).toISOString() : null,
+      docStatus: row.DocStatus || "",
+      canceled: row.CANCELED || "",
+      docTotal: Number(row.DocTotal || 0),
+      numAtCard: row.NumAtCard || "",
+      comments: row.Comments || "",
+      lineCount: Number(row.LineCount || 0),
+      distinctItems: Number(row.DistinctItems || 0),
+      totalQuantity: Number(row.TotalQuantity || 0),
+    }));
+  } finally {
+    try {
+      conn.disconnect();
+    } catch {}
+  }
+}
+
 function mapPropertyCatalogRow(row) {
   return {
     code: Number(row.ItmsTypCod),
@@ -675,6 +734,7 @@ module.exports = {
   readSapCategoryDiagnostics,
   readSapCategoryPropertyCatalog,
   readSapOrdersOverview,
+  readSapOrdersSnapshot,
   readSapOverview,
   readSapProductsPage,
 };

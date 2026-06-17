@@ -1,68 +1,243 @@
+const { env, numberEnv } = require("../env");
+const {
+  buildPrestaCatalogSnapshot,
+  createPrestaClient,
+  hasPrestaConfig,
+  listPrestaCategories,
+} = require("../prestashop");
 const { writeDomainSnapshot } = require("../report");
 const { readSapCategoryDiagnostics } = require("../sap");
+const { isWriteEnabled } = require("../sync-executor");
+const { parseAnyIdList, parseXmlBlocks, xmlText } = require("../xml");
 
-function buildGroupBreakdown(rows) {
-  const counters = new Map();
-
-  for (const row of rows) {
-    const key = `${row.itemGroupCode}::${row.itemGroupName}`;
-    const current = counters.get(key) || {
-      itemGroupCode: row.itemGroupCode,
-      itemGroupName: row.itemGroupName,
-      total: 0,
-    };
-    current.total += 1;
-    counters.set(key, current);
-  }
-
-  return [...counters.values()].sort((a, b) => b.total - a.total);
+function normalizeName(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
 }
 
-function buildPropertyBreakdown(rows) {
-  const counters = new Map();
-
-  for (const row of rows) {
-    row.activePropertyCodes.forEach((code, index) => {
-      const key = String(code);
-      const current = counters.get(key) || {
-        propertyCode: code,
-        propertyName: row.activePropertyNames[index] || `QryGroup${code}`,
-        total: 0,
-      };
-      current.total += 1;
-      counters.set(key, current);
-    });
-  }
-
-  return [...counters.values()].sort((a, b) => b.total - a.total);
+function slugify(value) {
+  return (
+    normalizeName(value)
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 120) || "categoria-" + Date.now()
+  );
 }
 
-function buildCategorySummary(rows, propertyCatalog) {
-  const groupBreakdown = buildGroupBreakdown(rows);
-  const propertyBreakdown = buildPropertyBreakdown(rows);
-  const rowsWithoutMainCategory = rows.filter(
-    (row) =>
-      row.status === "missing_main_category" ||
-      !String(row.itemGroupName || "").trim(),
+function cdata(value) {
+  return "<![CDATA[" + String(value ?? "") + "]]>";
+}
+
+function escapeXml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function setTagValue(xml, tagName, value) {
+  const pattern = new RegExp(
+    `(<${tagName}(?:\\s[^>]*)?>)([\\s\\S]*?)(</${tagName}>)`,
+  );
+  return xml.replace(pattern, `$1${cdata(value)}$3`);
+}
+
+function setLanguageTagValue(xml, tagName, value, languageId = 1) {
+  const pattern = new RegExp(
+    `(<${tagName}(?:\\s[^>]*)?>)([\\s\\S]*?)(</${tagName}>)`,
   );
 
+  return xml.replace(pattern, (_, openTag, inner, closeTag) => {
+    const updatedInner = inner.replace(
+      /(<language\b[^>]*>)([\s\S]*?)(<\/language>)/g,
+      `$1${cdata(value)}$3`,
+    );
+
+    if (updatedInner !== inner) {
+      return `${openTag}${updatedInner}${closeTag}`;
+    }
+
+    return (
+      `${openTag}<language id="${escapeXml(languageId)}">` +
+      `${cdata(value)}</language>${closeTag}`
+    );
+  });
+}
+
+function removeTag(xml, tagName) {
+  const pattern = new RegExp(
+    `\\s*<${tagName}(?:\\s[^>]*)?>[\\s\\S]*?</${tagName}>`,
+    "g",
+  );
+  return xml.replace(pattern, "");
+}
+
+function buildCategorySnapshot(categories) {
+  const byParentAndName = new Map();
+
+  for (const category of categories) {
+    const key = `${Number(category.parentId || 0)}::${normalizeName(category.name)}`;
+    if (!byParentAndName.has(key)) {
+      byParentAndName.set(key, category);
+    }
+  }
+
   return {
-    total: rows.length,
-    rowsWithMainCategory: rows.length - rowsWithoutMainCategory.length,
-    rowsWithoutMainCategory: rowsWithoutMainCategory.length,
-    uniqueMainCategories: groupBreakdown.length,
-    uniqueActiveProperties: propertyBreakdown.length,
-    propertyCatalogSize: propertyCatalog.length,
-    topMainCategories: groupBreakdown.slice(0, 10),
-    topProperties: propertyBreakdown.slice(0, 10),
+    categories,
+    byParentAndName,
   };
+}
+
+function getCategoryDefaults() {
+  return {
+    parentCategoryId: numberEnv("PRESTASHOP_CATEGORY_PARENT_ID", 2),
+    languageId: numberEnv("PRESTASHOP_LANGUAGE_ID", 1),
+  };
+}
+
+function buildCreateCategoryXml(schemaXml, payload) {
+  let xml = schemaXml;
+  xml = setTagValue(xml, "id", "");
+  xml = setTagValue(xml, "id_parent", payload.parentCategoryId);
+  xml = setTagValue(xml, "active", 1);
+  xml = setTagValue(xml, "is_root_category", 0);
+  xml = setLanguageTagValue(xml, "name", payload.name, payload.languageId);
+  xml = setLanguageTagValue(
+    xml,
+    "link_rewrite",
+    slugify(payload.name),
+    payload.languageId,
+  );
+  xml = setLanguageTagValue(
+    xml,
+    "description",
+    payload.name,
+    payload.languageId,
+  );
+  xml = setTagValue(xml, "id_shop_default", 1);
+  xml = removeTag(xml, "associations");
+  return xml;
+}
+
+function parseCategoryIdsFromProductXml(productXml) {
+  return parseXmlBlocks(productXml, "category")
+    .map((block) => Number(xmlText(block, "id") || 0))
+    .filter((id) => Number.isFinite(id) && id > 0);
+}
+
+function upsertCategoryAssociations(productXml, categoryIds) {
+  const uniqueCategoryIds = [...new Set(categoryIds.filter(Boolean))];
+  const categoriesXml = [
+    '      <categories nodeType="category" api="categories">',
+    ...uniqueCategoryIds.map(
+      (id) => `        <category><id>${cdata(id)}</id></category>`,
+    ),
+    "      </categories>",
+  ].join("\n");
+
+  if (/<categories\b[\s\S]*?<\/categories>/.test(productXml)) {
+    return productXml.replace(
+      /<categories\b[\s\S]*?<\/categories>/,
+      categoriesXml,
+    );
+  }
+
+  if (/<associations\b[\s\S]*?<\/associations>/.test(productXml)) {
+    return productXml.replace(
+      /<\/associations>/,
+      `${categoriesXml}\n    </associations>`,
+    );
+  }
+
+  return productXml.replace(
+    /<\/product>/,
+    `  <associations>\n${categoriesXml}\n    </associations>\n  </product>`,
+  );
+}
+
+async function ensureCategory(client, snapshot, row, defaults, log) {
+  const key = `${defaults.parentCategoryId}::${normalizeName(
+    row.proposedPrestaCategory,
+  )}`;
+  const existing = snapshot.byParentAndName.get(key);
+
+  if (existing) {
+    return {
+      categoryId: existing.id,
+      categoryName: existing.name,
+      created: false,
+    };
+  }
+
+  if (!isWriteEnabled()) {
+    return {
+      categoryId: null,
+      categoryName: row.proposedPrestaCategory,
+      created: false,
+      plannedCreate: true,
+    };
+  }
+
+  const schemaXml = await client.getSchema("categories");
+  const createXml = buildCreateCategoryXml(schemaXml, {
+    parentCategoryId: defaults.parentCategoryId,
+    languageId: defaults.languageId,
+    name: row.proposedPrestaCategory,
+  });
+  const responseXml = await client.post("categories", createXml, {
+    display: "[id]",
+  });
+  const ids = parseAnyIdList(responseXml, "category");
+  const categoryId = ids[0] || null;
+
+  if (!categoryId) {
+    throw new Error(
+      "No se pudo recuperar el id de la categoria creada: " +
+        row.proposedPrestaCategory,
+    );
+  }
+
+  const createdCategory = {
+    id: categoryId,
+    parentId: defaults.parentCategoryId,
+    active: "1",
+    name: row.proposedPrestaCategory,
+  };
+  snapshot.categories.push(createdCategory);
+  snapshot.byParentAndName.set(key, createdCategory);
+
+  log("info", "Categoria creada en PrestaShop", {
+    categoryId,
+    categoryName: row.proposedPrestaCategory,
+    parentCategoryId: defaults.parentCategoryId,
+  });
+
+  return {
+    categoryId,
+    categoryName: row.proposedPrestaCategory,
+    created: true,
+  };
+}
+
+async function assignProductToCategory(client, productId, categoryId) {
+  const productXml = await client.get("products/" + productId);
+  const currentCategoryIds = parseCategoryIdsFromProductXml(productXml);
+  const nextCategoryIds = [...new Set([categoryId, ...currentCategoryIds])];
+  let updatedXml = productXml;
+  updatedXml = removeTag(updatedXml, "manufacturer_name");
+  updatedXml = removeTag(updatedXml, "quantity");
+  updatedXml = setTagValue(updatedXml, "id_category_default", categoryId);
+  updatedXml = upsertCategoryAssociations(updatedXml, nextCategoryIds);
+  await client.put("products/" + productId, updatedXml);
 }
 
 function toDiagnosticRow(row) {
   return {
-    status: row.hasMainCategory
-      ? "category_candidate"
-      : "missing_main_category",
     itemCode: row.itemCode,
     itemName: row.itemName,
     itemGroupCode: row.itemGroupCode,
@@ -72,55 +247,261 @@ function toDiagnosticRow(row) {
     activePropertyNames: row.activePropertyNames,
     proposedPrestaCategory: row.proposedPrestaCategory,
     proposedPrestaCategoryPath: row.proposedPrestaCategoryPath,
-    notes: row.hasMainCategory
-      ? "Categoria principal propuesta desde OITB. Propiedades QryGroup incluidas solo como diagnostico."
-      : "Articulo sin grupo principal SAP.",
+    hasMainCategory: row.hasMainCategory,
+  };
+}
+
+function createCategoryMetrics() {
+  return {
+    total: 0,
+    missingMainCategory: 0,
+    categoriesExisting: 0,
+    categoriesCreated: 0,
+    categoriesToCreate: 0,
+    productsFound: 0,
+    productsUpdated: 0,
+    productsToRelink: 0,
+    productMissingInPrestashop: 0,
+    duplicates: 0,
+    errors: 0,
+  };
+}
+
+function buildCategorySummary(rows, metrics) {
+  const uniqueCategories = new Set(
+    rows
+      .map((row) => String(row.proposedPrestaCategory || "").trim())
+      .filter(Boolean),
+  );
+
+  return {
+    total: rows.length,
+    uniqueMainCategories: uniqueCategories.size,
+    rowsWithoutMainCategory: metrics.missingMainCategory,
+    categoriesExisting: metrics.categoriesExisting,
+    categoriesCreated: metrics.categoriesCreated,
+    categoriesToCreate: metrics.categoriesToCreate,
+    productsFound: metrics.productsFound,
+    productsUpdated: metrics.productsUpdated,
+    productsToRelink: metrics.productsToRelink,
+    productMissingInPrestashop: metrics.productMissingInPrestashop,
+    duplicates: metrics.duplicates,
+    errors: metrics.errors,
+    writeEnabled: isWriteEnabled(),
   };
 }
 
 async function runCategoryDomain(log) {
+  const defaults = getCategoryDefaults();
+  const { diagnostics } = readSapCategoryDiagnostics(log);
+  const rows = diagnostics.map(toDiagnosticRow);
+  const metrics = createCategoryMetrics();
+  metrics.total = rows.length;
+
   log("info", "Dominio categories iniciado", {
     sourceOfTruth: "sap",
-    mode: "diagnostic",
+    mode: isWriteEnabled() ? "write" : "dry_run",
+    parentCategoryId: defaults.parentCategoryId,
+    languageId: defaults.languageId,
+    total: rows.length,
   });
 
-  const { propertyCatalog, diagnostics } = readSapCategoryDiagnostics(log);
-  const rows = diagnostics.map(toDiagnosticRow);
-  log("info", "Plan de corrida de categories", {
-    domain: "categories",
-    mode: "diagnostic",
-    total: rows.length,
-  });
-  log("info", "Progreso de dominio", {
-    domain: "categories",
-    current: rows.length,
-    total: rows.length,
-    percent: rows.length > 0 ? 100 : 0,
-  });
-  const summary = buildCategorySummary(rows, propertyCatalog);
+  if (!hasPrestaConfig()) {
+    const summary = buildCategorySummary(rows, metrics);
+    const report = writeDomainSnapshot(log, {
+      domain: "categories",
+      summary,
+      rows: rows.map((row) => ({
+        status: row.hasMainCategory ? "missing_prestashop_config" : "missing_main_category",
+        ...row,
+        categoryId: null,
+        categoryCreated: false,
+        productId: null,
+        productUpdated: false,
+        notes: "PrestaShop no configurado para ejecutar esta sync.",
+      })),
+      csvHeaders: [
+        "status",
+        "itemCode",
+        "itemName",
+        "itemGroupCode",
+        "itemGroupName",
+        "proposedPrestaCategory",
+        "categoryId",
+        "categoryCreated",
+        "productId",
+        "productUpdated",
+        "notes",
+      ],
+    });
+
+    return {
+      key: "categories",
+      reportRows: [],
+      summary: {
+        implemented: true,
+        processed: rows.length,
+        sourceOfTruth: "sap",
+        writesReports: false,
+        diagnosticOnly: true,
+        reportPaths: report.paths,
+        categorySummary: summary,
+      },
+    };
+  }
+
+  const client = createPrestaClient(log);
+  const categorySnapshot = buildCategorySnapshot(await listPrestaCategories(client));
+  const productSnapshot = await buildPrestaCatalogSnapshot(client, log);
+  const resultRows = [];
+  let completed = 0;
+
+  for (const row of rows) {
+    let resultRow;
+
+    try {
+      if (!row.hasMainCategory || !String(row.proposedPrestaCategory || "").trim()) {
+        metrics.missingMainCategory += 1;
+        resultRow = {
+          status: "missing_main_category",
+          ...row,
+          categoryId: null,
+          categoryCreated: false,
+          productId: null,
+          productUpdated: false,
+          notes: "Articulo sin categoria principal valida en SAP.",
+        };
+      } else {
+        const categoryResult = await ensureCategory(
+          client,
+          categorySnapshot,
+          row,
+          defaults,
+          log,
+        );
+
+        if (categoryResult.created) {
+          metrics.categoriesCreated += 1;
+        } else if (categoryResult.plannedCreate) {
+          metrics.categoriesToCreate += 1;
+        } else {
+          metrics.categoriesExisting += 1;
+        }
+
+        const matches = productSnapshot.productsByReference.get(row.itemCode) || [];
+
+        if (matches.length === 0) {
+          metrics.productMissingInPrestashop += 1;
+          resultRow = {
+            status: categoryResult.plannedCreate
+              ? "category_planned_product_missing"
+              : "product_missing_in_prestashop",
+            ...row,
+            categoryId: categoryResult.categoryId,
+            categoryCreated: categoryResult.created,
+            productId: null,
+            productUpdated: false,
+            notes: "No existe producto correspondiente en PrestaShop.",
+          };
+        } else if (matches.length > 1) {
+          metrics.duplicates += 1;
+          resultRow = {
+            status: "duplicate_product_reference",
+            ...row,
+            categoryId: categoryResult.categoryId,
+            categoryCreated: categoryResult.created,
+            productId: matches[0].id,
+            productUpdated: false,
+            notes: "Referencia duplicada en PrestaShop. Requiere revision manual.",
+          };
+        } else {
+          metrics.productsFound += 1;
+          const product = matches[0];
+          const currentDefaultCategoryId = Number(product.defaultCategory || 0);
+          const targetCategoryId = Number(categoryResult.categoryId || 0);
+          const needsUpdate = targetCategoryId > 0 && currentDefaultCategoryId !== targetCategoryId;
+
+          if (needsUpdate) {
+            metrics.productsToRelink += 1;
+          }
+
+          if (needsUpdate && isWriteEnabled()) {
+            await assignProductToCategory(client, product.id, targetCategoryId);
+            metrics.productsUpdated += 1;
+          }
+
+          resultRow = {
+            status: needsUpdate
+              ? isWriteEnabled()
+                ? "product_category_updated"
+                : "product_category_update_planned"
+              : "product_category_ok",
+            ...row,
+            categoryId: categoryResult.categoryId,
+            categoryCreated: categoryResult.created,
+            productId: product.id,
+            productUpdated: needsUpdate && isWriteEnabled(),
+            notes: needsUpdate
+              ? "La categoria principal del producto se alinea desde SAP."
+              : "El producto ya estaba alineado con la categoria principal.",
+          };
+        }
+      }
+    } catch (error) {
+      metrics.errors += 1;
+      resultRow = {
+        status: "error",
+        ...row,
+        categoryId: null,
+        categoryCreated: false,
+        productId: null,
+        productUpdated: false,
+        notes: error.message,
+      };
+      log("error", "Fallo sincronizando categoria", {
+        itemCode: row.itemCode,
+        category: row.proposedPrestaCategory,
+        message: error.message,
+      });
+    }
+
+    resultRows.push(resultRow);
+    completed += 1;
+
+    if (rows.length <= 100 || completed === rows.length || completed % 25 === 0) {
+      log("info", "Progreso de dominio", {
+        domain: "categories",
+        current: completed,
+        total: rows.length,
+        percent: rows.length > 0 ? Math.round((completed / rows.length) * 100) : 0,
+        itemCode: row.itemCode,
+      });
+    }
+  }
+
+  const summary = buildCategorySummary(rows, metrics);
   const report = writeDomainSnapshot(log, {
     domain: "categories",
     summary,
-    rows,
+    rows: resultRows,
     csvHeaders: [
       "status",
       "itemCode",
       "itemName",
       "itemGroupCode",
       "itemGroupName",
-      "activePropertyCount",
-      "activePropertyCodes",
-      "activePropertyNames",
       "proposedPrestaCategory",
-      "proposedPrestaCategoryPath",
+      "categoryId",
+      "categoryCreated",
+      "productId",
+      "productUpdated",
       "notes",
     ],
   });
 
   log("info", "Dominio categories finalizado", {
-    processed: rows.length,
-    uniqueMainCategories: summary.uniqueMainCategories,
-    uniqueActiveProperties: summary.uniqueActiveProperties,
+    processed: resultRows.length,
+    ...summary,
   });
 
   return {
@@ -128,10 +509,9 @@ async function runCategoryDomain(log) {
     reportRows: [],
     summary: {
       implemented: true,
-      processed: rows.length,
+      processed: resultRows.length,
       sourceOfTruth: "sap",
       writesReports: false,
-      diagnosticOnly: true,
       reportPaths: report.paths,
       categorySummary: summary,
     },
