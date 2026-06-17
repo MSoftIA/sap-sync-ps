@@ -38,6 +38,22 @@ function buildContrast(sap, prestashop) {
     productGap: sap.totalProducts - prestashop.totalProducts,
     activeGap: sap.activeProducts - prestashop.activeProducts,
     inactiveGap: sap.inactiveProducts - prestashop.inactiveProducts,
+    missingProductsInPrestashop: Math.max(
+      sap.totalProducts - prestashop.totalProducts,
+      0,
+    ),
+    extraProductsInPrestashop: Math.max(
+      prestashop.totalProducts - sap.totalProducts,
+      0,
+    ),
+    activeProductsMissingInPrestashop: Math.max(
+      sap.activeProducts - prestashop.activeProducts,
+      0,
+    ),
+    inactiveProductsExtraInPrestashop: Math.max(
+      prestashop.inactiveProducts - sap.inactiveProducts,
+      0,
+    ),
     sapHasMoreProducts: sap.totalProducts > prestashop.totalProducts,
     sapHasFewerProducts: sap.totalProducts < prestashop.totalProducts,
   };
@@ -63,6 +79,7 @@ function buildExecutiveSummary(overview, latestReport) {
   const actions = latestReport ? latestReport.recommendedActions || {} : {};
   const contrast = overview ? overview.contrast : null;
 
+  const sampleSize = summary.total || 0;
   const createCount = actions.createProduct || 0;
   const updateCount =
     (actions.updateProductPrice || 0) +
@@ -83,16 +100,30 @@ function buildExecutiveSummary(overview, latestReport) {
     overallStatus = "attention";
     headline =
       "Hay diferencias entre SAP y PrestaShop. El tablero recomienda revisar o sincronizar cambios.";
+  } else if (contrast && contrast.missingProductsInPrestashop > 0) {
+    overallStatus = "attention";
+    headline =
+      "SAP tiene mas productos que PrestaShop. Conviene completar la sincronizacion del catalogo.";
   }
 
   return {
     overallStatus,
     headline,
+    sampleSize,
     createCount,
     updateCount,
     reviewCount,
     errorCount,
     productGap: contrast ? contrast.productGap : null,
+    missingProductsInPrestashop: contrast
+      ? contrast.missingProductsInPrestashop
+      : null,
+    activeProductsMissingInPrestashop: contrast
+      ? contrast.activeProductsMissingInPrestashop
+      : null,
+    inactiveProductsExtraInPrestashop: contrast
+      ? contrast.inactiveProductsExtraInPrestashop
+      : null,
   };
 }
 

@@ -320,6 +320,34 @@
       background: #b42318;
     }
 
+    .tab-strip {
+      display: inline-flex;
+      gap: 8px;
+      background: #eef2ff;
+      padding: 6px;
+      border-radius: 14px;
+    }
+
+    .tab-button {
+      background: transparent;
+      color: #475467;
+      padding: 10px 14px;
+    }
+
+    .tab-button.active {
+      background: white;
+      color: var(--text);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
     .data-list {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -475,6 +503,11 @@
       font-size: 0.92rem;
     }
 
+    .section-stack {
+      display: grid;
+      gap: 16px;
+    }
+
     @media (max-width: 960px) {
       .hero {
         grid-template-columns: 1fr;
@@ -534,9 +567,9 @@
         </div>
 
         <div class="card metric-card">
-          <div class="label">Pendientes</div>
-          <div class="value" id="hero-pending-items">-</div>
-          <div class="hint">Crear, actualizar o revisar segun la ultima corrida</div>
+          <div class="label">Ultima corrida</div>
+          <div class="value" id="hero-last-sample">-</div>
+          <div class="hint">Cantidad de productos analizados en la ultima corrida, no el pendiente global</div>
         </div>
       </div>
     </section>
@@ -594,11 +627,35 @@
     <section class="section">
       <div class="section-header">
         <h2 class="section-title">Foto del catalogo</h2>
-        <div class="section-note">Comparacion global entre la fuente SAP y la tienda online</div>
+        <div class="section-note">Vista global del catalogo completo, separada del resultado de la ultima corrida</div>
       </div>
 
-      <div class="grid grid-2">
-        <div class="card">
+      <div class="section-stack">
+        <div class="comparison-grid">
+          <div class="comparison-item">
+            <div class="title">Faltan en PrestaShop</div>
+            <div class="big" id="contrast-missing-products">-</div>
+            <div class="empty">Productos que existen en SAP y no aparecen en la tienda</div>
+          </div>
+          <div class="comparison-item">
+            <div class="title">Activos SAP fuera de tienda</div>
+            <div class="big" id="contrast-active-missing">-</div>
+            <div class="empty">Productos activos en SAP que todavia no se reflejan como activos en tienda</div>
+          </div>
+          <div class="comparison-item">
+            <div class="title">Inactivos extra en tienda</div>
+            <div class="big" id="contrast-extra-inactive">-</div>
+            <div class="empty">Productos que aparecen inactivos en tienda y no tienen ese mismo estado en SAP</div>
+          </div>
+        </div>
+
+        <div class="tab-strip" role="tablist" aria-label="Origen del catalogo">
+          <button class="tab-button active" id="tab-btn-sap" type="button" onclick="setCatalogTab('sap')">Vista SAP</button>
+          <button class="tab-button" id="tab-btn-presta" type="button" onclick="setCatalogTab('presta')">Vista PrestaShop</button>
+        </div>
+
+        <div class="tab-panel active" id="tab-panel-sap">
+          <div class="card">
           <h3>SAP</h3>
           <dl class="data-list">
             <dt>Schema</dt><dd id="sap-schema">-</dd>
@@ -609,11 +666,17 @@
             <dt>Inactivos</dt><dd id="sap-inactive-products">-</dd>
             <dt>Con stock</dt><dd id="sap-products-with-stock">-</dd>
             <dt>Sin stock</dt><dd id="sap-products-without-stock">-</dd>
-            <dt>Stock total</dt><dd id="sap-total-stock">-</dd>
+            <dt>Unidades totales en stock</dt><dd id="sap-total-stock">-</dd>
           </dl>
+          <div class="microcopy">
+            Este valor es la suma de unidades disponibles en el `warehouse` seleccionado para todo el catalogo,
+            por eso puede verse grande aunque la cantidad de productos sea mucho menor.
+          </div>
+        </div>
         </div>
 
-        <div class="card">
+        <div class="tab-panel" id="tab-panel-presta">
+          <div class="card">
           <h3>PrestaShop</h3>
           <dl class="data-list">
             <dt>Total productos</dt><dd id="presta-total-products">-</dd>
@@ -622,24 +685,11 @@
             <dt>Total combinaciones</dt><dd id="presta-total-combinations">-</dd>
             <dt>Estado del webservice</dt><dd id="presta-status">-</dd>
           </dl>
+          <div class="microcopy">
+            Esta vista muestra lo que hoy responde el webservice de PrestaShop. Si SAP tiene mas productos,
+            esa diferencia no implica necesariamente error de lectura: puede significar que la sync todavia no corrio completa.
+          </div>
         </div>
-      </div>
-
-      <div class="comparison-grid">
-        <div class="comparison-item">
-          <div class="title">Brecha de productos</div>
-          <div class="big" id="contrast-product-gap">-</div>
-          <div class="empty">SAP total menos PrestaShop total</div>
-        </div>
-        <div class="comparison-item">
-          <div class="title">Brecha de activos</div>
-          <div class="big" id="contrast-active-gap">-</div>
-          <div class="empty">Activos en SAP menos activos en tienda</div>
-        </div>
-        <div class="comparison-item">
-          <div class="title">Brecha de inactivos</div>
-          <div class="big" id="contrast-inactive-gap">-</div>
-          <div class="empty">Inactivos en SAP menos inactivos en tienda</div>
         </div>
       </div>
     </section>
@@ -761,11 +811,20 @@
     let writeMode = false;
     let syncRunning = false;
     let currentLookup = null;
+    let currentCatalogTab = "sap";
 
     function fmt(value) {
       if (value === undefined || value === null || value === "") return "-";
       if (typeof value === "number") return value.toLocaleString("es");
       return String(value);
+    }
+
+    function number(value, decimals = 0) {
+      if (value === undefined || value === null || value === "") return "-";
+      return Number(value).toLocaleString("es", {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      });
     }
 
     function money(value) {
@@ -782,6 +841,14 @@
       document.getElementById("btn-dryrun").classList.toggle("active", !writeMode);
       document.getElementById("btn-write").classList.toggle("active", writeMode);
       document.getElementById("btn-write").classList.toggle("danger", writeMode);
+    }
+
+    function setCatalogTab(tab) {
+      currentCatalogTab = tab;
+      document.getElementById("tab-btn-sap").classList.toggle("active", tab === "sap");
+      document.getElementById("tab-btn-presta").classList.toggle("active", tab === "presta");
+      document.getElementById("tab-panel-sap").classList.toggle("active", tab === "sap");
+      document.getElementById("tab-panel-presta").classList.toggle("active", tab === "presta");
     }
 
     function appendLog(text, cls) {
@@ -823,15 +890,11 @@
       const executive = data.executive || {};
       const latestReport = data.latestReport || {};
       const latestActions = latestReport.recommendedActions || {};
-
-      const pending =
-        (executive.createCount || 0) +
-        (executive.updateCount || 0) +
-        (executive.reviewCount || 0);
+      const contrast = overview.contrast || {};
 
       setText("hero-sap-products", overview.sap ? overview.sap.totalProducts : null);
       setText("hero-presta-products", overview.prestashop ? overview.prestashop.totalProducts : null);
-      setText("hero-pending-items", pending);
+      setText("hero-last-sample", executive.sampleSize);
 
       if (latestReport.generatedAt) {
         document.getElementById("last-run-label").textContent =
@@ -852,22 +915,31 @@
 
       const actionText = [];
       if ((latestActions.createProduct || 0) > 0) {
-        actionText.push(`hay ${latestActions.createProduct} productos que SAP tiene y la tienda todavia no`);
+        actionText.push(`en la muestra analizada hay ${latestActions.createProduct} productos que SAP tiene y la tienda todavia no`);
       }
       if ((latestActions.updateProductPrice || 0) + (latestActions.updateProductStock || 0) + (latestActions.updateProductPriceAndStock || 0) > 0) {
-        actionText.push("hay productos existentes que requieren actualizacion");
+        actionText.push("en la muestra analizada hay productos existentes que requieren actualizacion");
       }
       if ((latestActions.reviewCombinationMapping || 0) + (latestActions.reviewError || 0) > 0) {
-        actionText.push("hay casos que conviene revisar manualmente");
+        actionText.push("en la muestra analizada hay casos que conviene revisar manualmente");
       }
       if ((latestReport.summary || {}).errors > 0) {
         actionText.push("la ultima corrida tuvo errores");
       }
+      if ((contrast.missingProductsInPrestashop || 0) > 0) {
+        actionText.push(`a nivel catalogo completo, faltan aproximadamente ${contrast.missingProductsInPrestashop} productos en PrestaShop`);
+      }
 
       const actionSummary = document.getElementById("action-summary");
+      const samplePrefix =
+        executive.sampleSize > 0
+          ? `La ultima corrida analizo ${executive.sampleSize} producto(s). `
+          : "";
+
       if (actionText.length === 0) {
         actionSummary.className = "message-box message-info";
         actionSummary.textContent =
+          samplePrefix +
           "No veo alertas urgentes en la ultima lectura. Si queres confirmar el estado actual, corre un dry run.";
       } else {
         actionSummary.className =
@@ -875,7 +947,7 @@
             ? "message-box message-error"
             : "message-box message-warn";
         actionSummary.textContent =
-          "En lenguaje simple: " + actionText.join(", ") + ".";
+          samplePrefix + "En lenguaje simple: " + actionText.join(", ") + ".";
       }
     }
 
@@ -892,7 +964,7 @@
       setText("sap-inactive-products", sap.inactiveProducts);
       setText("sap-products-with-stock", sap.productsWithStock);
       setText("sap-products-without-stock", sap.productsWithoutStock);
-      setText("sap-total-stock", sap.totalStock);
+      document.getElementById("sap-total-stock").textContent = number(sap.totalStock, 3);
 
       setText("presta-total-products", presta.totalProducts);
       setText("presta-active-products", presta.activeProducts);
@@ -900,9 +972,9 @@
       setText("presta-total-combinations", presta.totalCombinations);
       setText("presta-status", presta.error ? "No disponible" : "Disponible");
 
-      setText("contrast-product-gap", contrast.productGap);
-      setText("contrast-active-gap", contrast.activeGap);
-      setText("contrast-inactive-gap", contrast.inactiveGap);
+      setText("contrast-missing-products", contrast.missingProductsInPrestashop);
+      setText("contrast-active-missing", contrast.activeProductsMissingInPrestashop);
+      setText("contrast-extra-inactive", contrast.inactiveProductsExtraInPrestashop);
 
       const problems = [sap.error, presta.error].filter(Boolean);
       if (problems.length > 0) {
