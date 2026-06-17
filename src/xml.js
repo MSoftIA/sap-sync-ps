@@ -19,12 +19,19 @@ function xmlLanguageText(xml, tag) {
   const container = xmlText(xml, tag);
   if (!container) return "";
 
-  const match = container.match(
+  // CDATA format: <language ...><![CDATA[value]]></language>
+  const cdataMatch = container.match(
     /<language(?:\s[^>]*)?><!\[CDATA\[([\s\S]*?)\]\]><\/language>/,
   );
-  if (match) return decodeXml(match[1].trim());
+  if (cdataMatch) return decodeXml(cdataMatch[1].trim());
 
-  return decodeXml(container);
+  // Plain text format: <language id="1" ...>value</language>
+  const plainMatch = container.match(
+    /<language(?:\s[^>]*)?>([^<]*)<\/language>/,
+  );
+  if (plainMatch) return decodeXml(plainMatch[1].trim());
+
+  return "";
 }
 
 function parseIdList(xml, tagName) {
