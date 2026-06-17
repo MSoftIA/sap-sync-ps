@@ -109,7 +109,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
     if (syncRunning) return
 
     setSyncRunning(true)
-    setStatusLabel('En ejecución')
+    setStatusLabel('En ejecuciÃƒÆ’Ã‚Â³n')
     setLogEntries([])
     setProgress(defaultProgress)
     setCurrentProgress(defaultProgress)
@@ -117,7 +117,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
     const appendLog = (text: string, cls: LogEntry['cls']) =>
       setLogEntries(prev => [...prev, { text, cls }])
 
-    appendLog(fullCatalog ? 'Iniciando operación principal sobre el catálogo...' : 'Iniciando corrida puntual...', 'info')
+    appendLog(fullCatalog ? 'Iniciando operaciÃƒÆ’Ã‚Â³n principal sobre el catÃƒÆ’Ã‚Â¡logo...' : 'Iniciando corrida puntual...', 'info')
     appendLog('Dominios seleccionados: ' + activeDomains.join(', '), 'info')
     appendLog(writeMode ? 'Modo seleccionado: aplicar cambios reales.' : 'Modo seleccionado: analizar sin modificar tienda.', 'info')
 
@@ -190,13 +190,13 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
   const progressMeta = syncRunning
     ? (progress.known ? `${fmt(progress.current)} de ${fmt(progress.total)} (${fmt(progress.percent)}%)` : 'Calculando avance')
     : statusLabel === 'Completado' ? (progress.known ? `${fmt(progress.total)} elemento(s) recorridos` : 'Proceso finalizado')
-    : 'Esperando acción'
+    : 'Esperando acciÃƒÆ’Ã‚Â³n'
 
   const progressNote = syncRunning
     ? (progress.itemCode ? `Procesando item ${progress.itemCode}` : 'Procesando dominio seleccionado')
-    : statusLabel === 'Completado' ? 'La operación terminó. Puedes revisar el historial y los reportes generados.'
-    : statusLabel === 'Con errores' ? 'Revisa el log para ver en qué punto se cortó y qué dominio estaba activo.'
-    : 'Cuando inicies una corrida, aquí verás el dominio actual, el avance y el artículo en proceso cuando aplique.'
+    : statusLabel === 'Completado' ? 'La operaciÃƒÆ’Ã‚Â³n terminÃƒÆ’Ã‚Â³. Puedes revisar el historial y los reportes generados.'
+    : statusLabel === 'Con errores' ? 'Revisa el log para ver en quÃƒÆ’Ã‚Â© punto se cortÃƒÆ’Ã‚Â³ y quÃƒÆ’Ã‚Â© dominio estaba activo.'
+    : 'Cuando inicies una corrida, aquÃƒÆ’Ã‚Â­ verÃƒÆ’Ã‚Â¡s el dominio actual, el avance y el artÃƒÆ’Ã‚Â­culo en proceso cuando aplique.'
 
   const progressPercent = statusLabel === 'Completado' ? 100 : progress.percent
   const progressKnown = statusLabel === 'Completado' ? true : progress.known
@@ -206,7 +206,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
     { label: 'Crear', value: latestActions.createProduct ?? 0, color: '#15803d' },
     { label: 'Actualizar', value: updateCount, color: '#b45309' },
     { label: 'Sin cambio', value: latestActions.skipNoChange ?? 0, color: '#667085' },
-    { label: 'Revisión', value: reviewCount, color: '#b91c1c' },
+    { label: 'RevisiÃƒÆ’Ã‚Â³n', value: reviewCount, color: '#b91c1c' },
   ] : []
 
   return (
@@ -237,20 +237,20 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
           const hasErrors = (latestSummary.errors ?? 0) > 0
           if (hasErrors) return (
             <div className="sync-status-banner error">
-              <span>⚠</span>
-              <span>La última corrida tuvo {latestSummary.errors} error(es). Revisá el log antes de sincronizar.</span>
+              <span>ÃƒÂ¢Ã…Â¡Ã‚Â </span>
+              <span>La ÃƒÆ’Ã‚Âºltima corrida tuvo {latestSummary.errors} error(es). RevisÃƒÆ’Ã‚Â¡ el log antes de sincronizar.</span>
             </div>
           )
           if (totalPending === 0 && (latestSummary.total ?? 0) > 0) return (
             <div className="sync-status-banner ok">
-              <span>✓</span>
-              <span>Los {latestSummary.total} artículos de la última muestra están sincronizados con PrestaShop.</span>
+              <span>ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“</span>
+              <span>Los {latestSummary.total} artÃƒÆ’Ã‚Â­culos de la ÃƒÆ’Ã‚Âºltima muestra estÃƒÆ’Ã‚Â¡n sincronizados con PrestaShop.</span>
             </div>
           )
           if (totalPending > 0) return (
             <div className="sync-status-banner warn">
               <span>!</span>
-              <span>{totalPending} artículo(s) requieren acción. Revisá las tarjetas abajo y ejecutá la sync cuando estés listo.</span>
+              <span>{totalPending} artÃƒÆ’Ã‚Â­culo(s) requieren acciÃƒÆ’Ã‚Â³n. RevisÃƒÆ’Ã‚Â¡ las tarjetas abajo y ejecutÃƒÆ’Ã‚Â¡ la sync cuando estÃƒÆ’Ã‚Â©s listo.</span>
             </div>
           )
           return null
@@ -262,7 +262,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
             <div className={`action-card${(latestActions.createProduct ?? 0) > 0 ? ' pending-create' : ''}`}>
               <div className="action-card-count">{fmt(latestActions.createProduct) ?? '0'}</div>
               <div className="action-card-label">Por crear en PrestaShop</div>
-              <div className="action-card-desc">Artículos en SAP que no existen todavía en la tienda.</div>
+              <div className="action-card-desc">ArtÃƒÆ’Ã‚Â­culos en SAP que no existen todavÃƒÆ’Ã‚Â­a en la tienda.</div>
             </div>
             <div className={`action-card${updateCount > 0 ? ' pending-update' : ''}`}>
               <div className="action-card-count">{fmt(updateCount) ?? '0'}</div>
@@ -271,37 +271,37 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
             </div>
             <div className={`action-card${reviewCount > 0 ? ' pending-review' : ''}`}>
               <div className="action-card-count">{fmt(reviewCount) ?? '0'}</div>
-              <div className="action-card-label">Revisión manual</div>
-              <div className="action-card-desc">Combinaciones o errores que no se pueden sincronizar automáticamente.</div>
+              <div className="action-card-label">RevisiÃƒÆ’Ã‚Â³n manual</div>
+              <div className="action-card-desc">Combinaciones o errores que no se pueden sincronizar automÃƒÆ’Ã‚Â¡ticamente.</div>
             </div>
             <div className={`action-card${(latestActions.skipNoChange ?? 0) > 0 ? ' all-clear' : ''}`}>
               <div className="action-card-count">{fmt(latestActions.skipNoChange) ?? '0'}</div>
               <div className="action-card-label">Sin cambios</div>
-              <div className="action-card-desc">Artículos que ya coinciden entre SAP y PrestaShop.</div>
+              <div className="action-card-desc">ArtÃƒÆ’Ã‚Â­culos que ya coinciden entre SAP y PrestaShop.</div>
             </div>
           </div>
         ) : (
           <div className="card" style={{ marginBottom: 16 }}>
             <EmptyState
-              icon="○"
+              icon="ÃƒÂ¢Ã¢â‚¬â€Ã¢â‚¬Â¹"
               title="Sin corridas registradas"
-              description="Ejecutá una sync para ver el estado del catálogo aquí."
+              description="EjecutÃƒÆ’Ã‚Â¡ una sync para ver el estado del catÃƒÆ’Ã‚Â¡logo aquÃƒÆ’Ã‚Â­."
               action={{ label: 'Ir a Ejecutar', onClick: () => document.getElementById('sync-actions')?.scrollIntoView({ behavior: 'smooth' }) }}
             />
           </div>
         )}
 
-        {/* Distribución y metadata */}
+        {/* DistribuciÃƒÆ’Ã‚Â³n y metadata */}
         {latest && (
           <div className="sync-hero">
             <div className="card">
-              <div className="section-note" style={{ marginBottom: 12 }}>Distribución última corrida</div>
+              <div className="section-note" style={{ marginBottom: 12 }}>DistribuciÃƒÆ’Ã‚Â³n ÃƒÆ’Ã‚Âºltima corrida</div>
               {hasLastRun
                 ? <BarChart items={chartItems} />
-                : <p className="empty" style={{ margin: 0 }}>Sin datos de distribución todavía.</p>}
+                : <p className="empty" style={{ margin: 0 }}>Sin datos de distribuciÃƒÆ’Ã‚Â³n todavÃƒÆ’Ã‚Â­a.</p>}
               <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #eef2f7' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <StatusBadge tone={statusTone}>{syncRunning ? 'En ejecución' : statusLabel}</StatusBadge>
+                  <StatusBadge tone={statusTone}>{syncRunning ? 'En ejecuciÃƒÆ’Ã‚Â³n' : statusLabel}</StatusBadge>
                   <span className="section-note">Modo: {writeMode ? 'Aplicar cambios' : 'Dry run'}</span>
                 </div>
               </div>
@@ -310,12 +310,12 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
             <div className="card card-soft">
               <div className="run-facts">
                 <div className="fact-row">
-                  <div className="fact-label">Última ejecución</div>
+                  <div className="fact-label">ÃƒÆ’Ã…Â¡ltima ejecuciÃƒÆ’Ã‚Â³n</div>
                   <div className="fact-value">{fmtDate(latest.generatedAt)}</div>
                 </div>
                 <div className="fact-row">
-                  <div className="fact-label">Artículos procesados</div>
-                  <div className="fact-value">{fmt(latestSummary.total) ?? '—'}</div>
+                  <div className="fact-label">ArtÃƒÆ’Ã‚Â­culos procesados</div>
+                  <div className="fact-value">{fmt(latestSummary.total) ?? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'}</div>
                 </div>
                 <div className="fact-row">
                   <div className="fact-label">Cambios aplicados</div>
@@ -339,23 +339,23 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
       <section id="sync-actions" className="section">
         <div className="section-header">
           <h2 className="section-title">Ejecutar</h2>
-          <div className="section-note">Elegí dominio y modo.</div>
+          <div className="section-note">ElegÃƒÆ’Ã‚Â­ dominio y modo.</div>
         </div>
 
         <div className="card">
           <div className="action-block">
             <MessageBox kind={writeMode ? 'warn' : 'info'}>
               {writeMode
-                ? 'Aplicar cambios escribe de verdad en PrestaShop, pero solo en los dominios que ya están listos para escritura.'
+                ? 'Aplicar cambios escribe de verdad en PrestaShop, pero solo en los dominios que ya estÃƒÆ’Ã‚Â¡n listos para escritura.'
                 : 'Analizar solo revisa datos, compara y deja reportes. No modifica productos en PrestaShop.'}
             </MessageBox>
 
             <div className="domain-picker">
               <div className="domain-header">
                 <div>
-                  <div className="domain-title">Segmentación de sync</div>
+                  <div className="domain-title">SegmentaciÃƒÆ’Ã‚Â³n de sync</div>
                   <div className="domain-subtitle">
-                    Elegí desde la interfaz qué dominios quieres correr.
+                    ElegÃƒÆ’Ã‚Â­ desde la interfaz quÃƒÆ’Ã‚Â© dominios quieres correr.
                   </div>
                 </div>
                 <div className="domain-actions">
@@ -382,7 +382,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
               </div>
 
               <MessageBox kind={activeDomains.length === 0 ? 'warn' : 'info'}>
-                {`La próxima corrida usará: ${activeDomains.join(', ')}. ${writeMode ? 'Vas a aplicar cambios reales en los dominios listos.' : 'Vas a analizar sin modificar la tienda.'}`}
+                {`La prÃƒÆ’Ã‚Â³xima corrida usarÃƒÆ’Ã‚Â¡: ${activeDomains.join(', ')}. ${writeMode ? 'Vas a aplicar cambios reales en los dominios listos.' : 'Vas a analizar sin modificar la tienda.'}`}
               </MessageBox>
             </div>
 
@@ -410,7 +410,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
                 disabled={syncRunning}
                 onClick={() => requestSync(true)}
               >
-                {writeMode ? 'Sincronizar productos con PrestaShop' : 'Analizar catálogo completo'}
+                {writeMode ? 'Sincronizar productos con PrestaShop' : 'Analizar catÃƒÆ’Ã‚Â¡logo completo'}
               </button>
 
               <button
@@ -433,7 +433,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
                   </div>
                   <div className="field">
                     <label htmlFor="item-code">Item code puntual</label>
-                    <input type="text" id="item-code" placeholder="Opcional: un artículo o lote acotado"
+                    <input type="text" id="item-code" placeholder="Opcional: un artÃƒÆ’Ã‚Â­culo o lote acotado"
                       value={itemCode} onChange={e => setItemCode(e.target.value)} />
                   </div>
                 </div>
@@ -452,7 +452,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
       <section id="sync-analysis" className="section">
         <div className="section-header">
           <h2 className="section-title">Dominios</h2>
-          <div className="section-note">Estado resumido por área.</div>
+          <div className="section-note">Estado resumido por area.</div>
         </div>
 
         <div className="analysis-grid">
@@ -461,7 +461,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
             <div className="analysis-card-header">
               <div>
                 <h3 className="analysis-card-title">Productos</h3>
-                <div className="analysis-card-copy">Diagnóstico y sincronización de precios, stock, altas y diferencias contra PrestaShop.</div>
+                <div className="analysis-card-copy">Diagnostico y sincronizacion de precios, stock, altas y diferencias contra PrestaShop.</div>
               </div>
               {products?.available
                 ? <Tag tone={(prodSummary.errors ?? 0) > 0 ? 'red' : 'green'}>{(prodSummary.errors ?? 0) > 0 ? 'Con errores' : 'Disponible'}</Tag>
@@ -469,7 +469,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
             </div>
             <div className="analysis-metrics">
               <div className="analysis-metric">
-                <div className="analysis-metric-label">Catálogo analizado</div>
+                <div className="analysis-metric-label">Catalogo analizado</div>
                 <div className="analysis-metric-value">{fmt(prodSummary.total)}</div>
               </div>
               <div className="analysis-metric">
@@ -481,52 +481,52 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
                 <div className="analysis-metric-value">{fmt(prodUpdate)}</div>
               </div>
               <div className="analysis-metric">
-                <div className="analysis-metric-label">Revisión / errores</div>
+                <div className="analysis-metric-label">Revision / errores</div>
                 <div className="analysis-metric-value">{fmt(prodReview)}</div>
               </div>
             </div>
             <div className="analysis-card-copy">
               {products?.available && products.generatedAt
-                ? 'Último análisis: ' + fmtDate(products.generatedAt)
-                : 'Todavía no hay una corrida de análisis de productos.'}
+                ? 'Ultimo analisis: ' + fmtDate(products.generatedAt)
+                : 'Todavia no hay una corrida de analisis de productos.'}
             </div>
           </div>
 
-          {/* Categorías */}
+          {/* Categorias */}
           <div className="analysis-card">
             <div className="analysis-card-header">
               <div>
-                <h3 className="analysis-card-title">Categorías</h3>
-                <div className="analysis-card-copy">Diagnóstico de categoría principal desde SAP y propiedades activas QryGroup*.</div>
+                <h3 className="analysis-card-title">Categorias</h3>
+                <div className="analysis-card-copy">Compara el universo de categorias SAP contra lo que ya existe en PrestaShop.</div>
               </div>
               {categories?.available
-                ? <Tag tone="amber">{categories.alignment && !categories.alignment.isAligned ? 'Recalcular' : 'Diagnóstico'}</Tag>
+                ? <Tag tone="amber">{categories.alignment && !categories.alignment.isAligned ? 'Recalcular' : 'Diagnostico'}</Tag>
                 : <Tag tone="gray">Sin datos</Tag>}
             </div>
             <div className="analysis-metrics">
               <div className="analysis-metric">
-                <div className="analysis-metric-label">Catálogo evaluado</div>
-                <div className="analysis-metric-value">{fmt(catSummary.total)}</div>
+                <div className="analysis-metric-label">Productos evaluados</div>
+                <div className="analysis-metric-value">{fmt(catSummary.productsEvaluated ?? catSummary.total)}</div>
               </div>
               <div className="analysis-metric">
-                <div className="analysis-metric-label">Categorías SAP únicas</div>
+                <div className="analysis-metric-label">Categorias SAP unicas</div>
                 <div className="analysis-metric-value">{fmt(catSummary.uniqueMainCategories)}</div>
               </div>
               <div className="analysis-metric">
-                <div className="analysis-metric-label">Propiedades activas</div>
-                <div className="analysis-metric-value">{fmt(catSummary.uniqueActiveProperties)}</div>
+                <div className="analysis-metric-label">Ya existen en Presta</div>
+                <div className="analysis-metric-value">{fmt(catSummary.categoriesInPrestashop)}</div>
               </div>
               <div className="analysis-metric">
-                <div className="analysis-metric-label">Sin grupo SAP</div>
-                <div className="analysis-metric-value">{fmt(catSummary.rowsWithoutMainCategory)}</div>
+                <div className="analysis-metric-label">Faltan en Presta</div>
+                <div className="analysis-metric-value">{fmt(catSummary.categoriesMissingInPrestashop)}</div>
               </div>
             </div>
             <div className="analysis-card-copy">
               {categories?.available && categories.alignment && !categories.alignment.isAligned
-                ? `El último diagnóstico usó otra base de catálogo (${categories.alignment.reportCatalog} vs ${categories.alignment.expectedOperationalCatalog}). Conviene volver a correr ese análisis.`
+                ? `El ultimo diagnostico uso otra base de catalogo (${categories.alignment.reportCatalog} vs ${categories.alignment.expectedOperationalCatalog}). Conviene volver a correr ese analisis.`
                 : categories?.available && categories.generatedAt
-                ? 'Último diagnóstico: ' + fmtDate(categories.generatedAt)
-                : 'Todavía no hay una corrida de análisis de categorías.'}
+                ? `Ultimo diagnostico: ${fmtDate(categories.generatedAt)}. Sin grupo SAP: ${fmt(catSummary.rowsWithoutMainCategory)}. Propiedades activas: ${fmt(catSummary.uniqueActiveProperties)}.`
+                : 'Todavia no hay una corrida de analisis de categorias.'}
             </div>
           </div>
 
@@ -535,37 +535,40 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
             <div className="analysis-card-header">
               <div>
                 <h3 className="analysis-card-title">Pedidos</h3>
-                <div className="analysis-card-copy">Lectura operativa de pedidos desde SAP para entender volumen, estado y avance.</div>
+                <div className="analysis-card-copy">Compara el volumen de pedidos de SAP con lo que existe hoy en PrestaShop.</div>
               </div>
               <Tag tone={orders?.available && orders.summary ? 'green' : 'gray'}>
-                {orders?.available && orders.summary ? 'Lectura SAP' : 'Sin datos'}
+                {orders?.available && orders.summary ? 'Lectura comparada' : 'Sin datos'}
               </Tag>
             </div>
             <div className="analysis-metrics">
               <div className="analysis-metric">
-                <div className="analysis-metric-label">Últimos 30 días</div>
+                <div className="analysis-metric-label">Pedidos SAP</div>
+                <div className="analysis-metric-value">{fmt(ordersSummary?.totalOrders)}</div>
+              </div>
+              <div className="analysis-metric">
+                <div className="analysis-metric-label">Pedidos en Presta</div>
+                <div className="analysis-metric-value">{fmt(ordersSummary?.prestaTotalOrders)}</div>
+              </div>
+              <div className="analysis-metric">
+                <div className="analysis-metric-label">Brecha</div>
+                <div className="analysis-metric-value">{fmt(ordersSummary?.orderGap)}</div>
+              </div>
+              <div className="analysis-metric">
+                <div className="analysis-metric-label">Ultimos 30 dias</div>
                 <div className="analysis-metric-value">{fmt(ordersSummary?.ordersLast30Days)}</div>
-              </div>
-              <div className="analysis-metric">
-                <div className="analysis-metric-label">Abiertos</div>
-                <div className="analysis-metric-value">{fmt(ordersSummary?.openOrders)}</div>
-              </div>
-              <div className="analysis-metric">
-                <div className="analysis-metric-label">Cerrados</div>
-                <div className="analysis-metric-value">{fmt(ordersSummary?.closedOrders)}</div>
-              </div>
-              <div className="analysis-metric">
-                <div className="analysis-metric-label">Cancelados</div>
-                <div className="analysis-metric-value">{fmt(ordersSummary?.canceledOrders)}</div>
               </div>
             </div>
             <div className="analysis-card-copy">
               {orders?.available && ordersSummary
                 ? [
-                    ordersSummary.latestDocNum ? `Último DocNum ${ordersSummary.latestDocNum}` : null,
+                    ordersSummary.openOrders !== undefined ? `${ordersSummary.openOrders} abiertos` : null,
+                    ordersSummary.closedOrders !== undefined ? `${ordersSummary.closedOrders} cerrados` : null,
+                    ordersSummary.canceledOrders !== undefined ? `${ordersSummary.canceledOrders} cancelados` : null,
+                    ordersSummary.latestDocNum ? `ultimo DocNum ${ordersSummary.latestDocNum}` : null,
                     ordersSummary.latestDocDate ? `fecha ${new Date(String(ordersSummary.latestDocDate)).toLocaleDateString('es')}` : null,
                     ordersSummary.uniqueCustomers !== undefined ? `${ordersSummary.uniqueCustomers} clientes con pedidos` : null,
-                  ].filter(Boolean).join(' · ')
+                  ].filter(Boolean).join(' Ã‚Â· ')
                 : orders?.note || 'Falta cargar el resumen operativo de pedidos.'}
             </div>
           </div>
@@ -576,7 +579,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
       <section id="sync-progress" className="section">
         <div className="section-header">
           <h2 className="section-title">Avance de la corrida</h2>
-          <div className="section-note">Qué está corriendo ahora.</div>
+          <div className="section-note">QuÃƒÆ’Ã‚Â© estÃƒÆ’Ã‚Â¡ corriendo ahora.</div>
         </div>
         <div className="card">
           <ProgressBar
@@ -594,7 +597,7 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
       <section id="sync-logs" className="section">
         <div className="section-header">
           <h2 className="section-title">Log en tiempo real</h2>
-          <div className="section-note">Detalle técnico.</div>
+          <div className="section-note">Detalle tÃƒÆ’Ã‚Â©cnico.</div>
         </div>
         <LogBox entries={logEntries} />
       </section>
@@ -608,9 +611,9 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
         {reports.length === 0 ? (
           <div className="card">
             <EmptyState
-              icon="○"
+              icon="ÃƒÂ¢Ã¢â‚¬â€Ã¢â‚¬Â¹"
               title="Sin corridas registradas"
-              description="Ejecuta una sincronización para ver el historial aquí."
+              description="Ejecuta una sincronizaciÃƒÆ’Ã‚Â³n para ver el historial aquÃƒÆ’Ã‚Â­."
               action={{ label: 'Ir a Ejecutar', onClick: () => document.getElementById('sync-actions')?.scrollIntoView({ behavior: 'smooth' }) }}
             />
           </div>
@@ -652,3 +655,4 @@ export function SyncView({ reports, domainAnalysis, onRefresh }: Props) {
     </main>
   )
 }
+

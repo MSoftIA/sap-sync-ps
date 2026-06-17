@@ -276,7 +276,10 @@ function buildCategorySummary(rows, metrics) {
 
   return {
     total: rows.length,
+    productsEvaluated: rows.length,
     uniqueMainCategories: uniqueCategories.size,
+    categoriesInPrestashop: metrics.categoriesExisting + metrics.categoriesCreated,
+    categoriesMissingInPrestashop: metrics.categoriesToCreate,
     rowsWithoutMainCategory: metrics.missingMainCategory,
     categoriesExisting: metrics.categoriesExisting,
     categoriesCreated: metrics.categoriesCreated,
@@ -354,6 +357,7 @@ async function runCategoryDomain(log) {
   const categorySnapshot = buildCategorySnapshot(await listPrestaCategories(client));
   const productSnapshot = await buildPrestaCatalogSnapshot(client, log);
   const resultRows = [];
+  const seenCategoryKeys = new Set();
   let completed = 0;
 
   for (const row of rows) {
@@ -372,6 +376,14 @@ async function runCategoryDomain(log) {
           notes: "Articulo sin categoria principal valida en SAP.",
         };
       } else {
+        const categoryKey = `${defaults.parentCategoryId}::${normalizeName(
+          row.proposedPrestaCategory,
+        )}`;
+        const firstTimeSeeingCategory = !seenCategoryKeys.has(categoryKey);
+        if (firstTimeSeeingCategory) {
+          seenCategoryKeys.add(categoryKey);
+        }
+
         const categoryResult = await ensureCategory(
           client,
           categorySnapshot,
@@ -380,12 +392,14 @@ async function runCategoryDomain(log) {
           log,
         );
 
-        if (categoryResult.created) {
-          metrics.categoriesCreated += 1;
-        } else if (categoryResult.plannedCreate) {
-          metrics.categoriesToCreate += 1;
-        } else {
-          metrics.categoriesExisting += 1;
+        if (firstTimeSeeingCategory) {
+          if (categoryResult.created) {
+            metrics.categoriesCreated += 1;
+          } else if (categoryResult.plannedCreate) {
+            metrics.categoriesToCreate += 1;
+          } else {
+            metrics.categoriesExisting += 1;
+          }
         }
 
         const matches = productSnapshot.productsByReference.get(row.itemCode) || [];

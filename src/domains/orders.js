@@ -10,6 +10,7 @@ const { isWriteEnabled } = require("../sync-executor");
 function buildOrderSummary(sapOverview, sapRows, prestaOverview) {
   return {
     total: sapRows.length,
+    ordersEvaluated: sapRows.length,
     totalOrders: sapOverview.totalOrders,
     openOrders: sapOverview.openOrders,
     closedOrders: sapOverview.closedOrders,
