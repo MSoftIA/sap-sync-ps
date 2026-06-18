@@ -31,52 +31,6 @@ function cdata(value) {
   return "<![CDATA[" + String(value ?? "") + "]]>";
 }
 
-function escapeXml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
-
-function setTagValue(xml, tagName, value) {
-  const pattern = new RegExp(
-    `(<${tagName}(?:\\s[^>]*)?>)([\\s\\S]*?)(</${tagName}>)`,
-  );
-  return xml.replace(pattern, `$1${cdata(value)}$3`);
-}
-
-function setLanguageTagValue(xml, tagName, value, languageId = 1) {
-  const pattern = new RegExp(
-    `(<${tagName}(?:\\s[^>]*)?>)([\\s\\S]*?)(</${tagName}>)`,
-  );
-
-  return xml.replace(pattern, (_, openTag, inner, closeTag) => {
-    const updatedInner = inner.replace(
-      /(<language\b[^>]*>)([\s\S]*?)(<\/language>)/g,
-      `$1${cdata(value)}$3`,
-    );
-
-    if (updatedInner !== inner) {
-      return `${openTag}${updatedInner}${closeTag}`;
-    }
-
-    return (
-      `${openTag}<language id="${escapeXml(languageId)}">` +
-      `${cdata(value)}</language>${closeTag}`
-    );
-  });
-}
-
-function removeTag(xml, tagName) {
-  const pattern = new RegExp(
-    `\\s*<${tagName}(?:\\s[^>]*)?>[\\s\\S]*?</${tagName}>`,
-    "g",
-  );
-  return xml.replace(pattern, "");
-}
-
 function buildCategorySnapshot(categories) {
   const byParentAndName = new Map();
 
@@ -100,28 +54,27 @@ function getCategoryDefaults() {
   };
 }
 
-function buildCreateCategoryXml(schemaXml, payload) {
-  let xml = schemaXml;
-  xml = setTagValue(xml, "id", "");
-  xml = setTagValue(xml, "id_parent", payload.parentCategoryId);
-  xml = setTagValue(xml, "active", 1);
-  xml = setTagValue(xml, "is_root_category", 0);
-  xml = setLanguageTagValue(xml, "name", payload.name, payload.languageId);
-  xml = setLanguageTagValue(
-    xml,
-    "link_rewrite",
-    slugify(payload.name),
-    payload.languageId,
-  );
-  xml = setLanguageTagValue(
-    xml,
-    "description",
-    payload.name,
-    payload.languageId,
-  );
-  xml = setTagValue(xml, "id_shop_default", 1);
-  xml = removeTag(xml, "associations");
-  return xml;
+function buildCreateCategoryXml(payload) {
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<prestashop xmlns:xlink="http://www.w3.org/1999/xlink">',
+    "  <category>",
+    `    <id_parent>${cdata(payload.parentCategoryId)}</id_parent>`,
+    "    <active><![CDATA[1]]></active>",
+    "    <is_root_category><![CDATA[0]]></is_root_category>",
+    "    <id_shop_default><![CDATA[1]]></id_shop_default>",
+    "    <name>",
+    `      <language id="${payload.languageId}">${cdata(payload.name)}</language>`,
+    "    </name>",
+    "    <link_rewrite>",
+    `      <language id="${payload.languageId}">${cdata(slugify(payload.name))}</language>`,
+    "    </link_rewrite>",
+    "    <description>",
+    `      <language id="${payload.languageId}">${cdata(payload.name)}</language>`,
+    "    </description>",
+    "  </category>",
+    "</prestashop>",
+  ].join("\n");
 }
 
 function parseCategoryIdsFromProductXml(productXml) {
@@ -183,8 +136,7 @@ async function ensureCategory(client, snapshot, row, defaults, log) {
     };
   }
 
-  const schemaXml = await client.getSchema("categories");
-  const createXml = buildCreateCategoryXml(schemaXml, {
+  const createXml = buildCreateCategoryXml({
     parentCategoryId: defaults.parentCategoryId,
     languageId: defaults.languageId,
     name: row.proposedPrestaCategory,
@@ -257,7 +209,7 @@ async function assignProductToCategory(client, productId, categoryId) {
     "  <product>",
     `    <id>${cdata(productId)}</id>`,
     `    <id_category_default>${cdata(categoryId)}</id_category_default>`,
-    '    <associations>',
+    "    <associations>",
     '      <categories nodeType="category" api="categories">',
     categoriesInner,
     "      </categories>",
@@ -311,7 +263,8 @@ function buildCategorySummary(rows, metrics) {
     total: rows.length,
     productsEvaluated: rows.length,
     uniqueMainCategories: uniqueCategories.size,
-    categoriesInPrestashop: metrics.categoriesExisting + metrics.categoriesCreated,
+    categoriesInPrestashop:
+      metrics.categoriesExisting + metrics.categoriesCreated,
     categoriesMissingInPrestashop: metrics.categoriesToCreate,
     rowsWithoutMainCategory: metrics.missingMainCategory,
     categoriesExisting: metrics.categoriesExisting,
@@ -348,7 +301,9 @@ async function runCategoryDomain(log) {
       domain: "categories",
       summary,
       rows: rows.map((row) => ({
-        status: row.hasMainCategory ? "missing_prestashop_config" : "missing_main_category",
+        status: row.hasMainCategory
+          ? "missing_prestashop_config"
+          : "missing_main_category",
         ...row,
         categoryId: null,
         categoryCreated: false,
@@ -387,7 +342,9 @@ async function runCategoryDomain(log) {
   }
 
   const client = createPrestaClient(log);
-  const categorySnapshot = buildCategorySnapshot(await listPrestaCategories(client));
+  const categorySnapshot = buildCategorySnapshot(
+    await listPrestaCategories(client),
+  );
   const productSnapshot = await buildPrestaCatalogSnapshot(client, log);
   const resultRows = [];
   const seenCategoryKeys = new Set();
@@ -397,7 +354,10 @@ async function runCategoryDomain(log) {
     let resultRow;
 
     try {
-      if (!row.hasMainCategory || !String(row.proposedPrestaCategory || "").trim()) {
+      if (
+        !row.hasMainCategory ||
+        !String(row.proposedPrestaCategory || "").trim()
+      ) {
         metrics.missingMainCategory += 1;
         resultRow = {
           status: "missing_main_category",
@@ -435,7 +395,8 @@ async function runCategoryDomain(log) {
           }
         }
 
-        const matches = productSnapshot.productsByReference.get(row.itemCode) || [];
+        const matches =
+          productSnapshot.productsByReference.get(row.itemCode) || [];
 
         if (matches.length === 0) {
           metrics.productMissingInPrestashop += 1;
@@ -459,14 +420,17 @@ async function runCategoryDomain(log) {
             categoryCreated: categoryResult.created,
             productId: matches[0].id,
             productUpdated: false,
-            notes: "Referencia duplicada en PrestaShop. Requiere revision manual.",
+            notes:
+              "Referencia duplicada en PrestaShop. Requiere revision manual.",
           };
         } else {
           metrics.productsFound += 1;
           const product = matches[0];
           const currentDefaultCategoryId = Number(product.defaultCategory || 0);
           const targetCategoryId = Number(categoryResult.categoryId || 0);
-          const needsUpdate = targetCategoryId > 0 && currentDefaultCategoryId !== targetCategoryId;
+          const needsUpdate =
+            targetCategoryId > 0 &&
+            currentDefaultCategoryId !== targetCategoryId;
 
           if (needsUpdate) {
             metrics.productsToRelink += 1;
@@ -515,12 +479,17 @@ async function runCategoryDomain(log) {
     resultRows.push(resultRow);
     completed += 1;
 
-    if (rows.length <= 100 || completed === rows.length || completed % 25 === 0) {
+    if (
+      rows.length <= 100 ||
+      completed === rows.length ||
+      completed % 25 === 0
+    ) {
       log("info", "Progreso de dominio", {
         domain: "categories",
         current: completed,
         total: rows.length,
-        percent: rows.length > 0 ? Math.round((completed / rows.length) * 100) : 0,
+        percent:
+          rows.length > 0 ? Math.round((completed / rows.length) * 100) : 0,
         itemCode: row.itemCode,
       });
     }
