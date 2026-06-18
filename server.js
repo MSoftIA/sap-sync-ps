@@ -63,6 +63,15 @@ function closeSseClient(client) {
   clearInterval(client.keepAliveTimer);
 }
 
+function buildServerLogLine(level, message, extra = {}) {
+  return JSON.stringify({
+    ts: new Date().toISOString(),
+    level,
+    message,
+    ...extra,
+  });
+}
+
 function attachSyncClient(syncState, client) {
   syncState.clients.add(client);
 
@@ -246,17 +255,15 @@ function buildDomainAnalysisSummary() {
             available: false,
             summary: null,
           },
-      orders:
-        orderReport
-          ? {
-              key: "orders",
-              available: true,
-              generatedAt: orderReport.generatedAt || null,
-              summary: orderReport.summary || {},
-              note:
-                "Lectura operativa de pedidos desde SAP. La escritura en PrestaShop sigue bloqueada hasta definir el flujo funcional.",
-            }
-          : orders && !orders.error
+      orders: orderReport
+        ? {
+            key: "orders",
+            available: true,
+            generatedAt: orderReport.generatedAt || null,
+            summary: orderReport.summary || {},
+            note: "Lectura operativa de pedidos desde SAP. La escritura en PrestaShop sigue bloqueada hasta definir el flujo funcional.",
+          }
+        : orders && !orders.error
           ? {
               key: "orders",
               available: true,
@@ -426,6 +433,7 @@ app.get("/api/status", (req, res) => {
           startedAt: activeSync.startedAt,
           pid: activeSync.proc.pid,
           logLines: activeSync.logBuffer.length,
+          stopRequested: Boolean(activeSync.stopRequested),
         }
       : { running: false },
   );
@@ -462,11 +470,17 @@ app.get("/api/sap-products", (req, res) => {
   const page = parsePositiveInt(req.query.page, 1);
   const pageSize = parsePositiveInt(req.query.pageSize, 50, { max: 250 });
   const search = String(req.query.search || "").trim();
-  const status = String(req.query.status || "all").trim().toLowerCase();
-  const stock = String(req.query.stock || "all").trim().toLowerCase();
+  const status = String(req.query.status || "all")
+    .trim()
+    .toLowerCase();
+  const stock = String(req.query.stock || "all")
+    .trim()
+    .toLowerCase();
 
   if (!["all", "active", "inactive"].includes(status)) {
-    res.status(400).json({ error: "status invalido. Usa all, active o inactive" });
+    res
+      .status(400)
+      .json({ error: "status invalido. Usa all, active o inactive" });
     return;
   }
 
@@ -476,7 +490,13 @@ app.get("/api/sap-products", (req, res) => {
   }
 
   try {
-    const payload = readSapProductsPage(log, { page, pageSize, search, status, stock });
+    const payload = readSapProductsPage(log, {
+      page,
+      pageSize,
+      search,
+      status,
+      stock,
+    });
     res.json(payload);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -487,11 +507,17 @@ app.get("/api/prestashop-products", async (req, res) => {
   const page = parsePositiveInt(req.query.page, 1);
   const pageSize = parsePositiveInt(req.query.pageSize, 50, { max: 250 });
   const search = String(req.query.search || "").trim();
-  const status = String(req.query.status || "all").trim().toLowerCase();
-  const combo = String(req.query.combo || "all").trim().toLowerCase();
+  const status = String(req.query.status || "all")
+    .trim()
+    .toLowerCase();
+  const combo = String(req.query.combo || "all")
+    .trim()
+    .toLowerCase();
 
   if (!["all", "active", "inactive"].includes(status)) {
-    res.status(400).json({ error: "status invalido. Usa all, active o inactive" });
+    res
+      .status(400)
+      .json({ error: "status invalido. Usa all, active o inactive" });
     return;
   }
 
@@ -663,16 +689,15 @@ app.get("/api/sync", (req, res) => {
   const childEnv = { ...process.env };
   if (fullCatalog === "true") {
     delete childEnv.SAP_ITEM_CODE;
-    childEnv.SAP_LIMIT = "0";
   } else if (itemCode && itemCode.trim()) {
     childEnv.SAP_ITEM_CODE = itemCode.trim();
   } else {
     delete childEnv.SAP_ITEM_CODE;
   }
-  if (fullCatalog === "true") {
-    childEnv.SAP_LIMIT = "0";
-  } else if (limit && limit.trim()) {
+  if (limit && limit.trim()) {
     childEnv.SAP_LIMIT = limit.trim();
+  } else if (fullCatalog === "true") {
+    childEnv.SAP_LIMIT = "0";
   } else {
     delete childEnv.SAP_LIMIT;
   }
@@ -698,6 +723,8 @@ app.get("/api/sync", (req, res) => {
     clients: new Set(),
     logBuffer: [],
     startedAt: new Date().toISOString(),
+    stopRequested: false,
+    stopTimer: null,
   };
   activeSync = syncState;
   attachSyncClient(syncState, client);
@@ -713,9 +740,18 @@ app.get("/api/sync", (req, res) => {
   proc.stdout.on("data", handleChunk("log"));
   proc.stderr.on("data", handleChunk("log"));
 
-  proc.on("close", (code) => {
+  proc.on("close", (code, signal) => {
     overviewCache = { updatedAt: 0, payload: null };
-    broadcastSync(syncState, { type: "done", code });
+    if (syncState.stopTimer) {
+      clearTimeout(syncState.stopTimer);
+      syncState.stopTimer = null;
+    }
+    broadcastSync(syncState, {
+      type: "done",
+      code,
+      signal,
+      stopped: Boolean(syncState.stopRequested),
+    });
     for (const connectedClient of syncState.clients) {
       closeSseClient(connectedClient);
     }
@@ -731,6 +767,51 @@ app.get("/api/sync", (req, res) => {
       activeSync.clients.delete(client);
     }
   });
+});
+
+app.post("/api/sync/stop", (req, res) => {
+  if (!activeSync) {
+    res.status(409).json({ ok: false, error: "No hay una sync activa" });
+    return;
+  }
+
+  if (activeSync.stopRequested) {
+    res.json({ ok: true, message: "La detencion ya fue solicitada" });
+    return;
+  }
+
+  activeSync.stopRequested = true;
+  pushSyncLog(activeSync, {
+    type: "log",
+    line: buildServerLogLine("warn", "Solicitud de detencion recibida"),
+  });
+
+  try {
+    activeSync.proc.kill("SIGTERM");
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      error: error.message || "No se pudo detener la sync",
+    });
+    return;
+  }
+
+  activeSync.stopTimer = setTimeout(() => {
+    if (activeSync && activeSync.stopRequested) {
+      try {
+        pushSyncLog(activeSync, {
+          type: "log",
+          line: buildServerLogLine(
+            "warn",
+            "Forzando cierre del proceso de sync",
+          ),
+        });
+        activeSync.proc.kill("SIGKILL");
+      } catch {}
+    }
+  }, 5000);
+
+  res.json({ ok: true, message: "Se solicito detener la sync" });
 });
 
 // SPA fallback — sirve index.html para rutas no-API (debe ir después de todas las rutas /api)

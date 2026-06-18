@@ -13,7 +13,7 @@ import { BarChart } from "../components/BarChart";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { EmptyState } from "../components/EmptyState";
 import { fmt, fmtDate } from "../utils";
-import { startSyncStream } from "../api/sync";
+import { startSyncStream, stopSync } from "../api/sync";
 
 interface Props {
   reports: Report[];
@@ -110,6 +110,7 @@ export function SyncView({
   const [limit, setLimit] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingFullCatalog, setPendingFullCatalog] = useState(false);
+  const [stopRequested, setStopRequested] = useState(false);
 
   const latest = reports[0] ?? null;
   const latestActions = latest?.recommendedActions ?? {};
@@ -163,6 +164,7 @@ export function SyncView({
 
       setSyncRunning(true);
       setStatusLabel("En ejecucion");
+      setStopRequested(false);
       setLogEntries([]);
       setProgress(defaultProgress);
       setCurrentProgress(defaultProgress);
@@ -187,7 +189,7 @@ export function SyncView({
       const es = startSyncStream({
         fullCatalog,
         itemCode: fullCatalog ? undefined : itemCode || undefined,
-        limit: fullCatalog ? undefined : limit || undefined,
+        limit: limit || undefined,
         write: writeMode,
         domains: activeDomains,
       });
@@ -197,6 +199,7 @@ export function SyncView({
           type: string;
           line?: string;
           code?: number;
+          stopped?: boolean;
         };
 
         if (msg.type === "log" && msg.line) {
@@ -214,19 +217,30 @@ export function SyncView({
 
         if (msg.type === "done") {
           const ok = msg.code === 0;
+          const stopped = msg.stopped === true;
           setLogEntries((prev) => [
             ...prev,
             {
-              text: ok
-                ? "Sync completado."
-                : `Sync finalizo con codigo ${msg.code}.`,
-              cls: ok ? "done-ok" : "done-err",
+              text: stopped
+                ? "Sync detenida por el usuario."
+                : ok
+                  ? "Sync completado."
+                  : `Sync finalizo con codigo ${msg.code}.`,
+              cls: stopped || ok ? "done-ok" : "done-err",
             },
           ]);
           es.close();
           setSyncRunning(false);
-          setStatusLabel(ok ? "Completado" : "Con errores");
-          if (ok) {
+          setStopRequested(false);
+          setStatusLabel(
+            stopped ? "Detenido" : ok ? "Completado" : "Con errores",
+          );
+          if (stopped) {
+            addToast({
+              message: "Sync detenida por el usuario.",
+              kind: "info",
+            });
+          } else if (ok) {
             setProgress((prev) => ({ ...prev, percent: 100, known: true }));
             addToast({
               message: "Sync completado exitosamente.",
@@ -249,6 +263,7 @@ export function SyncView({
         ]);
         es.close();
         setSyncRunning(false);
+        setStopRequested(false);
         setStatusLabel("Con errores");
         addToast({
           message: "Error de conexion con el servidor.",
@@ -258,6 +273,32 @@ export function SyncView({
     },
     [syncRunning, writeMode, activeDomains, itemCode, limit, addToast],
   );
+
+  const requestStop = useCallback(async () => {
+    if (!syncRunning || stopRequested) return;
+
+    try {
+      setStopRequested(true);
+      await stopSync();
+      setLogEntries((prev) => [
+        ...prev,
+        { text: "Solicitando detener la sync...", cls: "warn" },
+      ]);
+      addToast({
+        message: "Se envio la solicitud para detener la sync.",
+        kind: "info",
+      });
+    } catch (error) {
+      setStopRequested(false);
+      addToast({
+        message:
+          error instanceof Error
+            ? error.message
+            : "No se pudo detener la sync.",
+        kind: "error",
+      });
+    }
+  }, [syncRunning, stopRequested, addToast]);
 
   // Domain analysis data
   const products = domainAnalysis?.domains?.products;
@@ -615,6 +656,12 @@ export function SyncView({
               <MessageBox kind={activeDomains.length === 0 ? "warn" : "info"}>
                 {`La proxima corrida usara: ${activeDomains.join(", ")}. ${writeMode ? "Vas a aplicar cambios reales en los dominios listos." : "Vas a analizar sin modificar la tienda."}`}
               </MessageBox>
+
+              {limit && (
+                <MessageBox kind="info">
+                  {`Lote manual activo: la proxima corrida procesara hasta ${limit} registro(s), incluso si usas la sync principal.`}
+                </MessageBox>
+              )}
             </div>
 
             <div className="button-row">
@@ -656,6 +703,17 @@ export function SyncView({
                 {loading && <span className="spinner-dark" />}
                 Refrescar tablero
               </button>
+
+              {syncRunning && (
+                <button
+                  className="btn-secondary"
+                  type="button"
+                  disabled={stopRequested}
+                  onClick={requestStop}
+                >
+                  {stopRequested ? "Deteniendo..." : "Detener sync"}
+                </button>
+              )}
             </div>
 
             <details>
@@ -672,6 +730,10 @@ export function SyncView({
                       value={limit}
                       onChange={(e) => setLimit(e.target.value)}
                     />
+                    <div className="section-note">
+                      Tambien aplica a la sync principal si dejas vacio el item
+                      code.
+                    </div>
                   </div>
                   <div className="field">
                     <label htmlFor="item-code">Item code puntual</label>
