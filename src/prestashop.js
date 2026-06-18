@@ -793,7 +793,9 @@ async function updatePrestaProductActive(client, productId, active) {
   updatedXml = removeXmlTag(updatedXml, "manufacturer_name");
   updatedXml = removeXmlTag(updatedXml, "quantity");
   updatedXml = setXmlTagValue(updatedXml, "active", active ? 1 : 0);
-  await client.put("products/" + productId, updatedXml);
+  // display:[id] prevents PS WebserviceOutputBuilder from building the full product
+  // response XML, which can 500 when a product has null association fields.
+  await client.put("products/" + productId, updatedXml, { display: "[id]" });
   return { productId, active: active ? 1 : 0 };
 }
 

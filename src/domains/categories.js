@@ -225,15 +225,48 @@ async function ensureCategory(client, snapshot, row, defaults, log) {
 }
 
 async function assignProductToCategory(client, productId, categoryId) {
-  const productXml = await client.get("products/" + productId);
-  const currentCategoryIds = parseCategoryIdsFromProductXml(productXml);
+  // Fetch current category associations via list endpoint to avoid the
+  // WebserviceOutputBuilder HTTP 500 that occurs on single-product GETs when
+  // a product has null association fields (images, tags, accessories, etc.).
+  let currentCategoryIds = [];
+  try {
+    const listXml = await client.get("products", {
+      display: "[id,associations]",
+      "filter[id]": productId,
+    });
+    const blocks = parseXmlBlocks(listXml, "product");
+    if (blocks.length > 0) {
+      currentCategoryIds = parseCategoryIdsFromProductXml(blocks[0]);
+    }
+  } catch {
+    // If the list fetch also fails, proceed with just the target category.
+  }
+
   const nextCategoryIds = [...new Set([categoryId, ...currentCategoryIds])];
-  let updatedXml = productXml;
-  updatedXml = removeTag(updatedXml, "manufacturer_name");
-  updatedXml = removeTag(updatedXml, "quantity");
-  updatedXml = setTagValue(updatedXml, "id_category_default", categoryId);
-  updatedXml = upsertCategoryAssociations(updatedXml, nextCategoryIds);
-  await client.put("products/" + productId, updatedXml);
+  const categoriesInner = nextCategoryIds
+    .map((id) => `        <category><id>${cdata(id)}</id></category>`)
+    .join("\n");
+
+  // Partial PUT: PS loads the full product from DB before applying values,
+  // so fields not present here (name, price, etc.) are preserved unchanged.
+  // display:[id] on PUT prevents PS from building the full product response,
+  // which also triggers the WebserviceOutputBuilder 500.
+  const putXml = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<prestashop xmlns:xlink="http://www.w3.org/1999/xlink">',
+    "  <product>",
+    `    <id>${cdata(productId)}</id>`,
+    `    <id_category_default>${cdata(categoryId)}</id_category_default>`,
+    '    <associations>',
+    '      <categories nodeType="category" api="categories">',
+    categoriesInner,
+    "      </categories>",
+    "    </associations>",
+    "  </product>",
+    "</prestashop>",
+  ].join("\n");
+
+  await client.put("products/" + productId, putXml, { display: "[id]" });
 }
 
 function toDiagnosticRow(row) {

@@ -402,7 +402,7 @@ async function executeSyncAction(client, row, log) {
       existingProductXml,
       row.actionPayload.product,
     );
-    await client.put("products/" + row.productId, productXml);
+    await client.put("products/" + row.productId, productXml, { display: "[id]" });
   }
 
   if (
