@@ -1023,11 +1023,16 @@ export function SyncView({
               <tbody>
                 {reports.map((r, i) => {
                   const a = r.recommendedActions ?? {};
+                  const detected = r.detectedActions ?? a;
                   const s = r.summary ?? {};
                   const upd =
                     (a.updateProductPrice ?? 0) +
                     (a.updateProductStock ?? 0) +
                     (a.updateProductPriceAndStock ?? 0);
+                  const detectedUpd =
+                    (detected.updateProductPrice ?? 0) +
+                    (detected.updateProductStock ?? 0) +
+                    (detected.updateProductPriceAndStock ?? 0);
                   const rev =
                     (a.reviewCombinationMapping ?? 0) + (a.reviewError ?? 0);
                   const executed = a.executed ?? 0;
@@ -1036,8 +1041,14 @@ export function SyncView({
                     <tr key={i}>
                       <td>{fmtDate(r.generatedAt)}</td>
                       <td>{fmt(s.total)}</td>
-                      <td>{fmt(a.createProduct)}</td>
-                      <td>{fmt(upd)}</td>
+                      <td
+                        title={`Detectadas al iniciar: ${fmt(detected.createProduct)}`}
+                      >
+                        {fmt(a.createProduct)}
+                      </td>
+                      <td title={`Detectadas al iniciar: ${fmt(detectedUpd)}`}>
+                        {fmt(upd)}
+                      </td>
                       <td>{fmt(a.skipNoChange)}</td>
                       <td>
                         <Tag tone={rev > 0 ? "amber" : "gray"}>{fmt(rev)}</Tag>

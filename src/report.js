@@ -65,6 +65,60 @@ function buildSummary(results) {
   return summary;
 }
 
+function createActionCounters() {
+  return {
+    createProduct: 0,
+    updateProductPrice: 0,
+    updateProductStock: 0,
+    updateProductPriceAndStock: 0,
+    skipNoChange: 0,
+    reviewCombinationMapping: 0,
+    reviewError: 0,
+    blocked: 0,
+    executed: 0,
+  };
+}
+
+function applyActionCounters(counters, result) {
+  if (result.action === "create_product") counters.createProduct += 1;
+  if (result.action === "update_product_price")
+    counters.updateProductPrice += 1;
+  if (result.action === "update_product_stock")
+    counters.updateProductStock += 1;
+  if (result.action === "update_product_price_and_stock")
+    counters.updateProductPriceAndStock += 1;
+  if (result.action === "skip_no_change") counters.skipNoChange += 1;
+  if (result.action === "review_combination_mapping")
+    counters.reviewCombinationMapping += 1;
+  if (result.action === "review_error") counters.reviewError += 1;
+  if (result.blockedReason) counters.blocked += 1;
+  if (result.execution && result.execution.executed) counters.executed += 1;
+}
+
+function buildDetectedActions(results) {
+  const counters = createActionCounters();
+
+  for (const result of results) {
+    applyActionCounters(counters, result);
+  }
+
+  return counters;
+}
+
+function buildPendingActions(results) {
+  const counters = createActionCounters();
+
+  for (const result of results) {
+    if (result.execution && result.execution.executed) {
+      continue;
+    }
+
+    applyActionCounters(counters, result);
+  }
+
+  return counters;
+}
+
 function toCsvRows(results) {
   const headers = [
     "status",
@@ -152,32 +206,8 @@ function writeRunReports(log, results) {
     JSON.stringify(
       {
         generatedAt: new Date().toISOString(),
-        recommendedActions: {
-          createProduct: results.filter(
-            (item) => item.action === "create_product",
-          ).length,
-          updateProductPrice: results.filter(
-            (item) => item.action === "update_product_price",
-          ).length,
-          updateProductStock: results.filter(
-            (item) => item.action === "update_product_stock",
-          ).length,
-          updateProductPriceAndStock: results.filter(
-            (item) => item.action === "update_product_price_and_stock",
-          ).length,
-          skipNoChange: results.filter(
-            (item) => item.action === "skip_no_change",
-          ).length,
-          reviewCombinationMapping: results.filter(
-            (item) => item.action === "review_combination_mapping",
-          ).length,
-          reviewError: results.filter((item) => item.action === "review_error")
-            .length,
-          blocked: results.filter((item) => item.blockedReason).length,
-          executed: results.filter(
-            (item) => item.execution && item.execution.executed,
-          ).length,
-        },
+        recommendedActions: buildPendingActions(results),
+        detectedActions: buildDetectedActions(results),
         summary,
       },
       null,
