@@ -1,288 +1,51 @@
 "use strict";
 
-/**
- * mock-server.js — Servidor de desarrollo con datos ficticios.
- *
- * No requiere SAP HANA ni PrestaShop configurados.
- *
- * Usos:
- *   # Vista rapida (requiere build previo):
- *   npm run build && npm run mock
- *   → http://localhost:3000
- *
- *   # Dev con hot-reload (dos terminales):
- *   npm run mock          ← terminal 1
- *   npm run dev           ← terminal 2
- *   → http://localhost:5173
- */
-
 const express = require("express");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const app = express();
 const PORT = process.env.MOCK_PORT || 3000;
+const SNAPSHOT_PATH =
+  process.env.MOCK_DATA_FILE ||
+  path.join(__dirname, "mock-data", "latest.json");
 
 app.use(express.static(path.join(__dirname, "dist")));
 app.use(express.json());
 
-// ── Datos mock ────────────────────────────────────────────────────────────────
-
-const MOCK_SAP = {
-  source: "sap",
-  schema: "BD_CARBALLO",
-  warehouse: "AC01",
-  priceList: 14,
-  totalProducts: 1842,
-  activeProducts: 1654,
-  inactiveProducts: 188,
-  productsWithStock: 1423,
-  productsWithoutStock: 419,
-  totalStock: 48520.5,
-};
-
-const MOCK_PRESTA = {
-  source: "prestashop",
-  totalProducts: 1589,
-  activeProducts: 1401,
-  inactiveProducts: 188,
-  totalCombinations: 234,
-};
+function readJsonSafe(filePath) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return null;
+  }
+}
 
 function buildContrast(sap, ps) {
   return {
-    productGap: sap.totalProducts - ps.totalProducts,
-    activeGap: sap.activeProducts - ps.activeProducts,
-    inactiveGap: sap.inactiveProducts - ps.inactiveProducts,
-    missingProductsInPrestashop: Math.max(sap.totalProducts - ps.totalProducts, 0),
-    extraProductsInPrestashop: Math.max(ps.totalProducts - sap.totalProducts, 0),
-    activeProductsMissingInPrestashop: Math.max(sap.activeProducts - ps.activeProducts, 0),
-    inactiveProductsExtraInPrestashop: Math.max(ps.inactiveProducts - sap.inactiveProducts, 0),
-    sapHasMoreProducts: sap.totalProducts > ps.totalProducts,
-    sapHasFewerProducts: sap.totalProducts < ps.totalProducts,
+    productGap: (sap?.totalProducts || 0) - (ps?.totalProducts || 0),
+    activeGap: (sap?.activeProducts || 0) - (ps?.activeProducts || 0),
+    inactiveGap: (sap?.inactiveProducts || 0) - (ps?.inactiveProducts || 0),
+    missingProductsInPrestashop: Math.max(
+      (sap?.totalProducts || 0) - (ps?.totalProducts || 0),
+      0,
+    ),
+    extraProductsInPrestashop: Math.max(
+      (ps?.totalProducts || 0) - (sap?.totalProducts || 0),
+      0,
+    ),
+    activeProductsMissingInPrestashop: Math.max(
+      (sap?.activeProducts || 0) - (ps?.activeProducts || 0),
+      0,
+    ),
+    inactiveProductsExtraInPrestashop: Math.max(
+      (ps?.inactiveProducts || 0) - (sap?.inactiveProducts || 0),
+      0,
+    ),
+    sapHasMoreProducts: (sap?.totalProducts || 0) > (ps?.totalProducts || 0),
+    sapHasFewerProducts: (sap?.totalProducts || 0) < (ps?.totalProducts || 0),
   };
 }
-
-const now = Date.now();
-
-const MOCK_REPORTS = [
-  {
-    generatedAt: new Date(now - 3_600_000).toISOString(),
-    domain: null,
-    summary: { total: 150, matchedProductOk: 118, matchedProductDiff: 21, createFromSap: 9, needsReview: 4, errors: 2 },
-    recommendedActions: {
-      createProduct: 9,
-      updateProductPrice: 11,
-      updateProductStock: 6,
-      updateProductPriceAndStock: 4,
-      skipNoChange: 118,
-      reviewCombinationMapping: 3,
-      reviewError: 1,
-      executed: 0,
-    },
-  },
-  {
-    generatedAt: new Date(now - 86_400_000).toISOString(),
-    domain: null,
-    summary: { total: 1842, matchedProductOk: 1581, matchedProductDiff: 179, createFromSap: 82, needsReview: 11, errors: 0 },
-    recommendedActions: {
-      createProduct: 82,
-      updateProductPrice: 90,
-      updateProductStock: 61,
-      updateProductPriceAndStock: 28,
-      skipNoChange: 1581,
-      reviewCombinationMapping: 11,
-      reviewError: 0,
-      executed: 0,
-    },
-  },
-  {
-    generatedAt: new Date(now - 172_800_000).toISOString(),
-    domain: null,
-    summary: { total: 1842, matchedProductOk: 1600, matchedProductDiff: 160, createFromSap: 82, needsReview: 10, errors: 0 },
-    recommendedActions: {
-      createProduct: 82,
-      updateProductPrice: 80,
-      updateProductStock: 56,
-      updateProductPriceAndStock: 24,
-      skipNoChange: 1600,
-      reviewCombinationMapping: 10,
-      reviewError: 0,
-      executed: 230,
-    },
-  },
-];
-
-const MOCK_DOMAIN_ANALYSIS = {
-  generatedAt: new Date().toISOString(),
-  domains: {
-    products: {
-      key: "products",
-      available: true,
-      generatedAt: new Date(now - 3_600_000).toISOString(),
-      summary: { total: 150, errors: 2 },
-      recommendedActions: {
-        createProduct: 9,
-        updateProductPrice: 11,
-        updateProductStock: 6,
-        updateProductPriceAndStock: 4,
-        skipNoChange: 118,
-        reviewCombinationMapping: 3,
-        reviewError: 1,
-      },
-    },
-    categories: {
-      key: "categories",
-      available: true,
-      generatedAt: new Date(now - 7_200_000).toISOString(),
-      summary: {
-        total: 1842,
-        uniqueMainCategories: 34,
-        uniqueActiveProperties: 12,
-        rowsWithoutMainCategory: 23,
-      },
-      alignment: {
-        expectedOperationalCatalog: 1842,
-        reportCatalog: 1842,
-        isAligned: true,
-      },
-    },
-    orders: {
-      key: "orders",
-      available: true,
-      generatedAt: new Date().toISOString(),
-      summary: {
-        ordersLast30Days: 47,
-        openOrders: 12,
-        closedOrders: 31,
-        canceledOrders: 4,
-        uniqueCustomers: 23,
-        latestDocNum: 5842,
-        latestDocDate: new Date(now - 86_400_000).toISOString(),
-      },
-      note: "Lectura operativa de pedidos desde SAP.",
-    },
-  },
-};
-
-const MOCK_SYNC_DOMAINS = {
-  generatedAt: new Date().toISOString(),
-  sourceOfTruth: "sap",
-  domains: [
-    { key: "products",   status: "active",      sourceOfTruth: "sap", writesReports: true,  scope: ["price", "stock", "create"] },
-    { key: "categories", status: "diagnostic",  sourceOfTruth: "sap", writesReports: true,  scope: ["category_mapping"] },
-    { key: "orders",     status: "discovery",   sourceOfTruth: "sap", writesReports: false, scope: ["read_only"] },
-  ],
-};
-
-const MOCK_ITEMS = [
-  { itemCode: "61072505", itemName: "ACEITE LUBRICANTE 20W-50 1L",        price: 850.00,   stock: 120, status: "Y" },
-  { itemCode: "61072506", itemName: "FILTRO DE ACEITE UNIVERSAL",          price: 320.00,   stock: 45,  status: "Y" },
-  { itemCode: "61072507", itemName: "PASTILLAS DE FRENO DELANTERO",        price: 1450.00,  stock: 0,   status: "Y" },
-  { itemCode: "61072508", itemName: "BUJIA NGK B8ES",                      price: 185.00,   stock: 200, status: "Y" },
-  { itemCode: "61072509", itemName: "FILTRO DE AIRE K&N ALTO RENDIMIENTO", price: 2800.00,  stock: 8,   status: "N" },
-  { itemCode: "61072510", itemName: "AMORTIGUADOR TRASERO MONROE",         price: 4200.00,  stock: 14,  status: "Y" },
-];
-
-// ── Mock artículos SAP ────────────────────────────────────────────────────────
-
-const PRODUCT_NAMES = [
-  'ACEITE LUBRICANTE 20W-50 1L', 'ACEITE LUBRICANTE 15W-40 4L', 'ACEITE SINTETICO 5W-30 1L',
-  'FILTRO DE ACEITE UNIVERSAL', 'FILTRO DE ACEITE TOYOTA', 'FILTRO DE ACEITE HONDA',
-  'FILTRO DE AIRE K&N ALTO RENDIMIENTO', 'FILTRO DE AIRE JEEP', 'FILTRO DE AIRE UNIVERSAL',
-  'FILTRO DE COMBUSTIBLE GASOLINA', 'FILTRO DE COMBUSTIBLE DIESEL', 'FILTRO DE CABINA CARBON',
-  'PASTILLAS DE FRENO DELANTERO TOYOTA', 'PASTILLAS DE FRENO TRASERO HONDA',
-  'DISCO DE FRENO DELANTERO VENTILADO', 'DISCO DE FRENO TRASERO SOLIDO',
-  'BUJIA NGK B8ES', 'BUJIA CHAMPION RC12YC', 'BUJIA BOSCH IRIDIUM',
-  'AMORTIGUADOR DELANTERO MONROE', 'AMORTIGUADOR TRASERO KYB', 'AMORTIGUADOR BILSTEIN',
-  'CORREA DE DISTRIBUCION GATES', 'CORREA POLY-V DAYCO', 'KIT DE DISTRIBUCION COMPLETO',
-  'BATERIA 12V 45AH', 'BATERIA 12V 65AH', 'BATERIA 12V 90AH AGM',
-  'LIQUIDO DE FRENOS DOT4 500ML', 'REFRIGERANTE VERDE 1L', 'REFRIGERANTE ROJO 1L',
-  'BOMBA DE AGUA TOYOTA HILUX', 'BOMBA DE AGUA HONDA CIVIC', 'BOMBA DE COMBUSTIBLE ELECTRICA',
-  'ALTERNADOR 70A RECONSTRUIDO', 'MOTOR DE ARRANQUE 12V', 'COMPRESOR DE AIRE ACONDICIONADO',
-  'BALANCIN COMPLETO TOYOTA', 'TENSOR DE CORREA AUTOMATICO', 'POLEA LOCA',
-  'SILENCIADOR UNIVERSAL DEPORTIVO', 'CATALIZADOR UNIVERSAL 2.5', 'SENSOR O2 UPSTREAM',
-  'SENSOR MAF FORD F150', 'SENSOR TPS CHEVROLET', 'SENSOR CPS DODGE',
-  'EMBRAGUE KIT COMPLETO TOYOTA', 'DISCO DE EMBRAGUE HONDA', 'PLATO PRESOR FORD',
-  'JUNTA DE CABEZA TOYOTA 2.0', 'JUEGO DE JUNTAS MOTOR COMPLETO', 'SELLO DE VALVULAS',
-  'BULON DE RUEDA M14X1.5', 'TUERCA DE SEGURIDAD', 'ARBOL DE LEVAS RECONSTRUIDO',
-  'INYECTOR DE COMBUSTIBLE BOSCH', 'INYECTOR CHEVROLET REMANUFACTURADO',
-  'BOMBA DE DIRECCION HIDRAULICA', 'CREMALLERA DE DIRECCION TOYOTA',
-  'ROTULA INFERIOR TOYOTA HILUX', 'ROTULA SUPERIOR FORD F150', 'BARRA ESTABILIZADORA',
-  'BOCINA DE GOMA SUSPENSION', 'BOCINA BARRA ESTABILIZADORA', 'SOPORTE DE MOTOR HIDRAULICO',
-  'FARO DELANTERO TOYOTA HILUX', 'FARO DELANTERO HONDA CIVIC', 'LUZ TRASERA LED UNIVERSAL',
-  'ESPEJO RETROVISOR ELECTRICO', 'VIDRIO ESPEJO RETROVISOR', 'CAPOT TOYOTA HILUX',
-  'PARACHOQUES DELANTERO FORD', 'REJILLA PARACHOQUES TOYOTA', 'BISAGRA PUERTA',
-  'MANIJA INTERIOR PUERTA', 'SEGURO DE PUERTA ELECTRICO', 'ANTENA RADIO AM/FM',
-  'RADIO CD MP3 UNIVERSAL', 'BOCINA 6X9 150W PAR', 'ALARMA VIPER 3100',
-  'LIMPIAPARABRISAS 20 PULGADAS', 'LIMPIAPARABRISAS 22 PULGADAS', 'MOTOR LIMPIAPARABRISAS',
-  'LIQUIDO LIMPIAPARABRISAS 1L', 'ADITIVO LIMPIADOR INYECTORES', 'ADITIVO MOTOR RESTORE',
-]
-
-function generateArticles() {
-  return PRODUCT_NAMES.map((name, i) => {
-    const baseCode = 61072500 + i
-    const active = i % 10 !== 7  // ~10% inactivos
-    const stock = active
-      ? (i % 5 === 0 ? 0 : Math.floor(Math.random() * 250) + 1)  // ~20% sin stock
-      : 0
-    const basePrice = [85, 132, 185, 220, 320, 450, 680, 850, 1200, 1450, 2100, 2800, 4200][i % 13]
-    const price = Math.round(basePrice * (0.85 + Math.random() * 0.3) * 100) / 100
-    return {
-      itemCode: String(baseCode),
-      itemName: name,
-      price,
-      stock,
-      status: active ? 'Y' : 'N',
-    }
-  })
-}
-
-const MOCK_ARTICLES = generateArticles()
-
-// ── Endpoints ─────────────────────────────────────────────────────────────────
-
-app.get("/api/reports", (_req, res) => {
-  res.json(MOCK_REPORTS);
-});
-
-app.get("/api/status", (_req, res) => {
-  res.json({ running: false });
-});
-
-app.get("/api/catalog-overview", (_req, res) => {
-  res.json({
-    generatedAt: new Date().toISOString(),
-    sap: MOCK_SAP,
-    prestashop: MOCK_PRESTA,
-    contrast: buildContrast(MOCK_SAP, MOCK_PRESTA),
-  });
-});
-
-app.get("/api/dashboard-summary", (_req, res) => {
-  const overview = {
-    generatedAt: new Date().toISOString(),
-    sap: MOCK_SAP,
-    prestashop: MOCK_PRESTA,
-    contrast: buildContrast(MOCK_SAP, MOCK_PRESTA),
-  };
-  res.json({
-    generatedAt: new Date().toISOString(),
-    latestReport: MOCK_REPORTS[0],
-    overview,
-    executive: {
-      overallStatus: "attention",
-      headline: "Hay diferencias entre SAP y PrestaShop. El tablero recomienda revisar o sincronizar cambios.",
-    },
-  });
-});
-
-app.get("/api/domain-analysis", (_req, res) => {
-  res.json(MOCK_DOMAIN_ANALYSIS);
-});
-
-app.get("/api/sync-domains", (_req, res) => {
-  res.json(MOCK_SYNC_DOMAINS);
-});
 
 function mockPaginate(items, req) {
   const page = Math.max(1, Number(req.query.page) || 1);
@@ -291,124 +54,404 @@ function mockPaginate(items, req) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const safePage = Math.min(page, totalPages);
   const offset = (safePage - 1) * pageSize;
+
   return {
-    pagination: { page: safePage, pageSize, total, totalPages, hasNextPage: safePage < totalPages, hasPreviousPage: safePage > 1 },
+    pagination: {
+      page: safePage,
+      pageSize,
+      total,
+      totalPages,
+      hasNextPage: safePage < totalPages,
+      hasPreviousPage: safePage > 1,
+    },
     pageItems: items.slice(offset, offset + pageSize),
   };
 }
 
-app.get("/api/prestashop-products", (req, res) => {
-  const search = String(req.query.search || "").trim().toLowerCase();
-  const status = String(req.query.status || "all").trim().toLowerCase();
-  const combo = String(req.query.combo || "all").trim().toLowerCase();
+function createFallbackArticles() {
+  const names = [
+    "ACEITE LUBRICANTE 20W-50 1L",
+    "FILTRO DE ACEITE UNIVERSAL",
+    "PASTILLAS DE FRENO DELANTERO",
+    "BUJIA NGK B8ES",
+    "AMORTIGUADOR TRASERO MONROE",
+  ];
 
-  const allItems = MOCK_ARTICLES
-    .filter((_, i) => i % 10 !== 3)
-    .map((a, i) => ({
-      productId: 1000 + i,
-      reference: a.itemCode,
-      name: a.itemName,
-      active: (a.status === 'Y' && i % 8 !== 0) ? '1' : '0',
-      productPrice: a.price,
-      combinationCount: i % 7 === 0 ? Math.floor(Math.random() * 4) + 2 : 0,
-      hasCombinations: i % 7 === 0,
-      stockTotal: i % 7 === 0 ? 0 : a.stock,
+  return Array.from({ length: 120 }, (_, index) => {
+    const itemCode = String(61072500 + index);
+    const itemName = `${names[index % names.length]} #${index + 1}`;
+    const price = Math.round((80 + index * 7.5) * 100) / 100;
+    const stock = index % 6 === 0 ? 0 : (index * 3) % 150;
+    const status = index % 8 === 0 ? "N" : "Y";
+
+    return {
+      itemCode,
+      itemName,
+      price,
+      stock,
+      status,
+    };
+  });
+}
+
+function derivePrestaProductsFromSap(sapProducts) {
+  return sapProducts
+    .filter((_, index) => index % 9 !== 4)
+    .map((item, index) => ({
+      productId: 1000 + index,
+      reference: item.itemCode,
+      name: item.itemName,
+      active: item.status === "Y" && index % 7 !== 0 ? "1" : "0",
+      productPrice: Number(item.price || 0),
+      combinationCount: index % 11 === 0 ? 2 : 0,
+      hasCombinations: index % 11 === 0,
+      stockTotal: index % 11 === 0 ? 0 : Number(item.stock || 0),
+      stockRows: index % 11 === 0 ? 2 : 1,
+      directStock: index % 11 === 0 ? null : Number(item.stock || 0),
+      defaultCategory: "",
     }));
+}
 
-  let filtered = allItems;
-  if (status === 'active')   filtered = filtered.filter(p => p.active === '1');
-  if (status === 'inactive') filtered = filtered.filter(p => p.active !== '1');
-  if (combo === 'simple')    filtered = filtered.filter(p => !p.hasCombinations);
-  if (combo === 'combo')     filtered = filtered.filter(p => p.hasCombinations);
-  if (search) filtered = filtered.filter(p =>
-    p.reference.toLowerCase().includes(search) || p.name.toLowerCase().includes(search)
+function deriveFallbackReports(total, missing) {
+  const now = Date.now();
+
+  return [
+    {
+      generatedAt: new Date(now - 60 * 60 * 1000).toISOString(),
+      summary: {
+        total,
+        matchedProductOk: Math.max(total - missing - 12, 0),
+        matchedProductDiff: 8,
+        createFromSap: missing,
+        needsReview: 4,
+        errors: 0,
+      },
+      recommendedActions: {
+        createProduct: missing,
+        updateProductPrice: 5,
+        updateProductStock: 3,
+        updateProductPriceAndStock: 0,
+        skipNoChange: Math.max(total - missing - 12, 0),
+        reviewCombinationMapping: 3,
+        reviewError: 1,
+        blocked: 0,
+        executed: 0,
+      },
+      detectedActions: {
+        createProduct: missing,
+        updateProductPrice: 5,
+        updateProductStock: 3,
+        updateProductPriceAndStock: 0,
+        skipNoChange: Math.max(total - missing - 12, 0),
+        reviewCombinationMapping: 3,
+        reviewError: 1,
+        blocked: 0,
+        executed: 0,
+      },
+    },
+  ];
+}
+
+const snapshot = readJsonSafe(SNAPSHOT_PATH);
+const fallbackSapProducts = createFallbackArticles();
+const sapProducts =
+  Array.isArray(snapshot?.sapProducts) && snapshot.sapProducts.length > 0
+    ? snapshot.sapProducts
+    : fallbackSapProducts;
+const prestashopProducts =
+  Array.isArray(snapshot?.prestashopProducts) &&
+  snapshot.prestashopProducts.length > 0
+    ? snapshot.prestashopProducts
+    : derivePrestaProductsFromSap(sapProducts);
+const reports =
+  Array.isArray(snapshot?.reports) && snapshot.reports.length > 0
+    ? snapshot.reports
+    : deriveFallbackReports(
+        sapProducts.length,
+        Math.max(sapProducts.length - prestashopProducts.length, 0),
+      );
+
+const catalogOverview =
+  snapshot?.catalogOverview ||
+  (() => {
+    const activeSap = sapProducts.filter((item) => item.status === "Y").length;
+    const activePresta = prestashopProducts.filter(
+      (item) => String(item.active) === "1",
+    ).length;
+    const sap = {
+      source: "sap",
+      schema: "BD_CARBALLO",
+      warehouse: "AC01",
+      priceList: 14,
+      totalProducts: sapProducts.length,
+      activeProducts: activeSap,
+      inactiveProducts: sapProducts.length - activeSap,
+      productsWithStock: sapProducts.filter((item) => Number(item.stock) > 0)
+        .length,
+      productsWithoutStock: sapProducts.filter(
+        (item) => Number(item.stock) <= 0,
+      ).length,
+      totalStock: sapProducts.reduce(
+        (acc, item) => acc + Number(item.stock || 0),
+        0,
+      ),
+    };
+    const prestashop = {
+      source: "prestashop",
+      totalProducts: prestashopProducts.length,
+      activeProducts: activePresta,
+      inactiveProducts: prestashopProducts.length - activePresta,
+      totalCombinations: prestashopProducts.reduce(
+        (acc, item) => acc + Number(item.combinationCount || 0),
+        0,
+      ),
+    };
+
+    return {
+      generatedAt: new Date().toISOString(),
+      sap,
+      prestashop,
+      contrast: buildContrast(sap, prestashop),
+    };
+  })();
+
+const domainAnalysis =
+  snapshot?.domainAnalysis ||
+  (() => ({
+    generatedAt: new Date().toISOString(),
+    domains: {
+      products: {
+        key: "products",
+        available: true,
+        generatedAt: reports[0]?.generatedAt || new Date().toISOString(),
+        summary: reports[0]?.summary || {},
+        recommendedActions: reports[0]?.recommendedActions || {},
+      },
+      categories: {
+        key: "categories",
+        available: true,
+        generatedAt: new Date().toISOString(),
+        summary: {
+          total: sapProducts.length,
+          productsEvaluated: sapProducts.length,
+          uniqueMainCategories: 24,
+          categoriesInPrestashop: 18,
+          categoriesMissingInPrestashop: 6,
+          rowsWithoutMainCategory: 0,
+        },
+      },
+      orders: {
+        key: "orders",
+        available: true,
+        generatedAt: new Date().toISOString(),
+        summary: {
+          totalOrders: 42,
+          prestaTotalOrders: 0,
+          orderGap: 42,
+          ordersLast30Days: 11,
+          openOrders: 7,
+          closedOrders: 31,
+          canceledOrders: 4,
+          uniqueCustomers: 13,
+          latestDocNum: 38529,
+        },
+      },
+    },
+  }))();
+
+const syncDomains = snapshot?.syncDomains || {
+  generatedAt: new Date().toISOString(),
+  sourceOfTruth: "sap",
+  domains: [
+    {
+      key: "products",
+      status: "active",
+      sourceOfTruth: "sap",
+      writesReports: true,
+      scope: ["price", "stock", "create"],
+    },
+    {
+      key: "categories",
+      status: "active",
+      sourceOfTruth: "sap",
+      writesReports: false,
+      scope: ["category_mapping"],
+    },
+    {
+      key: "orders",
+      status: "diagnostic",
+      sourceOfTruth: "sap",
+      writesReports: false,
+      scope: ["read_only"],
+    },
+  ],
+};
+
+let activeSync = null;
+
+app.get("/api/reports", (_req, res) => {
+  res.json(reports);
+});
+
+app.get("/api/status", (_req, res) => {
+  res.json(
+    activeSync
+      ? {
+          running: true,
+          startedAt: activeSync.startedAt,
+          stopRequested: Boolean(activeSync.stopRequested),
+        }
+      : { running: false },
   );
+});
 
-  const { pagination, pageItems } = mockPaginate(filtered, req);
-  res.json({ source: 'prestashop', filters: { search, status, combo }, pagination, items: pageItems });
+app.get("/api/catalog-overview", (_req, res) => {
+  res.json(catalogOverview);
+});
+
+app.get("/api/dashboard-summary", (_req, res) => {
+  res.json({
+    generatedAt: new Date().toISOString(),
+    latestReport: reports[0] || null,
+    overview: catalogOverview,
+    executive: {
+      overallStatus: "attention",
+      headline:
+        "Snapshot mock cargado. Puedes usar este tablero fuera del servidor real.",
+    },
+  });
+});
+
+app.get("/api/domain-analysis", (_req, res) => {
+  res.json(domainAnalysis);
+});
+
+app.get("/api/sync-domains", (_req, res) => {
+  res.json(syncDomains);
 });
 
 app.get("/api/sap-products", (req, res) => {
-  const search = String(req.query.search || "").trim().toLowerCase();
-  const status = String(req.query.status || "all").trim().toLowerCase();
-  const stock = String(req.query.stock || "all").trim().toLowerCase();
+  const search = String(req.query.search || "")
+    .trim()
+    .toLowerCase();
+  const status = String(req.query.status || "all")
+    .trim()
+    .toLowerCase();
+  const stock = String(req.query.stock || "all")
+    .trim()
+    .toLowerCase();
 
-  let filtered = MOCK_ARTICLES;
-  if (status === 'active')   filtered = filtered.filter(a => a.status === 'Y');
-  if (status === 'inactive') filtered = filtered.filter(a => a.status !== 'Y');
-  if (stock === 'with')      filtered = filtered.filter(a => a.stock > 0);
-  if (stock === 'without')   filtered = filtered.filter(a => a.stock <= 0);
-  if (search) filtered = filtered.filter(a =>
-    a.itemCode.toLowerCase().includes(search) || a.itemName.toLowerCase().includes(search)
-  );
+  let filtered = sapProducts;
+
+  if (status === "active") {
+    filtered = filtered.filter((item) => String(item.status) === "Y");
+  } else if (status === "inactive") {
+    filtered = filtered.filter((item) => String(item.status) !== "Y");
+  }
+
+  if (stock === "with") {
+    filtered = filtered.filter((item) => Number(item.stock || 0) > 0);
+  } else if (stock === "without") {
+    filtered = filtered.filter((item) => Number(item.stock || 0) <= 0);
+  }
+
+  if (search) {
+    filtered = filtered.filter((item) =>
+      [item.itemCode, item.itemName].join(" ").toLowerCase().includes(search),
+    );
+  }
 
   const { pagination, pageItems } = mockPaginate(filtered, req);
-  res.json({ source: 'sap', filters: { search, status, stock }, pagination, items: pageItems });
+  res.json({
+    source: "sap",
+    filters: { search, status, stock },
+    pagination,
+    items: pageItems,
+  });
+});
+
+app.get("/api/prestashop-products", (req, res) => {
+  const search = String(req.query.search || "")
+    .trim()
+    .toLowerCase();
+  const status = String(req.query.status || "all")
+    .trim()
+    .toLowerCase();
+  const combo = String(req.query.combo || "all")
+    .trim()
+    .toLowerCase();
+
+  let filtered = prestashopProducts;
+
+  if (status === "active") {
+    filtered = filtered.filter((item) => String(item.active) === "1");
+  } else if (status === "inactive") {
+    filtered = filtered.filter((item) => String(item.active) !== "1");
+  }
+
+  if (combo === "simple") {
+    filtered = filtered.filter((item) => !item.hasCombinations);
+  } else if (combo === "combo") {
+    filtered = filtered.filter((item) => item.hasCombinations);
+  }
+
+  if (search) {
+    filtered = filtered.filter((item) =>
+      [item.reference, item.name, item.productId]
+        .join(" ")
+        .toLowerCase()
+        .includes(search),
+    );
+  }
+
+  const { pagination, pageItems } = mockPaginate(filtered, req);
+  res.json({
+    source: "prestashop",
+    filters: { search, status, combo },
+    pagination,
+    items: pageItems,
+  });
 });
 
 app.get("/api/prestashop-control", (req, res) => {
   const reference = String(req.query.reference || "").trim();
-  const found = MOCK_ITEMS.find(i => i.itemCode === reference);
+  const sap =
+    sapProducts.find((item) => String(item.itemCode) === reference) || null;
+  const prestashop =
+    prestashopProducts.find((item) => String(item.reference) === reference) ||
+    null;
 
-  if (!found) {
-    res.json({
-      reference,
-      sap: null,
-      prestashop: null,
-      comparison: { existsInSap: false, existsInPrestashop: false },
-    });
-    return;
-  }
-
-  const inPresta = found.status === "Y";
   res.json({
     reference,
-    sap: { ...found },
-    prestashop: inPresta
-      ? {
-          productId: 1000 + MOCK_ITEMS.indexOf(found),
-          reference: found.itemCode,
-          active: "1",
-          productPrice: found.price,
-          combinations: [],
-          stockAvailables: [{ id: 1, quantity: found.stock }],
-        }
-      : null,
+    sap,
+    prestashop,
     comparison: {
-      existsInSap: true,
-      existsInPrestashop: inPresta,
-      samePrice: inPresta,
-      stockRecords: inPresta ? 1 : 0,
+      existsInSap: Boolean(sap),
+      existsInPrestashop: Boolean(prestashop),
+      samePrice:
+        Boolean(sap && prestashop) &&
+        Number(sap.price || 0) === Number(prestashop.productPrice || 0),
+      stockRecords: prestashop ? Number(prestashop.stockRows || 0) : 0,
     },
   });
 });
 
 app.post("/api/prestashop-control/active", (req, res) => {
-  const active = Boolean(req.body.active);
   res.json({
     ok: true,
-    message: active ? "Producto activado en PrestaShop" : "Producto desactivado en PrestaShop",
+    message: req.body.active
+      ? "Producto activado en PrestaShop (mock)"
+      : "Producto desactivado en PrestaShop (mock)",
   });
 });
 
-// ── Mock SSE sync ─────────────────────────────────────────────────────────────
-
-const MOCK_ITEM_CODES = [
-  "61072505", "61072506", "61072507", "61072508", "61072509", "61072510",
-  "61072511", "61072512", "61072513", "61072514", "61072515", "61072516",
-  "61072517", "61072518", "61072519", "61072520", "61072521", "61072522",
-  "61072523", "61072524", "61072525", "61072526", "61072527", "61072528",
-  "61072529", "61072530",
-];
-
-const MOCK_ACTIONS = [
-  "skip_no_change", "skip_no_change", "skip_no_change",
-  "update_product_price", "update_product_stock",
-  "create_product", "skip_no_change", "skip_no_change",
-];
-
 function jsonLine(level, message, extra = {}) {
-  return JSON.stringify({ ts: new Date().toISOString(), level, message, ...extra });
+  return JSON.stringify({
+    ts: new Date().toISOString(),
+    level,
+    message,
+    ...extra,
+  });
 }
 
 app.get("/api/sync", (req, res) => {
@@ -417,118 +460,123 @@ app.get("/api/sync", (req, res) => {
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
 
-  const send = (obj) => {
-    try { res.write(`data: ${JSON.stringify(obj)}\n\n`); } catch {}
-  };
-
-  const log = (level, message, extra = {}) =>
-    send({ type: "log", line: jsonLine(level, message, extra) });
-
-  const domains = req.query.syncDomains
-    ? String(req.query.syncDomains).split(",").map(s => s.trim()).filter(Boolean)
+  const syncDomainsQuery = req.query.syncDomains
+    ? String(req.query.syncDomains)
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean)
     : ["products"];
   const write = req.query.write === "true";
-  const fullCatalog = req.query.fullCatalog === "true";
-  const TOTAL = fullCatalog ? MOCK_ITEM_CODES.length : 10;
+  const itemCode = String(req.query.itemCode || "").trim();
+  const rawLimit = Number(req.query.limit || 0);
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 0;
 
-  log("info", "Iniciando sync mock", { domains: domains.join(","), write, fullCatalog });
-  log("info", "Conectando a SAP HANA (mock)...");
+  let items = sapProducts;
 
-  let step = 0;
-  let closed = false;
+  if (itemCode) {
+    items = items.filter((item) => String(item.itemCode) === itemCode);
+  }
 
+  if (limit > 0) {
+    items = items.slice(0, limit);
+  }
+
+  const total = items.length;
+  const syncState = {
+    startedAt: new Date().toISOString(),
+    stopRequested: false,
+  };
+  activeSync = syncState;
+
+  const send = (payload) => {
+    try {
+      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    } catch {}
+  };
+
+  const logLine = (level, message, extra = {}) =>
+    send({ type: "log", line: jsonLine(level, message, extra) });
+
+  logLine("info", "Iniciando sync mock", {
+    domains: syncDomainsQuery.join(","),
+    write,
+    itemCode,
+    limit,
+    total,
+    snapshotLoaded: Boolean(snapshot),
+  });
+
+  let index = 0;
   const interval = setInterval(() => {
-    if (closed) { clearInterval(interval); return; }
-    step++;
-
-    if (step === 2) {
-      log("info", "Conexion SAP HANA establecida");
-      log("info", `Leyendo articulos del catalogo... schema=BD_CARBALLO warehouse=AC01`);
+    if (syncState.stopRequested) {
+      clearInterval(interval);
+      send({ type: "done", code: 0, stopped: true });
+      activeSync = null;
+      try {
+        res.end();
+      } catch {}
+      return;
     }
 
-    if (step === 3) {
-      log("info", `SAP devolvio ${TOTAL} articulos para el dominio "${domains[0]}"`);
-      log("info", write ? "Modo escritura activado. Los cambios se aplicaran en PrestaShop." : "Modo dry-run. No se modificara PrestaShop.");
-    }
-
-    if (step === 4) {
-      log("info", "Conectando a PrestaShop (mock)...");
-    }
-
-    if (step === 5) {
-      log("info", "Conexion PrestaShop establecida");
-    }
-
-    if (step >= 6 && step < 6 + TOTAL) {
-      const idx = step - 6;
-      const itemCode = MOCK_ITEM_CODES[idx] || `610725${String(idx).padStart(2, "0")}`;
-      const current = idx + 1;
-      const percent = Math.round((current / TOTAL) * 100);
-      const action = MOCK_ACTIONS[idx % MOCK_ACTIONS.length];
-
-      send({
-        type: "log",
-        line: jsonLine("info", "Progreso de dominio", {
-          domain: domains[0],
-          current,
-          total: TOTAL,
-          percent,
-          itemCode,
-        }),
-      });
-
-      if (action === "create_product") {
-        log("info", `${write ? "Creando" : "[dry-run] Crearia"} producto ${itemCode} en PrestaShop`, {
-          action, itemCode, status: write ? "executed" : "dry_run",
-        });
-      } else if (action === "update_product_price") {
-        log("info", `${write ? "Actualizando" : "[dry-run] Actualizaria"} precio de ${itemCode}`, {
-          action, itemCode, sapPrice: 850, prestashopProductPrice: 820, status: write ? "executed" : "dry_run",
-        });
-      } else if (action === "update_product_stock") {
-        log("info", `${write ? "Actualizando" : "[dry-run] Actualizaria"} stock de ${itemCode}`, {
-          action, itemCode, sapStock: 45, status: write ? "executed" : "dry_run",
-        });
-      }
-    }
-
-    if (step === 6 + TOTAL) {
-      log("info", "Guardando reporte de corrida...");
-    }
-
-    if (step === 7 + TOTAL) {
-      log("info", "Reporte guardado en reports/");
-      log("info", `Sync completado: ${TOTAL} articulos procesados.`, {
-        domain: domains[0],
-        total: TOTAL,
+    if (index >= total) {
+      logLine("info", "Sync mock completada", {
+        domain: syncDomainsQuery[0] || "products",
+        total,
       });
       clearInterval(interval);
       send({ type: "done", code: 0 });
-      try { res.end(); } catch {}
+      activeSync = null;
+      try {
+        res.end();
+      } catch {}
+      return;
     }
-  }, 150);
+
+    const item = items[index];
+    const current = index + 1;
+    const percent = total > 0 ? Math.round((current / total) * 100) : 100;
+
+    send({
+      type: "log",
+      line: jsonLine("info", "Progreso de dominio", {
+        domain: syncDomainsQuery[0] || "products",
+        current,
+        total,
+        percent,
+        itemCode: item.itemCode,
+      }),
+    });
+
+    index += 1;
+  }, 80);
 
   req.on("close", () => {
-    closed = true;
     clearInterval(interval);
   });
 });
 
-// ── SPA fallback ──────────────────────────────────────────────────────────────
-
-app.get("*", (req, res) => {
-  const indexPath = path.join(__dirname, "dist", "index.html");
-  const fs = require("fs");
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(404).send(
-      "<pre>dist/ no existe todavia.\nEjecuta primero: npm run build\nLuego: npm run mock</pre>"
-    );
+app.post("/api/sync/stop", (_req, res) => {
+  if (!activeSync) {
+    res.status(409).json({ ok: false, error: "No hay una sync mock activa" });
+    return;
   }
+
+  activeSync.stopRequested = true;
+  res.json({ ok: true, message: "Sync mock marcada para detenerse" });
+});
+
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
 app.listen(PORT, () => {
-  console.log(`\n  [mock] Panel → http://localhost:${PORT}`);
-  console.log("  [mock] Datos ficticios activos. No se conecta a SAP ni PrestaShop.\n");
+  console.log(`Mock panel disponible en http://localhost:${PORT}`);
+  if (snapshot) {
+    console.log(`Usando snapshot mock: ${SNAPSHOT_PATH}`);
+    console.log(
+      `Snapshot generado el ${snapshot.generatedAt || "desconocido"} desde ${snapshot.sourceBaseUrl || "origen desconocido"}`,
+    );
+  } else {
+    console.log("Sin snapshot mock. Usando datos ficticios embebidos.");
+  }
 });

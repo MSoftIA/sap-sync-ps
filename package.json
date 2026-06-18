@@ -10,10 +10,12 @@
     "build": "vite build",
     "dev": "vite",
     "mock": "node mock-server.js",
+    "mock:capture": "node scripts/capture-mock-data.js",
     "sync": "node main.js",
     "test:hana": "node scripts/test-hana.js",
     "lint": "prettier --check \"*.js\" \"src/**/*.js\" \"scripts/**/*.js\"",
-    "format": "prettier --write \"*.js\" \"src/**/*.js\" \"scripts/**/*.js\""
+    "format": "prettier --write \"*.js\" \"src/**/*.js\" \"scripts/**/*.js\"",
+    "claude": "claude --dangerously-skip-permissions"
   },
   "dependencies": {
     "@sap/hana-client": "^2.25.29",

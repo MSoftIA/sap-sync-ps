@@ -4,6 +4,7 @@ dist/
 *.log
 logs.txt
 npm-debug.log*
+mock-data/*.json
 
 # Windows
 Thumbs.db
