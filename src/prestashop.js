@@ -281,6 +281,19 @@ function normalizePrestaSearch(value) {
     .toLowerCase();
 }
 
+function sanitizePrestaText(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (!raw.includes("<")) return raw;
+
+  const languageMatch = raw.match(/<language(?:\s[^>]*)?>([\s\S]*?)<\/language>/);
+  if (languageMatch) {
+    return languageMatch[1].replace(/<[^>]+>/g, " ").trim();
+  }
+
+  return raw.replace(/<[^>]+>/g, " ").trim();
+}
+
 function mapPrestaProductListItem(product, stockRows) {
   const directStockRow =
     stockRows.find((row) => Number(row.productAttributeId) === 0) || null;
@@ -295,7 +308,7 @@ function mapPrestaProductListItem(product, stockRows) {
   return {
     productId: product.id,
     reference: product.reference || "",
-    name: product.name || "",
+    name: sanitizePrestaText(product.name || ""),
     active: product.active,
     defaultCategory: product.defaultCategory || "",
     productPrice: Number(product.productPrice || 0),

@@ -31,6 +31,17 @@ function xmlLanguageText(xml, tag) {
   );
   if (plainMatch) return decodeXml(plainMatch[1].trim());
 
+  const looseLanguageMatch = container.match(
+    /<language(?:\s[^>]*)?>([\s\S]*?)<\/language>/,
+  );
+  if (looseLanguageMatch) {
+    return decodeXml(looseLanguageMatch[1].replace(/<[^>]+>/g, " ").trim());
+  }
+
+  if (container.includes("<")) {
+    return decodeXml(container.replace(/<[^>]+>/g, " ").trim());
+  }
+
   return "";
 }
 

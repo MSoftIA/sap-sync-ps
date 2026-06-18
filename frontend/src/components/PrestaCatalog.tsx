@@ -7,7 +7,7 @@ import { Tag } from './Tag'
 import { money, fmt } from '../utils'
 
 type StatusFilter = 'all' | 'active' | 'inactive'
-type TypeFilter   = 'all' | 'simple' | 'combo'
+type TypeFilter = 'all' | 'simple' | 'combo'
 
 const PAGE_SIZE = 50
 
@@ -26,7 +26,12 @@ export function PrestaCatalog() {
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  async function fetchPage(params: { page: number; search: string; status: StatusFilter; combo: TypeFilter }) {
+  async function fetchPage(params: {
+    page: number
+    search: string
+    status: StatusFilter
+    combo: TypeFilter
+  }) {
     setLoading(true)
     setError(null)
     try {
@@ -51,7 +56,9 @@ export function PrestaCatalog() {
     fetchPage({ page, search, status: statusFilter, combo: typeFilter })
   }, [loaded, page, search, statusFilter, typeFilter])
 
-  function startLoad() { setLoaded(true) }
+  function startLoad() {
+    setLoaded(true)
+  }
 
   function onSearchInput(v: string) {
     setSearchInput(v)
@@ -62,8 +69,15 @@ export function PrestaCatalog() {
     }, 350)
   }
 
-  function onStatus(v: StatusFilter) { setStatusFilter(v); setPage(1) }
-  function onType(v: TypeFilter)     { setTypeFilter(v);   setPage(1) }
+  function onStatus(v: StatusFilter) {
+    setStatusFilter(v)
+    setPage(1)
+  }
+
+  function onType(v: TypeFilter) {
+    setTypeFilter(v)
+    setPage(1)
+  }
 
   function clearFilters() {
     setSearchInput('')
@@ -77,10 +91,10 @@ export function PrestaCatalog() {
     return (
       <div className="card">
         <EmptyState
-          icon="○"
-          title="Catálogo no cargado"
-          description="Cargá la lista de productos para explorar, filtrar y buscar en PrestaShop."
-          action={{ label: 'Cargar catálogo', onClick: startLoad }}
+          icon="o"
+          title="Catalogo no cargado"
+          description="Carga la lista de productos para explorar, filtrar y buscar en PrestaShop."
+          action={{ label: 'Cargar catalogo', onClick: startLoad }}
         />
       </div>
     )
@@ -107,9 +121,18 @@ export function PrestaCatalog() {
       <div className="card">
         <EmptyState
           icon="!"
-          title="Error al cargar el catálogo"
+          title="Error al cargar el catalogo"
           description={error}
-          action={{ label: 'Reintentar', onClick: () => fetchPage({ page, search, status: statusFilter, combo: typeFilter }) }}
+          action={{
+            label: 'Reintentar',
+            onClick: () =>
+              fetchPage({
+                page,
+                search,
+                status: statusFilter,
+                combo: typeFilter,
+              }),
+          }}
         />
       </div>
     )
@@ -129,26 +152,64 @@ export function PrestaCatalog() {
           type="search"
           placeholder="Buscar por referencia o nombre..."
           value={searchInput}
-          onChange={e => onSearchInput(e.target.value)}
+          onChange={(e) => onSearchInput(e.target.value)}
         />
 
         <div className="catalog-filter-group">
-          <button type="button" className={statusFilter === 'all'      ? 'active' : ''} onClick={() => onStatus('all')}>Todos</button>
-          <button type="button" className={statusFilter === 'active'   ? 'active' : ''} onClick={() => onStatus('active')}>Activos</button>
-          <button type="button" className={statusFilter === 'inactive' ? 'active' : ''} onClick={() => onStatus('inactive')}>Inactivos</button>
+          <button
+            type="button"
+            className={statusFilter === 'all' ? 'active' : ''}
+            onClick={() => onStatus('all')}
+          >
+            Todos
+          </button>
+          <button
+            type="button"
+            className={statusFilter === 'active' ? 'active' : ''}
+            onClick={() => onStatus('active')}
+          >
+            Activos
+          </button>
+          <button
+            type="button"
+            className={statusFilter === 'inactive' ? 'active' : ''}
+            onClick={() => onStatus('inactive')}
+          >
+            Inactivos
+          </button>
         </div>
 
         <div className="catalog-filter-group">
-          <button type="button" className={typeFilter === 'all'    ? 'active' : ''} onClick={() => onType('all')}>Todos</button>
-          <button type="button" className={typeFilter === 'simple' ? 'active' : ''} onClick={() => onType('simple')}>Simples</button>
-          <button type="button" className={typeFilter === 'combo'  ? 'active' : ''} onClick={() => onType('combo')}>Con combinaciones</button>
+          <button
+            type="button"
+            className={typeFilter === 'all' ? 'active' : ''}
+            onClick={() => onType('all')}
+          >
+            Todos
+          </button>
+          <button
+            type="button"
+            className={typeFilter === 'simple' ? 'active' : ''}
+            onClick={() => onType('simple')}
+          >
+            Simples
+          </button>
+          <button
+            type="button"
+            className={typeFilter === 'combo' ? 'active' : ''}
+            onClick={() => onType('combo')}
+          >
+            Con combinaciones
+          </button>
         </div>
 
         <button
           className="btn-secondary"
           type="button"
           disabled={loading}
-          onClick={() => fetchPage({ page, search, status: statusFilter, combo: typeFilter })}
+          onClick={() =>
+            fetchPage({ page, search, status: statusFilter, combo: typeFilter })
+          }
           style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 7 }}
         >
           {loading && <span className="spinner-dark" />}
@@ -156,21 +217,24 @@ export function PrestaCatalog() {
         </button>
       </div>
 
-      <div className="catalog-info" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div
+        className="catalog-info"
+        style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+      >
         {loading && <span className="spinner-dark" style={{ width: 11, height: 11 }} />}
         {loading
           ? 'Cargando...'
           : total === 0
             ? 'Sin resultados para los filtros aplicados.'
-            : `Mostrando ${pageStart}–${pageEnd} de ${fmt(total)} producto(s)`}
+            : `Mostrando ${pageStart}-${pageEnd} de ${fmt(total)} producto(s)`}
       </div>
 
       {!loading && total === 0 ? (
         <div className="card">
           <EmptyState
-            icon="○"
+            icon="o"
             title="Sin resultados"
-            description="Probá ajustando la búsqueda o los filtros."
+            description="Prueba ajustando la busqueda o los filtros."
             action={{ label: 'Limpiar filtros', onClick: clearFilters }}
           />
         </div>
@@ -190,28 +254,40 @@ export function PrestaCatalog() {
                 </tr>
               </thead>
               <tbody>
-                {items.map(p => {
-                  const inactive  = p.active !== '1'
-                  const hasCombo  = p.hasCombinations
+                {items.map((p) => {
+                  const inactive = p.active !== '1'
+                  const hasCombo = p.hasCombinations
                   const zeroStock = p.stockTotal === 0
+
                   return (
                     <tr key={p.productId} className={inactive ? 'row-inactive' : ''}>
-                      <td style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>{p.productId}</td>
-                      <td style={{ fontFamily: 'Consolas, monospace', fontSize: '0.88rem' }}>
-                        {p.reference || <span style={{ color: 'var(--muted)' }}>—</span>}
+                      <td style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
+                        {p.productId}
                       </td>
-                      <td>{p.name || <span style={{ color: 'var(--muted)' }}>—</span>}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 700 }}>{money(p.productPrice)}</td>
+                      <td style={{ fontFamily: 'Consolas, monospace', fontSize: '0.88rem' }}>
+                        {p.reference || <span style={{ color: 'var(--muted)' }}>-</span>}
+                      </td>
+                      <td>{p.name || <span style={{ color: 'var(--muted)' }}>-</span>}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                        {money(p.productPrice)}
+                      </td>
                       <td style={{ textAlign: 'right' }}>
-                        {hasCombo
-                          ? <span style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>ver combos</span>
-                          : <span className={zeroStock && !inactive ? 'stock-zero' : ''}>{fmt(p.stockTotal)}</span>
-                        }
+                        {hasCombo ? (
+                          <span style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>
+                            ver combos
+                          </span>
+                        ) : (
+                          <span className={zeroStock && !inactive ? 'stock-zero' : ''}>
+                            {fmt(p.stockTotal)}
+                          </span>
+                        )}
                       </td>
                       <td>
-                        {hasCombo
-                          ? <Tag tone="amber">{p.combinationCount} combos</Tag>
-                          : <Tag tone="gray">Simple</Tag>}
+                        {hasCombo ? (
+                          <Tag tone="amber">{p.combinationCount} combos</Tag>
+                        ) : (
+                          <Tag tone="gray">Simple</Tag>
+                        )}
                       </td>
                       <td>
                         <Tag tone={inactive ? 'gray' : 'green'}>
@@ -226,17 +302,15 @@ export function PrestaCatalog() {
           </div>
 
           <div className="pagination">
-            <div className="section-note">
-              {fmt(total)} producto(s) total
-            </div>
+            <div className="section-note">{fmt(total)} producto(s) total</div>
             <div className="pagination-controls">
               <button
                 type="button"
                 className="btn-secondary"
                 disabled={!pagination?.hasPreviousPage || loading}
-                onClick={() => setPage(p => p - 1)}
+                onClick={() => setPage((p) => p - 1)}
               >
-                ← Anterior
+                {'<-'} Anterior
               </button>
               <span className="pagination-label">
                 {safePage} / {totalPages}
@@ -245,9 +319,9 @@ export function PrestaCatalog() {
                 type="button"
                 className="btn-secondary"
                 disabled={!pagination?.hasNextPage || loading}
-                onClick={() => setPage(p => p + 1)}
+                onClick={() => setPage((p) => p + 1)}
               >
-                Siguiente →
+                Siguiente {'->'}
               </button>
             </div>
           </div>
