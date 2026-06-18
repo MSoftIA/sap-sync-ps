@@ -1,37 +1,37 @@
-import type { SyncDomain } from '../types'
-import { Tag } from './Tag'
+import type { SyncDomain } from "../types";
+import { Tag } from "./Tag";
 
 interface Props {
-  domain: SyncDomain
-  checked: boolean
-  onChange: (key: string, checked: boolean) => void
+  domain: SyncDomain;
+  checked: boolean;
+  onChange: (key: string, checked: boolean) => void;
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  active: 'Activo',
-  diagnostic: 'Diagnóstico',
-  discovery: 'Discovery',
-  planned: 'Planned',
-}
+  active: "Activo",
+  diagnostic: "Diagnostico",
+  discovery: "Discovery",
+  planned: "Planned",
+};
 
-const STATUS_TONE: Record<string, 'green' | 'amber' | 'gray'> = {
-  active: 'green',
-  diagnostic: 'amber',
-  discovery: 'gray',
-  planned: 'gray',
-}
+const STATUS_TONE: Record<string, "green" | "amber" | "gray"> = {
+  active: "green",
+  diagnostic: "amber",
+  discovery: "gray",
+  planned: "gray",
+};
 
 const CAPABILITY: Record<string, string> = {
-  products: 'Permite analizar y sincronizar.',
-  categories: 'Hoy permite ver y diagnosticar, no aplicar cambios.',
-  orders: 'Hoy permite descubrimiento, no sincronización automática.',
-}
+  products: "Permite analizar y sincronizar.",
+  categories: "Permite analizar y alinear categorias de productos.",
+  orders: "Hoy permite solo lectura y diagnostico; no sincroniza pedidos.",
+};
 
 export function DomainCard({ domain, checked, onChange }: Props) {
-  const tone = STATUS_TONE[domain.status] ?? 'gray'
-  const label = STATUS_LABEL[domain.status] ?? domain.status
-  const capability = CAPABILITY[domain.key] ?? ''
-  const scope = domain.scope?.join(', ') ?? ''
+  const tone = STATUS_TONE[domain.status] ?? "gray";
+  const label = STATUS_LABEL[domain.status] ?? domain.status;
+  const capability = CAPABILITY[domain.key] ?? "";
+  const scope = domain.scope?.join(", ") ?? "";
 
   return (
     <div className="domain-card">
@@ -53,5 +53,5 @@ export function DomainCard({ domain, checked, onChange }: Props) {
         <Tag tone="gray">Fuente: {domain.sourceOfTruth}</Tag>
       </div>
     </div>
-  )
+  );
 }

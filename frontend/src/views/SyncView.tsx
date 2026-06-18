@@ -138,6 +138,10 @@ export function SyncView({
   );
   const activeDomains =
     normalizedDomains.length > 0 ? normalizedDomains : ["products"];
+  const blockedWriteDomains = activeDomains.filter((key) => {
+    const domain = availableDomains.find((item) => item.key === key);
+    return domain ? domain.status !== "active" : false;
+  });
 
   function toggleDomain(key: string, checked: boolean) {
     let next = checked
@@ -149,6 +153,13 @@ export function SyncView({
 
   function requestSync(fullCatalog: boolean) {
     if (syncRunning) return;
+    if (writeMode && blockedWriteDomains.length > 0) {
+      addToast({
+        message: `Estos dominios aun no permiten escritura: ${blockedWriteDomains.join(", ")}.`,
+        kind: "error",
+      });
+      return;
+    }
     if (writeMode) {
       setPendingFullCatalog(fullCatalog);
       setShowConfirm(true);
@@ -610,6 +621,12 @@ export function SyncView({
                 : "Analizar solo revisa datos, compara y deja reportes. No modifica productos en PrestaShop."}
             </MessageBox>
 
+            {writeMode && blockedWriteDomains.length > 0 && (
+              <MessageBox kind="warn">
+                {`La seleccion actual incluye dominios sin escritura habilitada: ${blockedWriteDomains.join(", ")}. Quita esos dominios o cambia a modo analisis.`}
+              </MessageBox>
+            )}
+
             <div className="domain-picker">
               <div className="domain-header">
                 <div>
@@ -685,7 +702,9 @@ export function SyncView({
               <button
                 className="btn-dark"
                 type="button"
-                disabled={syncRunning}
+                disabled={
+                  syncRunning || (writeMode && blockedWriteDomains.length > 0)
+                }
                 onClick={() => requestSync(true)}
               >
                 {writeMode
