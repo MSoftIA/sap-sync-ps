@@ -1,133 +1,203 @@
-import { useState } from 'react'
-import type { CatalogOverview, DomainAnalysis, PrestaControlResult } from '../types'
-import { useToast } from '../context/ToastContext'
-import { MessageBox } from '../components/MessageBox'
-import { Skeleton } from '../components/Skeleton'
-import { EmptyState } from '../components/EmptyState'
-import { BarChart } from '../components/BarChart'
-import { PrestaCatalog } from '../components/PrestaCatalog'
-import { fmt, fmtDate, money } from '../utils'
-import { lookupReference, changeProductStatus } from '../api/prestashop'
+import { useState } from "react";
+import type {
+  CatalogOverview,
+  DomainAnalysis,
+  PrestaControlResult,
+} from "../types";
+import { useToast } from "../context/ToastContext";
+import { MessageBox } from "../components/MessageBox";
+import { Skeleton } from "../components/Skeleton";
+import { EmptyState } from "../components/EmptyState";
+import { BarChart } from "../components/BarChart";
+import { PrestaCatalog } from "../components/PrestaCatalog";
+import { fmt, fmtDate, money } from "../utils";
+import { lookupReference, changeProductStatus } from "../api/prestashop";
 
 interface Props {
-  overview: CatalogOverview | null
-  domainAnalysis: DomainAnalysis | null
-  loading?: boolean
-  onRefresh: () => void
+  overview: CatalogOverview | null;
+  domainAnalysis: DomainAnalysis | null;
+  loading?: boolean;
+  onRefresh: () => void;
 }
 
 export function PrestaView({ overview, domainAnalysis, onRefresh }: Props) {
-  const presta = overview?.prestashop ?? {}
-  const contrast = overview?.contrast ?? null
-  const loading = overview === null
-  const { addToast } = useToast()
-  const categories = domainAnalysis?.domains?.categories
-  const orders = domainAnalysis?.domains?.orders
-  const categorySummary = (categories?.summary ?? {}) as Record<string, unknown>
-  const ordersSummary = (orders?.summary ?? {}) as Record<string, unknown>
+  const presta = overview?.prestashop ?? {};
+  const contrast = overview?.contrast ?? null;
+  const loading = overview === null;
+  const { addToast } = useToast();
+  const categories = domainAnalysis?.domains?.categories;
+  const orders = domainAnalysis?.domains?.orders;
+  const categorySummary = (categories?.summary ?? {}) as Record<
+    string,
+    unknown
+  >;
+  const ordersSummary = (orders?.summary ?? {}) as Record<string, unknown>;
 
-  const [reference, setReference] = useState('')
-  const [lookup, setLookup] = useState<PrestaControlResult | null>(null)
-  const [lookupMsg, setLookupMsg] = useState<{ text: string; kind: 'info' | 'warn' | 'error' }>({
-    text: 'Todavia no consultaste ningun producto.',
-    kind: 'info',
-  })
-  const [lookupLoading, setLookupLoading] = useState(false)
+  const [reference, setReference] = useState("");
+  const [lookup, setLookup] = useState<PrestaControlResult | null>(null);
+  const [lookupMsg, setLookupMsg] = useState<{
+    text: string;
+    kind: "info" | "warn" | "error";
+  }>({
+    text: "Todavia no consultaste ningun producto.",
+    kind: "info",
+  });
+  const [lookupLoading, setLookupLoading] = useState(false);
 
   async function handleLookup() {
     if (!reference.trim()) {
-      setLookupMsg({ text: 'Escribe una referencia antes de consultar.', kind: 'warn' })
-      return
+      setLookupMsg({
+        text: "Escribe una referencia antes de consultar.",
+        kind: "warn",
+      });
+      return;
     }
-    setLookupMsg({ text: 'Consultando SAP y PrestaShop...', kind: 'info' })
-    setLookupLoading(true)
+    setLookupMsg({ text: "Consultando SAP y PrestaShop...", kind: "info" });
+    setLookupLoading(true);
     try {
-      const data = await lookupReference(reference.trim())
-      setLookup(data)
-      renderLookupMsg(data)
+      const data = await lookupReference(reference.trim());
+      setLookup(data);
+      renderLookupMsg(data);
     } catch (err) {
       setLookupMsg({
-        text: 'Error al consultar: ' + (err instanceof Error ? err.message : String(err)),
-        kind: 'error',
-      })
+        text:
+          "Error al consultar: " +
+          (err instanceof Error ? err.message : String(err)),
+        kind: "error",
+      });
     } finally {
-      setLookupLoading(false)
+      setLookupLoading(false);
     }
   }
 
   function renderLookupMsg(data: PrestaControlResult) {
-    const sap = data.sap
-    const ps = data.prestashop
-    const cmp = data.comparison
+    const sap = data.sap;
+    const ps = data.prestashop;
+    const cmp = data.comparison;
 
     if (ps?.error) {
-      setLookupMsg({ text: 'PrestaShop respondio con error: ' + ps.error, kind: 'error' })
-      return
+      setLookupMsg({
+        text: "PrestaShop respondio con error: " + ps.error,
+        kind: "error",
+      });
+      return;
     }
     if (!cmp?.existsInSap && !cmp?.existsInPrestashop) {
-      setLookupMsg({ text: 'No encontre esa referencia ni en SAP ni en PrestaShop.', kind: 'warn' })
-      return
+      setLookupMsg({
+        text: "No encontre esa referencia ni en SAP ni en PrestaShop.",
+        kind: "warn",
+      });
+      return;
     }
     if (cmp?.existsInSap && !cmp?.existsInPrestashop) {
-      setLookupMsg({ text: 'El articulo existe en SAP pero no aparece en PrestaShop.', kind: 'warn' })
-      return
+      setLookupMsg({
+        text: "El articulo existe en SAP pero no aparece en PrestaShop.",
+        kind: "warn",
+      });
+      return;
     }
     if (!cmp?.existsInSap && cmp?.existsInPrestashop) {
       setLookupMsg({
-        text: 'El producto existe en PrestaShop pero no lo pude localizar en SAP con esa referencia.',
-        kind: 'warn',
-      })
-      return
+        text: "El producto existe en PrestaShop pero no lo pude localizar en SAP con esa referencia.",
+        kind: "warn",
+      });
+      return;
     }
     if (cmp?.samePrice) {
-      setLookupMsg({ text: 'El producto existe en ambos lados y el precio principal coincide.', kind: 'info' })
+      setLookupMsg({
+        text: "El producto existe en ambos lados y el precio principal coincide.",
+        kind: "info",
+      });
     } else {
       setLookupMsg({
         text: `El producto existe en ambos lados pero el precio principal no coincide. SAP: ${money(sap?.price)} | PrestaShop: ${money(ps?.productPrice)}`,
-        kind: 'warn',
-      })
+        kind: "warn",
+      });
     }
   }
 
   async function handleChangeStatus(active: boolean) {
     if (!lookup?.prestashop?.productId) {
-      setLookupMsg({ text: 'Primero consulta un producto valido de PrestaShop.', kind: 'warn' })
-      return
+      setLookupMsg({
+        text: "Primero consulta un producto valido de PrestaShop.",
+        kind: "warn",
+      });
+      return;
     }
     try {
-      const res = await changeProductStatus(lookup.prestashop.productId, active)
-      setLookupMsg({ text: res.message, kind: 'info' })
-      addToast({ message: res.message, kind: 'success' })
-      const data = await lookupReference(reference.trim())
-      setLookup(data)
-      renderLookupMsg(data)
+      const res = await changeProductStatus(
+        lookup.prestashop.productId,
+        active,
+      );
+      setLookupMsg({ text: res.message, kind: "info" });
+      addToast({ message: res.message, kind: "success" });
+      const data = await lookupReference(reference.trim());
+      setLookup(data);
+      renderLookupMsg(data);
     } catch (err) {
-      const msg = 'No pude cambiar el estado: ' + (err instanceof Error ? err.message : String(err))
-      setLookupMsg({ text: msg, kind: 'error' })
-      addToast({ message: msg, kind: 'error' })
+      const msg =
+        "No pude cambiar el estado: " +
+        (err instanceof Error ? err.message : String(err));
+      setLookupMsg({ text: msg, kind: "error" });
+      addToast({ message: msg, kind: "error" });
     }
   }
 
-  const canChangeStatus = Boolean(lookup?.prestashop?.productId)
-  const sapData = lookup?.sap
-  const psData = lookup?.prestashop
+  const canChangeStatus = Boolean(lookup?.prestashop?.productId);
+  const sapData = lookup?.sap;
+  const psData = lookup?.prestashop;
 
   return (
     <main>
       <div className="subnav">
-        <button type="button" onClick={() => document.getElementById('presta-summary')?.scrollIntoView({ behavior: 'smooth' })}>
+        <button
+          type="button"
+          onClick={() =>
+            document
+              .getElementById("presta-summary")
+              ?.scrollIntoView({ behavior: "smooth" })
+          }
+        >
           Resumen
         </button>
-        <button type="button" onClick={() => document.getElementById('presta-catalog')?.scrollIntoView({ behavior: 'smooth' })}>
+        <button
+          type="button"
+          onClick={() =>
+            document
+              .getElementById("presta-catalog")
+              ?.scrollIntoView({ behavior: "smooth" })
+          }
+        >
           Catalogo
         </button>
-        <button type="button" onClick={() => document.getElementById('presta-domains')?.scrollIntoView({ behavior: 'smooth' })}>
+        <button
+          type="button"
+          onClick={() =>
+            document
+              .getElementById("presta-domains")
+              ?.scrollIntoView({ behavior: "smooth" })
+          }
+        >
           Categorias y pedidos
         </button>
-        <button type="button" onClick={() => document.getElementById('presta-gap')?.scrollIntoView({ behavior: 'smooth' })}>
+        <button
+          type="button"
+          onClick={() =>
+            document
+              .getElementById("presta-gap")
+              ?.scrollIntoView({ behavior: "smooth" })
+          }
+        >
           Brechas
         </button>
-        <button type="button" onClick={() => document.getElementById('presta-control')?.scrollIntoView({ behavior: 'smooth' })}>
+        <button
+          type="button"
+          onClick={() =>
+            document
+              .getElementById("presta-control")
+              ?.scrollIntoView({ behavior: "smooth" })
+          }
+        >
           Control puntual
         </button>
       </div>
@@ -154,7 +224,7 @@ export function PrestaView({ overview, domainAnalysis, onRefresh }: Props) {
               icon="!"
               title="No se pudo conectar a PrestaShop"
               description={presta.error}
-              action={{ label: 'Reintentar', onClick: onRefresh }}
+              action={{ label: "Reintentar", onClick: onRefresh }}
             />
           </div>
         ) : (
@@ -181,7 +251,9 @@ export function PrestaView({ overview, domainAnalysis, onRefresh }: Props) {
       <section id="presta-catalog" className="section">
         <div className="section-header">
           <h2 className="section-title">Catalogo de productos</h2>
-          <div className="section-note">Todos los productos leidos desde PrestaShop.</div>
+          <div className="section-note">
+            Todos los productos leidos desde PrestaShop.
+          </div>
         </div>
         <PrestaCatalog />
       </section>
@@ -190,7 +262,8 @@ export function PrestaView({ overview, domainAnalysis, onRefresh }: Props) {
         <div className="section-header">
           <h2 className="section-title">Categorias y pedidos</h2>
           <div className="section-note">
-            Datos complementarios ya disponibles para la integracion con PrestaShop.
+            Datos complementarios ya disponibles para la integracion con
+            PrestaShop.
           </div>
         </div>
 
@@ -201,12 +274,16 @@ export function PrestaView({ overview, domainAnalysis, onRefresh }: Props) {
               <div className="section-note">
                 {categories?.generatedAt
                   ? `Ultimo diagnostico: ${fmtDate(categories.generatedAt)}`
-                  : 'Sin diagnostico reciente'}
+                  : "Sin diagnostico reciente"}
               </div>
             </div>
             <dl className="data-list">
-              <dt>Catalogo evaluado</dt>
-              <dd>{fmt(categorySummary.total)}</dd>
+              <dt>Articulos SAP evaluados</dt>
+              <dd>
+                {fmt(
+                  categorySummary.productsEvaluated ?? categorySummary.total,
+                )}
+              </dd>
               <dt>Categorias SAP unicas</dt>
               <dd>{fmt(categorySummary.uniqueMainCategories)}</dd>
               <dt>Propiedades activas</dt>
@@ -217,9 +294,9 @@ export function PrestaView({ overview, domainAnalysis, onRefresh }: Props) {
               <dd>
                 {categories?.alignment
                   ? categories.alignment.isAligned
-                    ? 'Si'
+                    ? "Si"
                     : `No (${fmt(categories.alignment.reportCatalog)} vs ${fmt(categories.alignment.expectedOperationalCatalog)})`
-                  : 'Sin validar'}
+                  : "Sin validar"}
               </dd>
             </dl>
           </div>
@@ -230,7 +307,7 @@ export function PrestaView({ overview, domainAnalysis, onRefresh }: Props) {
               <div className="section-note">
                 {orders?.generatedAt
                   ? `Ultima lectura: ${fmtDate(orders.generatedAt)}`
-                  : 'Sin lectura reciente'}
+                  : "Sin lectura reciente"}
               </div>
             </div>
             <dl className="data-list">
@@ -266,19 +343,27 @@ export function PrestaView({ overview, domainAnalysis, onRefresh }: Props) {
             <div className="grid grid-4">
               <div className="card stat-box">
                 <div className="label">Faltan en PrestaShop</div>
-                <div className="value">{fmt(contrast?.missingProductsInPrestashop)}</div>
+                <div className="value">
+                  {fmt(contrast?.missingProductsInPrestashop)}
+                </div>
               </div>
               <div className="card stat-box">
                 <div className="label">Activos SAP no publicados</div>
-                <div className="value">{fmt(contrast?.activeProductsMissingInPrestashop)}</div>
+                <div className="value">
+                  {fmt(contrast?.activeProductsMissingInPrestashop)}
+                </div>
               </div>
               <div className="card stat-box">
                 <div className="label">Extra en PrestaShop</div>
-                <div className="value">{fmt(contrast?.extraProductsInPrestashop)}</div>
+                <div className="value">
+                  {fmt(contrast?.extraProductsInPrestashop)}
+                </div>
               </div>
               <div className="card stat-box">
                 <div className="label">Estado API</div>
-                <div className="value">{presta.error ? 'No disponible' : 'Disponible'}</div>
+                <div className="value">
+                  {presta.error ? "No disponible" : "Disponible"}
+                </div>
               </div>
             </div>
 
@@ -289,10 +374,26 @@ export function PrestaView({ overview, domainAnalysis, onRefresh }: Props) {
                 </div>
                 <BarChart
                   items={[
-                    { label: 'SAP total', value: overview?.sap?.totalProducts ?? 0, color: '#3659e3' },
-                    { label: 'PrestaShop', value: presta.totalProducts ?? 0, color: '#6ea8fe' },
-                    { label: 'Faltan en PS', value: contrast.missingProductsInPrestashop ?? 0, color: '#b91c1c' },
-                    { label: 'Extra en PS', value: contrast.extraProductsInPrestashop ?? 0, color: '#b45309' },
+                    {
+                      label: "SAP total",
+                      value: overview?.sap?.totalProducts ?? 0,
+                      color: "#3659e3",
+                    },
+                    {
+                      label: "PrestaShop",
+                      value: presta.totalProducts ?? 0,
+                      color: "#6ea8fe",
+                    },
+                    {
+                      label: "Faltan en PS",
+                      value: contrast.missingProductsInPrestashop ?? 0,
+                      color: "#b91c1c",
+                    },
+                    {
+                      label: "Extra en PS",
+                      value: contrast.extraProductsInPrestashop ?? 0,
+                      color: "#b45309",
+                    },
                   ]}
                 />
               </div>
@@ -305,7 +406,7 @@ export function PrestaView({ overview, domainAnalysis, onRefresh }: Props) {
         <div className="grid grid-2">
           <div className="card">
             {loading ? (
-              <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ display: "grid", gap: 12 }}>
                 {[0, 1, 2, 3, 4, 5].map((i) => (
                   <Skeleton key={i} width="100%" height={18} />
                 ))}
@@ -335,22 +436,29 @@ export function PrestaView({ overview, domainAnalysis, onRefresh }: Props) {
             </div>
 
             <div className="field-grid">
-              <div className="field" style={{ gridColumn: '1 / -1' }}>
-                <label htmlFor="control-reference">Referencia o item code</label>
+              <div className="field" style={{ gridColumn: "1 / -1" }}>
+                <label htmlFor="control-reference">
+                  Referencia o item code
+                </label>
                 <input
                   id="control-reference"
                   type="text"
                   placeholder="Ej. 61072505"
                   value={reference}
                   onChange={(e) => setReference(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
+                  onKeyDown={(e) => e.key === "Enter" && handleLookup()}
                 />
               </div>
             </div>
 
             <div className="button-row" style={{ marginTop: 12 }}>
-              <button className="btn-dark" type="button" onClick={handleLookup} disabled={lookupLoading}>
-                {lookupLoading ? 'Consultando...' : 'Consultar'}
+              <button
+                className="btn-dark"
+                type="button"
+                onClick={handleLookup}
+                disabled={lookupLoading}
+              >
+                {lookupLoading ? "Consultando..." : "Consultar"}
               </button>
             </div>
 
@@ -371,7 +479,13 @@ export function PrestaView({ overview, domainAnalysis, onRefresh }: Props) {
                   <dt>Stock</dt>
                   <dd>{fmt(sapData?.stock)}</dd>
                   <dt>Estado</dt>
-                  <dd>{sapData?.status === 'Y' ? 'Activo' : sapData?.status ? 'Inactivo' : '-'}</dd>
+                  <dd>
+                    {sapData?.status === "Y"
+                      ? "Activo"
+                      : sapData?.status
+                        ? "Inactivo"
+                        : "-"}
+                  </dd>
                 </dl>
               </div>
 
@@ -383,7 +497,13 @@ export function PrestaView({ overview, domainAnalysis, onRefresh }: Props) {
                   <dt>Referencia</dt>
                   <dd>{fmt(psData?.reference)}</dd>
                   <dt>Activo</dt>
-                  <dd>{psData?.active === '1' ? 'Activo' : psData?.active === '0' ? 'Inactivo' : '-'}</dd>
+                  <dd>
+                    {psData?.active === "1"
+                      ? "Activo"
+                      : psData?.active === "0"
+                        ? "Inactivo"
+                        : "-"}
+                  </dd>
                   <dt>Precio</dt>
                   <dd>{money(psData?.productPrice)}</dd>
                   <dt>Combinaciones</dt>
@@ -416,5 +536,5 @@ export function PrestaView({ overview, domainAnalysis, onRefresh }: Props) {
         </div>
       </section>
     </main>
-  )
+  );
 }
