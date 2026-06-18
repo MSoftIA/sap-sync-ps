@@ -286,7 +286,9 @@ function sanitizePrestaText(value) {
   if (!raw) return "";
   if (!raw.includes("<")) return raw;
 
-  const languageMatch = raw.match(/<language(?:\s[^>]*)?>([\s\S]*?)<\/language>/);
+  const languageMatch = raw.match(
+    /<language(?:\s[^>]*)?>([\s\S]*?)<\/language>/,
+  );
   if (languageMatch) {
     return languageMatch[1].replace(/<[^>]+>/g, " ").trim();
   }
@@ -327,8 +329,12 @@ async function readPrestaProductsPage(client, log, options = {}) {
   const page = Math.max(1, Number(options.page) || 1);
   const pageSize = Math.min(250, Math.max(1, Number(options.pageSize) || 50));
   const search = normalizePrestaSearch(options.search);
-  const status = String(options.status || "all").trim().toLowerCase();
-  const combo = String(options.combo || "all").trim().toLowerCase();
+  const status = String(options.status || "all")
+    .trim()
+    .toLowerCase();
+  const combo = String(options.combo || "all")
+    .trim()
+    .toLowerCase();
 
   if (log) {
     log("info", "Consultando pagina de productos PrestaShop", {
@@ -371,8 +377,8 @@ async function readPrestaProductsPage(client, log, options = {}) {
       (product) => !productsWithCombinations.has(product.id),
     );
   } else if (combo === "combo") {
-    filteredProducts = filteredProducts.filter(
-      (product) => productsWithCombinations.has(product.id),
+    filteredProducts = filteredProducts.filter((product) =>
+      productsWithCombinations.has(product.id),
     );
   }
 
@@ -482,14 +488,37 @@ async function listPrestaCategories(client, params = {}, batchSize = 250) {
 async function listPrestaOrders(client, params = {}, batchSize = 250) {
   let offset = 0;
   const orders = [];
+  let fallbackWithoutDateSort = false;
 
   while (true) {
-    const xml = await client.get("orders", {
-      display: "[id,reference,current_state,date_add]",
-      sort: "[date_add_DESC,id_DESC]",
-      limit: `${offset},${batchSize}`,
-      ...params,
-    });
+    let xml;
+
+    try {
+      xml = await client.get("orders", {
+        display: "[id,reference,current_state,date_add]",
+        sort: fallbackWithoutDateSort ? "[id_DESC]" : "[date_add_DESC,id_DESC]",
+        limit: `${offset},${batchSize}`,
+        ...params,
+      });
+    } catch (error) {
+      const message = String(error && error.message ? error.message : "");
+      const shouldRetryWithoutDateSort =
+        !fallbackWithoutDateSort &&
+        message.includes("Unable to filter by this field");
+
+      if (!shouldRetryWithoutDateSort) {
+        throw error;
+      }
+
+      fallbackWithoutDateSort = true;
+      xml = await client.get("orders", {
+        display: "[id,reference,current_state,date_add]",
+        sort: "[id_DESC]",
+        limit: `${offset},${batchSize}`,
+        ...params,
+      });
+    }
+
     const batch = parseOrderSummaryList(xml);
     orders.push(...batch);
 
