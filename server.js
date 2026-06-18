@@ -261,7 +261,9 @@ function buildDomainAnalysisSummary() {
             available: true,
             generatedAt: orderReport.generatedAt || null,
             summary: orderReport.summary || {},
-            note: "Lectura operativa de pedidos desde SAP. La escritura en PrestaShop sigue bloqueada hasta definir el flujo funcional.",
+            note:
+              orderReport.summary?.writeReadiness?.nextStep ||
+              "Lectura operativa de pedidos desde SAP. La escritura en PrestaShop sigue bloqueada hasta definir el flujo funcional.",
           }
         : orders && !orders.error
           ? {
@@ -269,7 +271,9 @@ function buildDomainAnalysisSummary() {
               available: true,
               generatedAt: new Date().toISOString(),
               summary: orders,
-              note: "Lectura operativa de pedidos desde SAP. Aun no escribe en PrestaShop.",
+              note:
+                orders.writeReadiness?.nextStep ||
+                "Lectura operativa de pedidos desde SAP. Aun no escribe en PrestaShop.",
             }
           : {
               key: "orders",

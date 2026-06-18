@@ -8,6 +8,7 @@ const DOMAIN_REGISTRY = {
     key: "products",
     runner: runProductDomain,
     writesReports: true,
+    writeEnabled: true,
     sourceOfTruth: "sap",
     status: "active",
     scope: [
@@ -21,6 +22,7 @@ const DOMAIN_REGISTRY = {
     key: "categories",
     runner: runCategoryDomain,
     writesReports: false,
+    writeEnabled: true,
     sourceOfTruth: "sap",
     status: "active",
     scope: [
@@ -33,6 +35,9 @@ const DOMAIN_REGISTRY = {
     key: "orders",
     runner: runOrderDomain,
     writesReports: false,
+    writeEnabled: false,
+    writeBlockedReason:
+      "Para escribir pedidos en PrestaShop faltan datos funcionales: cliente, direcciones, carrito, transportista, pago y mapeo de estados.",
     sourceOfTruth: "sap",
     status: "diagnostic",
     scope: [
@@ -47,6 +52,8 @@ function listSyncDomains() {
   return Object.values(DOMAIN_REGISTRY).map((domain) => ({
     key: domain.key,
     writesReports: domain.writesReports,
+    writeEnabled: Boolean(domain.writeEnabled),
+    writeBlockedReason: domain.writeBlockedReason || null,
     sourceOfTruth: domain.sourceOfTruth,
     status: domain.status,
     scope: [...domain.scope],

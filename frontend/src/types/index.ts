@@ -3,6 +3,8 @@ export interface SyncDomain {
   status: "active" | "diagnostic" | "discovery" | "planned";
   sourceOfTruth: string;
   writesReports: boolean;
+  writeEnabled?: boolean;
+  writeBlockedReason?: string | null;
   scope: string[];
 }
 
@@ -123,6 +125,15 @@ export interface DomainAnalysis {
         uniqueCustomers?: number;
         latestDocNum?: number | null;
         latestDocDate?: string | null;
+        writeReadiness?: {
+          ready?: boolean;
+          canReadSap?: boolean;
+          canComparePrestashop?: boolean;
+          canWrite?: boolean;
+          availableSapFields?: string[];
+          missingRequirements?: string[];
+          nextStep?: string;
+        };
       };
     };
   };

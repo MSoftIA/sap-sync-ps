@@ -24,7 +24,8 @@ const STATUS_TONE: Record<string, "green" | "amber" | "gray"> = {
 const CAPABILITY: Record<string, string> = {
   products: "Permite analizar y sincronizar.",
   categories: "Permite analizar y alinear categorias de productos.",
-  orders: "Hoy permite solo lectura y diagnostico; no sincroniza pedidos.",
+  orders:
+    "Hoy solo compara pedidos; todavia no crea ni actualiza ordenes en PrestaShop.",
 };
 
 export function DomainCard({ domain, checked, onChange }: Props) {
@@ -32,6 +33,10 @@ export function DomainCard({ domain, checked, onChange }: Props) {
   const label = STATUS_LABEL[domain.status] ?? domain.status;
   const capability = CAPABILITY[domain.key] ?? "";
   const scope = domain.scope?.join(", ") ?? "";
+  const blockedReason =
+    !domain.writeEnabled && domain.writeBlockedReason
+      ? domain.writeBlockedReason
+      : "";
 
   return (
     <div className="domain-card">
@@ -46,6 +51,9 @@ export function DomainCard({ domain, checked, onChange }: Props) {
           <div className="domain-card-copy">
             {capability} {scope}
           </div>
+          {blockedReason ? (
+            <div className="domain-card-copy">{blockedReason}</div>
+          ) : null}
         </div>
       </label>
       <div className="domain-meta">

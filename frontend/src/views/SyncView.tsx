@@ -140,8 +140,17 @@ export function SyncView({
     normalizedDomains.length > 0 ? normalizedDomains : ["products"];
   const blockedWriteDomains = activeDomains.filter((key) => {
     const domain = availableDomains.find((item) => item.key === key);
-    return domain ? domain.status !== "active" : false;
+    return domain
+      ? domain.writeEnabled === false || domain.status !== "active"
+      : false;
   });
+  const blockedWriteReasons = activeDomains
+    .map((key) => availableDomains.find((item) => item.key === key))
+    .filter((domain): domain is NonNullable<typeof domain> => Boolean(domain))
+    .filter(
+      (domain) => domain.writeEnabled === false && domain.writeBlockedReason,
+    )
+    .map((domain) => `${domain.key}: ${domain.writeBlockedReason}`);
 
   function toggleDomain(key: string, checked: boolean) {
     let next = checked
@@ -155,7 +164,9 @@ export function SyncView({
     if (syncRunning) return;
     if (writeMode && blockedWriteDomains.length > 0) {
       addToast({
-        message: `Estos dominios aun no permiten escritura: ${blockedWriteDomains.join(", ")}.`,
+        message:
+          blockedWriteReasons[0] ||
+          `Estos dominios aun no permiten escritura: ${blockedWriteDomains.join(", ")}.`,
         kind: "error",
       });
       return;
@@ -623,7 +634,9 @@ export function SyncView({
 
             {writeMode && blockedWriteDomains.length > 0 && (
               <MessageBox kind="warn">
-                {`La seleccion actual incluye dominios sin escritura habilitada: ${blockedWriteDomains.join(", ")}. Quita esos dominios o cambia a modo analisis.`}
+                {blockedWriteReasons.length > 0
+                  ? blockedWriteReasons.join(" ")
+                  : `La seleccion actual incluye dominios sin escritura habilitada: ${blockedWriteDomains.join(", ")}. Quita esos dominios o cambia a modo analisis.`}
               </MessageBox>
             )}
 
@@ -970,6 +983,13 @@ export function SyncView({
                 : orders?.note ||
                   "Falta cargar el resumen operativo de pedidos."}
             </div>
+            {Array.isArray(
+              ordersSummary?.writeReadiness?.missingRequirements,
+            ) && ordersSummary.writeReadiness.missingRequirements.length > 0 ? (
+              <div className="analysis-card-copy" style={{ marginTop: 10 }}>
+                {`Para habilitar escritura real faltan: ${ordersSummary.writeReadiness.missingRequirements.join(", ")}.`}
+              </div>
+            ) : null}
           </div>
         </div>
       </section>
