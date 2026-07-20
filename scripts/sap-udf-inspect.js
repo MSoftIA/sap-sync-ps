@@ -30,31 +30,30 @@ try {
   conn.connect(connection);
   log("info", "Conectado a SAP HANA");
 
-  // 1. Definiciones de UDF en OITM via CUFD
-  const cufdRows = conn.exec(
-    'SELECT "AliasID", "Descr", "FldType", "EditSize" ' +
-      'FROM "' + schema + '"."CUFD" ' +
-      'WHERE "TableID" = \'OITM\' ' +
-      'ORDER BY "AliasID"',
-  );
+  // 1. Definiciones de UDF en OITM via CUFD (columnas basicas)
+  let cufdRows = [];
+  try {
+    cufdRows = conn.exec(
+      'SELECT "AliasID", "Descr" ' +
+        'FROM "' + schema + '"."CUFD" ' +
+        'WHERE "TableID" = \'OITM\' ' +
+        'ORDER BY "AliasID"',
+    );
+  } catch (e) {
+    log("warn", "No se pudo consultar CUFD: " + e.message);
+  }
 
   console.log("\n=== UDFs definidos en OITM (tabla CUFD) ===\n");
   if (cufdRows.length === 0) {
     console.log("  (ninguno encontrado en CUFD)");
   } else {
     console.log(
-      String("ALIAS").padEnd(30) +
-        String("DESCRIPCION").padEnd(40) +
-        String("TIPO").padEnd(8) +
-        "LARGO",
+      String("ALIAS").padEnd(30) + "DESCRIPCION",
     );
-    console.log("-".repeat(82));
+    console.log("-".repeat(70));
     for (const r of cufdRows) {
       console.log(
-        String(r.AliasID || "").padEnd(30) +
-          String(r.Descr || "").slice(0, 39).padEnd(40) +
-          String(r.FldType || "").padEnd(8) +
-          (r.EditSize || ""),
+        String(r.AliasID || "").padEnd(30) + String(r.Descr || ""),
       );
     }
   }
