@@ -24,6 +24,11 @@ const connection = {
   sslValidateCertificate: false,
 };
 
+function pct(value, total) {
+  if (!total) return "0";
+  return Math.round((Number(value || 0) / total) * 100);
+}
+
 const conn = hana.createConnection();
 
 try {
@@ -76,24 +81,68 @@ try {
     console.log(udfCols.join("\n"));
   }
 
-  // 3. Muestra de valores de las columnas U_* (5 articulos)
-  if (udfCols.length > 0) {
-    const selectCols = udfCols
-      .map((c) => '"' + c + '"')
-      .join(", ");
-    const sampleRows = conn.exec(
-      'SELECT "ItemCode", ' +
-        selectCols +
-        ' FROM "' + schema + '"."OITM" ' +
-        "WHERE \"frozenFor\" = 'N' LIMIT 5",
-    );
+  // 3. Cobertura de U_Categoria y subcategorias (articulos activos con precio y almacen)
+  const priceList = process.env.SAP_PRICE_LIST || "14";
+  const warehouse = process.env.SAP_WAREHOUSE || "AC01";
 
-    console.log("\n=== Muestra de valores UDF (5 articulos) ===\n");
-    for (const row of sampleRows) {
-      const vals = udfCols
-        .map((c) => c + "=" + JSON.stringify(row[c] ?? null))
-        .join("  ");
-      console.log(row.ItemCode + "  ->  " + vals);
+  const coverageRows = conn.exec(
+    'SELECT ' +
+      'COUNT(*) AS "Total", ' +
+      'SUM(CASE WHEN I."U_Categoria" IS NOT NULL AND I."U_Categoria" <> \'\' THEN 1 ELSE 0 END) AS "ConCategoria", ' +
+      'SUM(CASE WHEN I."U_SubCategoria1" IS NOT NULL AND I."U_SubCategoria1" <> \'\' THEN 1 ELSE 0 END) AS "ConSub1", ' +
+      'SUM(CASE WHEN I."U_SubCategoria2" IS NOT NULL AND I."U_SubCategoria2" <> \'\' THEN 1 ELSE 0 END) AS "ConSub2", ' +
+      'SUM(CASE WHEN I."U_SubCategoria3" IS NOT NULL AND I."U_SubCategoria3" <> \'\' THEN 1 ELSE 0 END) AS "ConSub3" ' +
+      'FROM "' + schema + '"."OITM" I ' +
+      'INNER JOIN "' + schema + '"."ITM1" P ON P."ItemCode" = I."ItemCode" ' +
+      'INNER JOIN "' + schema + '"."OITW" C ON C."ItemCode" = I."ItemCode" ' +
+      "WHERE I.\"frozenFor\" = 'N' " +
+      'AND P."PriceList" = ? AND C."WhsCode" = ?',
+    [Number(priceList), warehouse],
+  );
+
+  const cov = coverageRows[0] || {};
+  const total = Number(cov.Total || 0);
+
+  console.log("\n=== Cobertura de UDFs de categoria (articulos activos lista=" + priceList + " almacen=" + warehouse + ") ===\n");
+  console.log("  Total articulos:          " + total);
+  console.log("  Con U_Categoria:          " + cov.ConCategoria + "  (" + pct(cov.ConCategoria, total) + "%)");
+  console.log("  Con U_SubCategoria1:      " + cov.ConSub1      + "  (" + pct(cov.ConSub1, total) + "%)");
+  console.log("  Con U_SubCategoria2:      " + cov.ConSub2      + "  (" + pct(cov.ConSub2, total) + "%)");
+  console.log("  Con U_SubCategoria3:      " + cov.ConSub3      + "  (" + pct(cov.ConSub3, total) + "%)");
+
+  // 4. Muestra de articulos CON U_Categoria completado
+  const filledRows = conn.exec(
+    'SELECT I."ItemCode", I."ItemName", I."U_Categoria", I."U_SubCategoria1", I."U_SubCategoria2", I."U_SubCategoria3" ' +
+      'FROM "' + schema + '"."OITM" I ' +
+      'INNER JOIN "' + schema + '"."ITM1" P ON P."ItemCode" = I."ItemCode" ' +
+      'INNER JOIN "' + schema + '"."OITW" C ON C."ItemCode" = I."ItemCode" ' +
+      "WHERE I.\"frozenFor\" = 'N' " +
+      'AND P."PriceList" = ? AND C."WhsCode" = ? ' +
+      'AND I."U_Categoria" IS NOT NULL AND I."U_Categoria" <> \'\' ' +
+      'LIMIT 10',
+    [Number(priceList), warehouse],
+  );
+
+  console.log("\n=== Muestra de articulos CON U_Categoria (hasta 10) ===\n");
+  if (filledRows.length === 0) {
+    console.log("  (ninguno tiene U_Categoria completado)");
+  } else {
+    console.log(
+      String("ITEMCODE").padEnd(14) +
+        String("U_CATEGORIA").padEnd(30) +
+        String("SUB1").padEnd(25) +
+        String("SUB2").padEnd(25) +
+        "SUB3",
+    );
+    console.log("-".repeat(110));
+    for (const r of filledRows) {
+      console.log(
+        String(r.ItemCode || "").padEnd(14) +
+          String(r.U_Categoria || "").padEnd(30) +
+          String(r.U_SubCategoria1 || "").padEnd(25) +
+          String(r.U_SubCategoria2 || "").padEnd(25) +
+          (r.U_SubCategoria3 || ""),
+      );
     }
   }
 
