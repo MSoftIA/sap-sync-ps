@@ -740,6 +740,57 @@ function readSapCategoryDiagnostics(log) {
   }
 }
 
+function readSapCategoryGroups(log) {
+  const config = getSapConfig();
+  const conn = hana.createConnection();
+  const schema = config.query.schema;
+  const sql =
+    'SELECT B."ItmsGrpCod", B."ItmsGrpNam", COUNT(*) AS "ProductCount" ' +
+    'FROM "' +
+    schema +
+    '"."OITM" I ' +
+    'INNER JOIN "' +
+    schema +
+    '"."ITM1" P ON P."ItemCode" = I."ItemCode" ' +
+    'INNER JOIN "' +
+    schema +
+    '"."OITW" C ON C."ItemCode" = I."ItemCode" ' +
+    'LEFT JOIN "' +
+    schema +
+    '"."OITB" B ON B."ItmsGrpCod" = I."ItmsGrpCod" ' +
+    "WHERE I.\"frozenFor\" = 'N' " +
+    'AND P."PriceList" = ? ' +
+    'AND C."WhsCode" = ? ' +
+    'GROUP BY B."ItmsGrpCod", B."ItmsGrpNam" ' +
+    'ORDER BY B."ItmsGrpNam"';
+
+  try {
+    if (log) {
+      log("info", "Consultando grupos de articulos SAP", {
+        schema,
+        priceList: config.query.priceList,
+        warehouse: config.query.warehouse,
+      });
+    }
+
+    conn.connect(config.connection);
+    const rows = conn.exec(sql, [
+      config.query.priceList,
+      config.query.warehouse,
+    ]);
+
+    return rows.map((row) => ({
+      groupCode: Number(row.ItmsGrpCod),
+      groupName: row.ItmsGrpNam || "(sin grupo)",
+      productCount: Number(row.ProductCount),
+    }));
+  } finally {
+    try {
+      conn.disconnect();
+    } catch {}
+  }
+}
+
 module.exports = {
   buildArticleQuery,
   buildCategoryDiagnosticQuery,
@@ -749,6 +800,7 @@ module.exports = {
   readSapArticleByCode,
   readSapArticles,
   readSapCategoryDiagnostics,
+  readSapCategoryGroups,
   readSapCategoryPropertyCatalog,
   readSapOrdersOverview,
   readSapOrdersSnapshot,
