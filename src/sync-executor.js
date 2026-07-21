@@ -412,7 +412,30 @@ async function executeSyncAction(client, row, log) {
       existingProductXml,
       row.actionPayload.product,
     );
-    await client.put("products/" + row.productId, productXml, { display: "[id]" });
+
+    try {
+      await client.put("products/" + row.productId, productXml, { display: "[id]" });
+    } catch (putError) {
+      const isNameError =
+        putError.message &&
+        putError.message.includes("Product->name") &&
+        putError.message.includes("Validation error");
+
+      if (!isNameError || !row.actionPayload.product.name) {
+        throw putError;
+      }
+
+      // Retry with ASCII-only name
+      const asciiPayload = {
+        ...row.actionPayload.product,
+        name: sanitizeAsciiProductName(
+          row.actionPayload.product.name,
+          row.actionPayload.product.reference,
+        ),
+      };
+      const asciiXml = buildPutProductXml(existingProductXml, asciiPayload);
+      await client.put("products/" + row.productId, asciiXml, { display: "[id]" });
+    }
   }
 
   if (
