@@ -449,9 +449,26 @@ async function runProductDomain(log) {
 
         logComparison(log, article, inspection);
 
+        log("info", "Comparacion de nombre", {
+          itemCode: article.itemCode,
+          sapName: article.itemName,
+          psName: inspection.name,
+          isEqual: normalizeName(article.itemName) === normalizeName(inspection.name),
+        });
+
         const planningStartedAt = Date.now();
         const row = buildResultRow(article, inspection);
         metrics.phaseMs.planning += Date.now() - planningStartedAt;
+
+        log("info", "Plan de sincronizacion", {
+          itemCode: row.itemCode,
+          action: row.action,
+          syncPrice: row.syncPrice,
+          syncStock: row.syncStock,
+          syncName: row.syncName,
+          blockedReason: row.blockedReason || null,
+          payloadSummary: row.payloadSummary,
+        });
 
         const executionStartedAt = Date.now();
         row.execution = await executeSyncAction(prestaClient, row, log);
