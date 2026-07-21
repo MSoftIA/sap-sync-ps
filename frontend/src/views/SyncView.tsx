@@ -101,8 +101,9 @@ export function SyncView({ loading, onRefresh }: Props) {
   const [pendingFullCatalog, setPendingFullCatalog] = useState(false);
   const [stopRequested, setStopRequested] = useState(false);
 
+  const visibleDomains = availableDomains.filter((d) => d.key !== 'orders')
   const normalizedDomains = selectedDomains.filter((k) =>
-    availableDomains.some((d) => d.key === k),
+    k !== 'orders' && visibleDomains.some((d) => d.key === k),
   );
   const activeDomains =
     normalizedDomains.length > 0 ? normalizedDomains : ["products"];
@@ -364,21 +365,19 @@ export function SyncView({ loading, onRefresh }: Props) {
                   <button className="btn-secondary" type="button" onClick={() => setSelectedDomains(["products"])}>
                     Solo productos
                   </button>
-                  <button className="btn-secondary" type="button" onClick={() => setSelectedDomains(availableDomains.map((d) => d.key))}>
+                  <button className="btn-secondary" type="button" onClick={() => setSelectedDomains(visibleDomains.map((d) => d.key))}>
                     Todos
                   </button>
                 </div>
               </div>
 
               <div className="domain-grid">
-                {availableDomains.length === 0 ? (
+                {visibleDomains.length === 0 ? (
                   <div className="empty">Cargando dominios...</div>
                 ) : (
-                  availableDomains
-                    .filter((d) => d.key !== 'orders')
-                    .map((domain) => (
-                      <DomainCard key={domain.key} domain={domain} checked={activeDomains.includes(domain.key)} onChange={toggleDomain} />
-                    ))
+                  visibleDomains.map((domain) => (
+                    <DomainCard key={domain.key} domain={domain} checked={activeDomains.includes(domain.key)} onChange={toggleDomain} />
+                  ))
                 )}
               </div>
             </div>
