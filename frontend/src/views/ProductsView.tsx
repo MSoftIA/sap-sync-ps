@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAppContext } from '../context/AppContext'
 import { SapCatalog } from '../components/SapCatalog'
 import { PrestaCatalog } from '../components/PrestaCatalog'
@@ -9,15 +9,20 @@ export function ProductsView() {
   const [log, setLog] = useState<string[]>([])
   const [syncing, setSyncing] = useState(false)
   const [syncingItemCode, setSyncingItemCode] = useState<string | null>(null)
+  const esRef = useRef<EventSource | null>(null)
 
-  function runSync() {
-    if (syncing) return
-    setSyncing(true)
-    setSyncRunning(true)
-    setLog([])
+  // Close EventSource and reset global syncRunning on unmount
+  useEffect(() => {
+    return () => {
+      if (esRef.current) {
+        esRef.current.close()
+        esRef.current = null
+        setSyncRunning(false)
+      }
+    }
+  }, [setSyncRunning])
 
-    const es = startSyncStream({ write: writeMode, domains: ['products'], fullCatalog: true })
-
+  function attachHandlers(es: EventSource, onDone: () => void) {
     es.onmessage = (event) => {
       try {
         const msg = JSON.parse(String(event.data))
@@ -29,16 +34,33 @@ export function ProductsView() {
             setLog(prev => [...prev.slice(-199), msg.line])
           }
         }
-        if (msg.type === 'done') { es.close(); setSyncing(false); setSyncRunning(false) }
+        if (msg.type === 'done') {
+          es.close()
+          esRef.current = null
+          onDone()
+        }
       } catch {}
     }
-    es.onerror = () => { es.close(); setSyncing(false); setSyncRunning(false) }
+    es.onerror = () => {
+      es.close()
+      esRef.current = null
+      onDone()
+    }
+  }
+
+  function runSync() {
+    if (syncing || syncRunning) return
+    setSyncing(true)
+    setSyncRunning(true)
+    setLog([])
+
+    const es = startSyncStream({ write: writeMode, domains: ['products'], fullCatalog: true })
+    esRef.current = es
+    attachHandlers(es, () => { setSyncing(false); setSyncRunning(false) })
   }
 
   async function handleStop() {
     try { await stopSync() } catch {}
-    setSyncing(false)
-    setSyncRunning(false)
   }
 
   function syncItem(itemCode: string) {
@@ -48,22 +70,8 @@ export function ProductsView() {
     setLog([])
 
     const es = startSyncStream({ write: writeMode, domains: ['products'], itemCode })
-
-    es.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(String(event.data))
-        if (msg.type === 'log' && msg.line) {
-          try {
-            const d = JSON.parse(msg.line)
-            setLog(prev => [...prev.slice(-199), `[${String(d.level ?? 'info').toUpperCase()}] ${d.message}`])
-          } catch {
-            setLog(prev => [...prev.slice(-199), msg.line])
-          }
-        }
-        if (msg.type === 'done') { es.close(); setSyncingItemCode(null); setSyncRunning(false) }
-      } catch {}
-    }
-    es.onerror = () => { es.close(); setSyncingItemCode(null); setSyncRunning(false) }
+    esRef.current = es
+    attachHandlers(es, () => { setSyncingItemCode(null); setSyncRunning(false) })
   }
 
   return (
@@ -81,12 +89,7 @@ export function ProductsView() {
                 Detener
               </button>
             ) : (
-              <button
-                className="btn-primary"
-                type="button"
-                onClick={runSync}
-                disabled={syncRunning}
-              >
+              <button className="btn-primary" type="button" onClick={runSync} disabled={syncRunning}>
                 {writeMode ? 'Sincronizar productos' : 'Analizar productos'}
               </button>
             )}

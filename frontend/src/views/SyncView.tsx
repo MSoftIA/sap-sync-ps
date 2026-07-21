@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { SyncProgress } from "../types";
 import { useAppContext, defaultProgress } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
@@ -93,6 +93,17 @@ export function SyncView({ loading, onRefresh }: Props) {
   const { addToast } = useToast();
 
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
+  const esRef = useRef<EventSource | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (esRef.current) {
+        esRef.current.close();
+        esRef.current = null;
+        setSyncRunning(false);
+      }
+    };
+  }, [setSyncRunning]);
   const [progress, setProgress] = useState<SyncProgress>(defaultProgress);
   const [statusLabel, setStatusLabel] = useState<string>("Listo");
   const [itemCode, setItemCode] = useState("");
@@ -184,6 +195,7 @@ export function SyncView({ loading, onRefresh }: Props) {
         write: writeMode,
         domains: activeDomains,
       });
+      esRef.current = es;
 
       es.onmessage = (event: MessageEvent) => {
         const msg = JSON.parse(String(event.data)) as {
@@ -221,6 +233,7 @@ export function SyncView({ loading, onRefresh }: Props) {
             },
           ]);
           es.close();
+          esRef.current = null;
           setSyncRunning(false);
           setStopRequested(false);
           setStatusLabel(
@@ -253,6 +266,7 @@ export function SyncView({ loading, onRefresh }: Props) {
           { text: "Error de conexion con el servidor.", cls: "error" },
         ]);
         es.close();
+        esRef.current = null;
         setSyncRunning(false);
         setStopRequested(false);
         setStatusLabel("Con errores");

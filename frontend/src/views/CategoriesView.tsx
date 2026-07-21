@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { SapCategoryNode, SapCategoryTree, PsCategory } from '../types'
 import { useAppContext } from '../context/AppContext'
 import { getSapCategories, getPsCategories } from '../api/sap'
@@ -83,6 +83,17 @@ function PsCategoryTree({ categories }: { categories: PsCategory[] }) {
 
 export function CategoriesView() {
   const { writeMode, setWriteMode, syncRunning, setSyncRunning } = useAppContext()
+  const esRef = useRef<EventSource | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (esRef.current) {
+        esRef.current.close()
+        esRef.current = null
+        setSyncRunning(false)
+      }
+    }
+  }, [setSyncRunning])
 
   const [sapTree, setSapTree] = useState<SapCategoryTree | null>(null)
   const [loadingSap, setLoadingSap] = useState(false)
@@ -112,13 +123,15 @@ export function CategoriesView() {
   }
 
   function runSync() {
-    if (syncing) return
+    if (syncing || syncRunning) return
     setSyncing(true)
     setSyncRunning(true)
     setLog([])
 
     const es = startSyncStream({ write: writeMode, domains: ['categories'], fullCatalog: true })
+    esRef.current = es
 
+    const done = () => { es.close(); esRef.current = null; setSyncing(false); setSyncRunning(false) }
     es.onmessage = (event) => {
       try {
         const msg = JSON.parse(String(event.data))
@@ -130,16 +143,14 @@ export function CategoriesView() {
             setLog(prev => [...prev.slice(-199), msg.line])
           }
         }
-        if (msg.type === 'done') { es.close(); setSyncing(false); setSyncRunning(false) }
+        if (msg.type === 'done') done()
       } catch {}
     }
-    es.onerror = () => { es.close(); setSyncing(false); setSyncRunning(false) }
+    es.onerror = done
   }
 
   async function handleStop() {
     try { await stopSync() } catch {}
-    setSyncing(false)
-    setSyncRunning(false)
   }
 
   return (
