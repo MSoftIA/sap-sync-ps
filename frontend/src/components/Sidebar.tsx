@@ -29,7 +29,6 @@ export function Sidebar({ currentView, onNavigate, loading }: Props) {
 
       <nav className="sidebar-nav">
         {NAV_ITEMS.map(item => {
-          const badge = badgeMap[item.key]
           return (
             <button
               key={item.key}
