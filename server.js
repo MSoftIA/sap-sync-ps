@@ -13,14 +13,11 @@ const {
   inspectProductByReferenceValue,
   listPrestaCategories,
   readPrestaProductsPage,
-  readPrestaOverview,
   updatePrestaProductActive,
 } = require("./src/prestashop");
 const {
   readSapArticleByCode,
   readSapCategoryTreeAsync,
-  readSapOrdersOverview,
-  readSapOverview,
   readSapProductsPageAsync,
 } = require("./src/sap");
 const { log } = require("./src/logger");
@@ -30,10 +27,6 @@ const app = express();
 const PORT = env("UI_PORT", "3000");
 
 let activeSync = null;
-let overviewCache = {
-  updatedAt: 0,
-  payload: null,
-};
 const MAX_SYNC_LOG_LINES = 5000;
 
 app.use(express.static(path.join(__dirname, "dist")));
@@ -107,248 +100,6 @@ function pushSyncLog(syncState, entry) {
   broadcastSync(syncState, entry);
 }
 
-function buildContrast(sap, prestashop) {
-  if (!sap || !prestashop || sap.error || prestashop.error) {
-    return null;
-  }
-
-  return {
-    productGap: sap.totalProducts - prestashop.totalProducts,
-    activeGap: sap.activeProducts - prestashop.activeProducts,
-    inactiveGap: sap.inactiveProducts - prestashop.inactiveProducts,
-    missingProductsInPrestashop: Math.max(
-      sap.totalProducts - prestashop.totalProducts,
-      0,
-    ),
-    extraProductsInPrestashop: Math.max(
-      prestashop.totalProducts - sap.totalProducts,
-      0,
-    ),
-    activeProductsMissingInPrestashop: Math.max(
-      sap.activeProducts - prestashop.activeProducts,
-      0,
-    ),
-    inactiveProductsExtraInPrestashop: Math.max(
-      prestashop.inactiveProducts - sap.inactiveProducts,
-      0,
-    ),
-    sapHasMoreProducts: sap.totalProducts > prestashop.totalProducts,
-    sapHasFewerProducts: sap.totalProducts < prestashop.totalProducts,
-  };
-}
-
-function getLatestReport() {
-  const reportDir = path.join(process.cwd(), env("REPORT_DIR", "reports"));
-  const files = fs
-    .readdirSync(reportDir)
-    .filter((f) => f.endsWith(".summary.json"))
-    .sort()
-    .reverse();
-
-  if (files.length === 0) {
-    return null;
-  }
-
-  return JSON.parse(fs.readFileSync(path.join(reportDir, files[0]), "utf8"));
-}
-
-function listSummaryFiles() {
-  const reportDir = path.join(process.cwd(), env("REPORT_DIR", "reports"));
-
-  try {
-    return fs
-      .readdirSync(reportDir)
-      .filter((f) => f.endsWith(".summary.json"))
-      .sort()
-      .reverse()
-      .map((file) => path.join(reportDir, file));
-  } catch {
-    return [];
-  }
-}
-
-function readJsonFileSafe(filePath) {
-  try {
-    return JSON.parse(fs.readFileSync(filePath, "utf8"));
-  } catch {
-    return null;
-  }
-}
-
-function getLatestDomainSummary(domainKey) {
-  const files = listSummaryFiles();
-
-  if (domainKey === "products") {
-    for (const filePath of files) {
-      const payload = readJsonFileSafe(filePath);
-      if (!payload) continue;
-      if (!payload.domain && payload.summary) {
-        return payload;
-      }
-    }
-    return null;
-  }
-
-  for (const filePath of files) {
-    const payload = readJsonFileSafe(filePath);
-    if (!payload) continue;
-    if (payload.domain === domainKey && payload.summary) {
-      return payload;
-    }
-  }
-
-  return null;
-}
-
-function buildDomainAnalysisSummary() {
-  const products = getLatestDomainSummary("products");
-  const categories = getLatestDomainSummary("categories");
-  const orderReport = getLatestDomainSummary("orders");
-  let sapOverview = null;
-  let orders = null;
-
-  try {
-    sapOverview = readSapOverview(log);
-  } catch {}
-
-  try {
-    orders = readSapOrdersOverview(log);
-  } catch (error) {
-    orders = {
-      error: error.message,
-    };
-  }
-
-  return {
-    generatedAt: new Date().toISOString(),
-    domains: {
-      products: products
-        ? {
-            key: "products",
-            available: true,
-            generatedAt: products.generatedAt || null,
-            summary: products.summary || {},
-            recommendedActions: products.recommendedActions || {},
-          }
-        : {
-            key: "products",
-            available: false,
-            summary: null,
-            recommendedActions: null,
-          },
-      categories: categories
-        ? {
-            key: "categories",
-            available: true,
-            generatedAt: categories.generatedAt || null,
-            summary: categories.summary || {},
-            alignment: sapOverview
-              ? {
-                  expectedOperationalCatalog: sapOverview.totalProducts,
-                  reportCatalog: Number(categories.summary?.total || 0),
-                  isAligned:
-                    Number(categories.summary?.total || 0) ===
-                    Number(sapOverview.totalProducts || 0),
-                }
-              : null,
-          }
-        : {
-            key: "categories",
-            available: false,
-            summary: null,
-          },
-      orders: orderReport
-        ? {
-            key: "orders",
-            available: true,
-            generatedAt: orderReport.generatedAt || null,
-            summary: orderReport.summary || {},
-            note:
-              orderReport.summary?.writeReadiness?.nextStep ||
-              "Lectura operativa de pedidos desde SAP. La escritura en PrestaShop sigue bloqueada hasta definir el flujo funcional.",
-          }
-        : orders && !orders.error
-          ? {
-              key: "orders",
-              available: true,
-              generatedAt: new Date().toISOString(),
-              summary: orders,
-              note:
-                orders.writeReadiness?.nextStep ||
-                "Lectura operativa de pedidos desde SAP. Aun no escribe en PrestaShop.",
-            }
-          : {
-              key: "orders",
-              available: false,
-              summary: null,
-              note:
-                (orders && orders.error) ||
-                "No se pudo leer el resumen de pedidos desde SAP.",
-            },
-    },
-  };
-}
-
-function buildExecutiveSummary(overview, latestReport) {
-  const summary = latestReport ? latestReport.summary || {} : {};
-  const actions = latestReport ? latestReport.recommendedActions || {} : {};
-  const contrast = overview ? overview.contrast : null;
-
-  const sampleSize = summary.total || 0;
-  const createCount = actions.createProduct || 0;
-  const updateCount =
-    (actions.updateProductPrice || 0) +
-    (actions.updateProductStock || 0) +
-    (actions.updateProductPriceAndStock || 0);
-  const reviewCount =
-    (actions.reviewCombinationMapping || 0) + (actions.reviewError || 0);
-  const errorCount = summary.errors || 0;
-
-  let overallStatus = "ok";
-  let headline = "El tablero no muestra alertas criticas.";
-
-  if (errorCount > 0) {
-    overallStatus = "error";
-    headline =
-      "Hay errores en la ultima corrida y conviene revisarlos antes de seguir.";
-  } else if (createCount > 0 || updateCount > 0 || reviewCount > 0) {
-    overallStatus = "attention";
-    headline =
-      "Hay diferencias entre SAP y PrestaShop. El tablero recomienda revisar o sincronizar cambios.";
-  } else if (contrast && contrast.missingProductsInPrestashop > 0) {
-    overallStatus = "attention";
-    headline =
-      "SAP tiene mas productos que PrestaShop. Conviene completar la sincronizacion del catalogo.";
-  }
-
-  return {
-    overallStatus,
-    headline,
-    sampleSize,
-    createCount,
-    updateCount,
-    reviewCount,
-    errorCount,
-    productGap: contrast ? contrast.productGap : null,
-    missingProductsInPrestashop: contrast
-      ? contrast.missingProductsInPrestashop
-      : null,
-    activeProductsMissingInPrestashop: contrast
-      ? contrast.activeProductsMissingInPrestashop
-      : null,
-    inactiveProductsExtraInPrestashop: contrast
-      ? contrast.inactiveProductsExtraInPrestashop
-      : null,
-  };
-}
-
-function buildUnavailableOverview(source, error) {
-  return {
-    source,
-    error: error.message,
-  };
-}
-
 function parsePositiveInt(value, fallback, options = {}) {
   const { max = Number.MAX_SAFE_INTEGER, min = 1 } = options;
   const parsed = Number(value);
@@ -359,77 +110,6 @@ function parsePositiveInt(value, fallback, options = {}) {
 
   return Math.min(max, Math.max(min, Math.floor(parsed)));
 }
-
-async function getCatalogOverview(forceRefresh = false) {
-  const ttlMs = 60 * 1000;
-  if (
-    !forceRefresh &&
-    overviewCache.payload &&
-    Date.now() - overviewCache.updatedAt < ttlMs
-  ) {
-    return overviewCache.payload;
-  }
-
-  let sap;
-  let prestashop;
-
-  try {
-    sap = readSapOverview(log);
-  } catch (error) {
-    sap = buildUnavailableOverview("sap", error);
-  }
-
-  if (hasPrestaConfig()) {
-    try {
-      prestashop = await readPrestaOverview(createPrestaClient(log), log);
-    } catch (error) {
-      prestashop = buildUnavailableOverview("prestashop", error);
-    }
-  } else {
-    prestashop = {
-      source: "prestashop",
-      error: "PRESTASHOP_ENDPOINT o PRESTASHOP_API_KEY no configurados",
-    };
-  }
-
-  const payload = {
-    generatedAt: new Date().toISOString(),
-    sap,
-    prestashop,
-    contrast: buildContrast(sap, prestashop),
-  };
-
-  overviewCache = {
-    updatedAt: Date.now(),
-    payload,
-  };
-
-  return payload;
-}
-
-app.get("/api/reports", (req, res) => {
-  const reportDir = path.join(process.cwd(), env("REPORT_DIR", "reports"));
-  try {
-    const files = fs
-      .readdirSync(reportDir)
-      .filter((f) => f.endsWith(".summary.json"))
-      .sort()
-      .reverse()
-      .slice(0, 15);
-
-    const reports = files.map((f) => {
-      try {
-        return JSON.parse(fs.readFileSync(path.join(reportDir, f), "utf8"));
-      } catch {
-        return null;
-      }
-    });
-
-    res.json(reports.filter(Boolean));
-  } catch {
-    res.json([]);
-  }
-});
 
 app.get("/api/status", (req, res) => {
   res.json(
@@ -443,33 +123,6 @@ app.get("/api/status", (req, res) => {
         }
       : { running: false },
   );
-});
-
-app.get("/api/catalog-overview", async (req, res) => {
-  const forceRefresh = req.query.refresh === "true";
-  const payload = await getCatalogOverview(forceRefresh);
-  res.json(payload);
-});
-
-app.get("/api/dashboard-summary", async (req, res) => {
-  const forceRefresh = req.query.refresh === "true";
-  const overview = await getCatalogOverview(forceRefresh);
-  let latestReport = null;
-
-  try {
-    latestReport = getLatestReport();
-  } catch {}
-
-  res.json({
-    generatedAt: new Date().toISOString(),
-    latestReport,
-    overview,
-    executive: buildExecutiveSummary(overview, latestReport),
-  });
-});
-
-app.get("/api/domain-analysis", (req, res) => {
-  res.json(buildDomainAnalysisSummary());
 });
 
 app.get("/api/sap-products", async (req, res) => {
@@ -668,7 +321,7 @@ app.post("/api/prestashop-control/active", async (req, res) => {
   try {
     const client = createPrestaClient(log);
     const result = await updatePrestaProductActive(client, productId, active);
-    overviewCache = { updatedAt: 0, payload: null };
+
     res.json({
       ok: true,
       message: active
@@ -764,7 +417,7 @@ app.get("/api/sync", (req, res) => {
   proc.stderr.on("data", handleChunk("log"));
 
   proc.on("close", (code, signal) => {
-    overviewCache = { updatedAt: 0, payload: null };
+
     if (syncState.stopTimer) {
       clearTimeout(syncState.stopTimer);
       syncState.stopTimer = null;

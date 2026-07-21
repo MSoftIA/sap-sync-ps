@@ -1,6 +1,5 @@
 const { loadEnvFile } = require("./env");
 const { createLogger, log } = require("./logger");
-const { writeRunReports } = require("./report");
 const { isWriteEnabled } = require("./sync-executor");
 const { listSyncDomains, parseSyncDomains } = require("./sync-domains");
 
@@ -51,7 +50,6 @@ async function run() {
     });
   }
 
-  let reportRows = [];
   const domainResults = [];
 
   for (const domain of domains) {
@@ -67,12 +65,10 @@ async function run() {
     const result = await domain.runner(domainLog);
     const normalizedResult = result || {
       key: domain.key,
-      reportRows: [],
       summary: {
         implemented: false,
         processed: 0,
         sourceOfTruth: domain.sourceOfTruth,
-        writesReports: domain.writesReports,
       },
     };
 
@@ -81,30 +77,12 @@ async function run() {
       elapsedMs: Date.now() - domainStartedAt,
       ...normalizedResult.summary,
     });
-
-    if (domain.writesReports) {
-      reportRows = normalizedResult.reportRows || [];
-    }
   }
 
-  runLog("info", "Resumen de dominios ejecutados", {
+  runLog("info", "Corrida finalizada", {
     domainResults,
     elapsedMs: Date.now() - startedAt,
-  });
-
-  if (reportRows.length > 0) {
-    writeRunReports(runLog, reportRows);
-    runLog("info", "Corrida finalizada", {
-      elapsedMs: Date.now() - startedAt,
-      domains: domains.map((domain) => domain.key),
-      reportRows: reportRows.length,
-    });
-    return;
-  }
-
-  runLog("info", "No se generaron reportes de productos en esta corrida", {
     domains: domains.map((domain) => domain.key),
-    elapsedMs: Date.now() - startedAt,
   });
 }
 

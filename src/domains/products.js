@@ -330,12 +330,10 @@ async function runProductDomain(log) {
     );
     return {
       key: "products",
-      reportRows: [],
       summary: {
         implemented: true,
         processed: 0,
         sourceOfTruth: "sap",
-        writesReports: true,
         skippedReason: "missing_prestashop_config",
       },
     };
@@ -564,12 +562,10 @@ async function runProductDomain(log) {
 
   return {
     key: "products",
-    reportRows: results,
     summary: {
       implemented: true,
       processed: results.length,
       sourceOfTruth: "sap",
-      writesReports: true,
       syncConcurrency,
       metrics: summarizeMetrics(metrics, totalArticles),
     },

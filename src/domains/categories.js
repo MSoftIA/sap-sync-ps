@@ -5,7 +5,6 @@ const {
   hasPrestaConfig,
   listPrestaCategories,
 } = require("../prestashop");
-const { writeDomainSnapshot } = require("../report");
 const { readSapCategoryDiagnostics } = require("../sap");
 const { isWriteEnabled } = require("../sync-executor");
 const { parseAnyIdList, parseXmlBlocks, xmlText } = require("../xml");
@@ -306,45 +305,13 @@ async function runCategoryDomain(log) {
 
   if (!hasPrestaConfig()) {
     const summary = buildCategorySummary(rows, metrics);
-    const report = writeDomainSnapshot(log, {
-      domain: "categories",
-      summary,
-      rows: rows.map((row) => ({
-        status: row.hasMainCategory
-          ? "missing_prestashop_config"
-          : "missing_main_category",
-        ...row,
-        categoryId: null,
-        categoryCreated: false,
-        productId: null,
-        productUpdated: false,
-        notes: "PrestaShop no configurado para ejecutar esta sync.",
-      })),
-      csvHeaders: [
-        "status",
-        "itemCode",
-        "itemName",
-        "itemGroupCode",
-        "itemGroupName",
-        "proposedPrestaCategory",
-        "categoryId",
-        "categoryCreated",
-        "productId",
-        "productUpdated",
-        "notes",
-      ],
-    });
-
     return {
       key: "categories",
-      reportRows: [],
       summary: {
         implemented: true,
         processed: rows.length,
         sourceOfTruth: "sap",
-        writesReports: false,
         diagnosticOnly: true,
-        reportPaths: report.paths,
         categorySummary: summary,
       },
     };
@@ -543,24 +510,6 @@ async function runCategoryDomain(log) {
 
 
   const summary = buildCategorySummary(rows, metrics);
-  const report = writeDomainSnapshot(log, {
-    domain: "categories",
-    summary,
-    rows: resultRows,
-    csvHeaders: [
-      "status",
-      "itemCode",
-      "itemName",
-      "itemGroupCode",
-      "itemGroupName",
-      "proposedPrestaCategory",
-      "categoryId",
-      "categoryCreated",
-      "productId",
-      "productUpdated",
-      "notes",
-    ],
-  });
 
   log("info", "Dominio categories finalizado", {
     processed: resultRows.length,
@@ -569,13 +518,10 @@ async function runCategoryDomain(log) {
 
   return {
     key: "categories",
-    reportRows: [],
     summary: {
       implemented: true,
       processed: resultRows.length,
       sourceOfTruth: "sap",
-      writesReports: false,
-      reportPaths: report.paths,
       categorySummary: summary,
     },
   };

@@ -3,7 +3,6 @@ const {
   hasPrestaConfig,
   readPrestaOrdersOverview,
 } = require("../prestashop");
-const { writeDomainSnapshot } = require("../report");
 const { readSapOrdersOverview, readSapOrdersSnapshot } = require("../sap");
 const { isWriteEnabled } = require("../sync-executor");
 
@@ -146,30 +145,6 @@ async function runOrderDomain(log) {
     });
   }
 
-  const report = writeDomainSnapshot(log, {
-    domain: "orders",
-    summary,
-    rows,
-    csvHeaders: [
-      "status",
-      "docEntry",
-      "docNum",
-      "cardCode",
-      "cardName",
-      "docDate",
-      "docStatus",
-      "canceled",
-      "docTotal",
-      "numAtCard",
-      "lineCount",
-      "distinctItems",
-      "totalQuantity",
-      "prestaTotalOrders",
-      "missingRequirements",
-      "note",
-    ],
-  });
-
   log("warn", "Dominio orders finalizado sin escritura", {
     processed: rows.length,
     note: "No se escribieron pedidos en PrestaShop porque falta definir el mapeo funcional completo.",
@@ -178,14 +153,11 @@ async function runOrderDomain(log) {
 
   return {
     key: "orders",
-    reportRows: [],
     summary: {
       implemented: true,
       processed: rows.length,
       sourceOfTruth: "sap",
-      writesReports: false,
       diagnosticOnly: true,
-      reportPaths: report.paths,
       orderSummary: summary,
       writeReadiness: summary.writeReadiness,
       nextStep: summary.writeReadiness.nextStep,

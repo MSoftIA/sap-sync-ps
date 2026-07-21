@@ -7,7 +7,7 @@ const DOMAIN_REGISTRY = {
   products: {
     key: "products",
     runner: runProductDomain,
-    writesReports: true,
+
     writeEnabled: true,
     sourceOfTruth: "sap",
     status: "active",
@@ -21,7 +21,7 @@ const DOMAIN_REGISTRY = {
   categories: {
     key: "categories",
     runner: runCategoryDomain,
-    writesReports: false,
+
     writeEnabled: true,
     sourceOfTruth: "sap",
     status: "active",
@@ -34,7 +34,7 @@ const DOMAIN_REGISTRY = {
   orders: {
     key: "orders",
     runner: runOrderDomain,
-    writesReports: false,
+
     writeEnabled: false,
     writeBlockedReason:
       "Para escribir pedidos en PrestaShop faltan datos funcionales: cliente, direcciones, carrito, transportista, pago y mapeo de estados.",
@@ -51,7 +51,7 @@ const DOMAIN_REGISTRY = {
 function listSyncDomains() {
   return Object.values(DOMAIN_REGISTRY).map((domain) => ({
     key: domain.key,
-    writesReports: domain.writesReports,
+
     writeEnabled: Boolean(domain.writeEnabled),
     writeBlockedReason: domain.writeBlockedReason || null,
     sourceOfTruth: domain.sourceOfTruth,
