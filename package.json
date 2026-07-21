@@ -15,6 +15,7 @@
     "test:hana": "node scripts/test-hana.js",
     "sap:categories": "node scripts/sap-categories.js",
     "sap:udf": "node scripts/sap-udf-inspect.js",
+    "sap:tree": "node scripts/sap-category-tree.js",
     "lint": "prettier --check \"*.js\" \"src/**/*.js\" \"scripts/**/*.js\"",
     "format": "prettier --write \"*.js\" \"src/**/*.js\" \"scripts/**/*.js\"",
     "claude": "claude --dangerously-skip-permissions"
