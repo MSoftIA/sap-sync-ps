@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { PrestaProductSummary, PaginationMeta } from '../types'
 import { getPrestaProducts } from '../api/prestashop'
-import { getPsCategories } from '../api/sap'
+import { getPsCategories, clearPsCategoriesCache } from '../api/sap'
 import { Skeleton } from './Skeleton'
 import { EmptyState } from './EmptyState'
 import { Tag } from './Tag'
@@ -56,8 +56,7 @@ export function PrestaCatalog() {
     fetchPage({ page, search, status: statusFilter })
   }, [loaded, page, search, statusFilter])
 
-  useEffect(() => {
-    if (!loaded) return
+  function loadCategoryMap() {
     setCategoryMapLoading(true)
     setCategoryMapError(false)
     getPsCategories()
@@ -69,6 +68,11 @@ export function PrestaCatalog() {
         setCategoryMapLoading(false)
         setCategoryMapError(true)
       })
+  }
+
+  useEffect(() => {
+    if (!loaded) return
+    loadCategoryMap()
   }, [loaded])
 
   function startLoad() {
@@ -186,7 +190,10 @@ export function PrestaCatalog() {
           className="btn-secondary"
           type="button"
           disabled={loading}
-          onClick={() => fetchPage({ page, search, status: statusFilter })}
+          onClick={() => {
+            fetchPage({ page, search, status: statusFilter })
+            if (categoryMapError) { clearPsCategoriesCache(); loadCategoryMap() }
+          }}
           style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 7 }}
         >
           {loading && <span className="spinner-dark" />}
@@ -222,13 +229,13 @@ export function PrestaCatalog() {
             <table>
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Referencia</th>
-                  <th>Nombre</th>
-                  <th>Categoría</th>
-                  <th style={{ textAlign: 'right' }}>Precio</th>
-                  <th style={{ textAlign: 'right' }}>Stock</th>
-                  <th>Estado</th>
+                  <th scope="col">ID</th>
+                  <th scope="col">Referencia</th>
+                  <th scope="col">Nombre</th>
+                  <th scope="col">Categoría</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>Precio</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>Stock</th>
+                  <th scope="col">Estado</th>
                 </tr>
               </thead>
               <tbody>
@@ -284,7 +291,7 @@ export function PrestaCatalog() {
                 disabled={!pagination?.hasPreviousPage || loading}
                 onClick={() => setPage((p) => p - 1)}
               >
-                {'<-'} Anterior
+                ← Anterior
               </button>
               <span className="pagination-label">
                 {safePage} / {totalPages}
@@ -295,7 +302,7 @@ export function PrestaCatalog() {
                 disabled={!pagination?.hasNextPage || loading}
                 onClick={() => setPage((p) => p + 1)}
               >
-                Siguiente {'->'}
+                Siguiente →
               </button>
             </div>
           </div>

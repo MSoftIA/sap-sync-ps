@@ -19,7 +19,7 @@ export function LogBox({ entries }: Props) {
   }, [entries])
 
   return (
-    <div className="log-box" ref={ref}>
+    <div className="log-box" ref={ref} role="log" aria-live="polite" aria-label="Log de sincronización">
       {entries.length === 0 ? (
         <div className="log-line info">Los logs de la sync aparecerán aquí.</div>
       ) : (

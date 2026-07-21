@@ -31,7 +31,10 @@ const AppContext = createContext<AppState | null>(null)
 export function AppProvider({ children }: { children: ReactNode }) {
   const [writeMode, setWriteMode] = useState(false)
   const [syncRunning, setSyncRunning] = useState(false)
-  const [currentView, setCurrentView] = useState<View>('sync')
+  const [currentView, setCurrentView] = useState<View>(() => {
+    const hash = window.location.hash.slice(1) as View
+    return (['sync', 'products', 'categories'] as View[]).includes(hash) ? hash : 'sync'
+  })
   const [selectedDomains, setSelectedDomains] = useState<string[]>(['products'])
   const [availableDomains, setAvailableDomains] = useState<SyncDomain[]>([])
   const [currentProgress, setCurrentProgress] = useState<SyncProgress>(defaultProgress)

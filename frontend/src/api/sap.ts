@@ -18,6 +18,10 @@ export interface SapProductsResponse {
 // Cleared on error so the next call retries.
 let psCategoriesCache: Promise<PsCategory[]> | null = null
 
+export function clearPsCategoriesCache() {
+  psCategoriesCache = null
+}
+
 export function getPsCategories(): Promise<PsCategory[]> {
   if (!psCategoriesCache) {
     psCategoriesCache = fetch('/api/prestashop-categories')

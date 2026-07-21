@@ -17,8 +17,11 @@ function CategoryNode({ node, depth = 0 }: { node: SapCategoryNode; depth?: numb
   return (
     <div style={{ marginLeft: depth * 20 }}>
       <div
+        role={hasChildren ? 'button' : undefined}
+        tabIndex={hasChildren ? 0 : undefined}
         style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', borderRadius: 5, cursor: hasChildren ? 'pointer' : 'default' }}
         onClick={() => hasChildren && setOpen(o => !o)}
+        onKeyDown={hasChildren ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(o => !o) } } : undefined}
       >
         <span style={{ width: 14, color: 'var(--muted)', fontSize: '0.78rem', flexShrink: 0 }}>
           {hasChildren ? (open ? '▾' : '▸') : '·'}
@@ -42,7 +45,6 @@ function countSapNodes(nodes: SapCategoryNode[]): number {
 }
 
 function PsCategoryTree({ categories }: { categories: PsCategory[] }) {
-  const byId = new Map(categories.map(c => [c.id, c]))
   // Root categories: only parentId === 0 (PS internal root, id=1)
   // parentId=1 (Home category) must NOT be treated as root — it causes the tree to appear twice
   const rootIds = new Set(categories.filter(c => c.parentId === 0).map(c => c.id))
@@ -59,8 +61,11 @@ function PsCategoryTree({ categories }: { categories: PsCategory[] }) {
     return (
       <div style={{ marginLeft: depth * 20 }}>
         <div
+          role={children.length > 0 ? 'button' : undefined}
+          tabIndex={children.length > 0 ? 0 : undefined}
           style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', borderRadius: 5, cursor: children.length > 0 ? 'pointer' : 'default' }}
           onClick={() => children.length > 0 && setOpen(o => !o)}
+          onKeyDown={children.length > 0 ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(o => !o) } } : undefined}
         >
           <span style={{ width: 14, color: 'var(--muted)', fontSize: '0.78rem', flexShrink: 0 }}>
             {children.length > 0 ? (open ? '▾' : '▸') : '·'}
@@ -153,9 +158,9 @@ export function CategoriesView() {
             const d = JSON.parse(msg.line)
             const level = String(d.level ?? 'info')
             const cls: LogEntry['cls'] = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'info'
-            setLog(prev => [...prev.slice(-199), { text: `[${level.toUpperCase()}] ${d.message}`, cls }])
+            setLog(prev => [...prev.slice(-499), { text: `[${level.toUpperCase()}] ${d.message}`, cls }])
           } catch {
-            setLog(prev => [...prev.slice(-199), { text: msg.line, cls: 'info' }])
+            setLog(prev => [...prev.slice(-499), { text: msg.line, cls: 'info' }])
           }
         }
         if (msg.type === 'done') done(true)
@@ -167,7 +172,13 @@ export function CategoriesView() {
   async function handleStop() {
     if (stopRequested) return
     setStopRequested(true)
-    try { await stopSync() } catch {}
+    try {
+      await stopSync()
+      addToast({ message: 'Se envió la solicitud para detener la sync.', kind: 'info' })
+    } catch {
+      setStopRequested(false)
+      addToast({ message: 'No se pudo detener la sync.', kind: 'error' })
+    }
   }
 
   return (

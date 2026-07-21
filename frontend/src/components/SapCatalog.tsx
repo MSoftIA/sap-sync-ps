@@ -187,13 +187,13 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
             <table>
               <thead>
                 <tr>
-                  <th>Código</th>
-                  <th>Nombre</th>
-                  <th>Categoría</th>
-                  <th style={{ textAlign: 'right' }}>Precio</th>
-                  <th style={{ textAlign: 'right' }}>Stock</th>
-                  <th>Estado</th>
-                  {onSyncItem && <th style={{ width: 80 }} />}
+                  <th scope="col">Código</th>
+                  <th scope="col">Nombre</th>
+                  <th scope="col">Categoría</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>Precio</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>Stock</th>
+                  <th scope="col">Estado</th>
+                  {onSyncItem && <th scope="col" style={{ width: 80 }} />}
                 </tr>
               </thead>
               <tbody>

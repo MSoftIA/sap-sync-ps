@@ -28,17 +28,17 @@ function AppContent() {
     loadAll()
   }, [loadAll])
 
-  // Hash routing: read initial hash on mount
-  useEffect(() => {
-    const hash = window.location.hash.slice(1) as View
-    if (VALID_VIEWS.includes(hash)) setCurrentView(hash)
-  }, [setCurrentView])
-
   // Hash routing: keep URL in sync when view changes
   useEffect(() => {
     if (window.location.hash.slice(1) !== currentView) {
       window.location.hash = currentView
     }
+    const titles: Record<View, string> = {
+      sync: 'Sincronizar — SAP Sync',
+      products: 'Productos — SAP Sync',
+      categories: 'Categorías — SAP Sync',
+    }
+    document.title = titles[currentView]
   }, [currentView])
 
   // Hash routing: handle browser back/forward

@@ -82,6 +82,7 @@ export function SyncView({ loading, onRefresh }: Props) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingFullCatalog, setPendingFullCatalog] = useState(false);
   const [stopRequested, setStopRequested] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const visibleDomains = useMemo(
     () => availableDomains.filter((d) => d.key !== 'orders'),
@@ -251,7 +252,7 @@ export function SyncView({ loading, onRefresh }: Props) {
         });
       };
     },
-    [syncRunning, writeMode, activeDomains, itemCode, limit, addToast],
+    [syncRunning, writeMode, activeDomains, itemCode, limit, addToast, setSyncRunning, setCurrentProgress],
   );
 
   const requestStop = useCallback(async () => {
@@ -386,6 +387,7 @@ export function SyncView({ loading, onRefresh }: Props) {
                 type="button"
                 disabled={syncRunning || (writeMode && blockedWriteDomains.length > 0)}
                 onClick={() => requestSync(true)}
+                style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
               >
                 {syncRunning
                   ? "Corriendo..."
@@ -412,7 +414,7 @@ export function SyncView({ loading, onRefresh }: Props) {
               </button>
             </div>
 
-            <details>
+            <details open={advancedOpen} onToggle={(e) => setAdvancedOpen((e.currentTarget as HTMLDetailsElement).open)}>
               <summary>Opciones avanzadas</summary>
               <div className="details-body">
                 <div className="field-grid">
