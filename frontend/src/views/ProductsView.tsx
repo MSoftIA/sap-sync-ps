@@ -18,24 +18,21 @@ export function ProductsView() {
 
     const es = startSyncStream({ write: writeMode, domains: ['products'], fullCatalog: true })
 
-    es.addEventListener('log', (e) => {
+    es.onmessage = (event) => {
       try {
-        const d = JSON.parse((e as MessageEvent).data)
-        setLog(prev => [...prev.slice(-199), `[${d.level?.toUpperCase() ?? 'INFO'}] ${d.message}`])
+        const msg = JSON.parse(String(event.data))
+        if (msg.type === 'log' && msg.line) {
+          try {
+            const d = JSON.parse(msg.line)
+            setLog(prev => [...prev.slice(-199), `[${String(d.level ?? 'info').toUpperCase()}] ${d.message}`])
+          } catch {
+            setLog(prev => [...prev.slice(-199), msg.line])
+          }
+        }
+        if (msg.type === 'done') { es.close(); setSyncing(false); setSyncRunning(false) }
       } catch {}
-    })
-
-    es.addEventListener('done', () => {
-      es.close()
-      setSyncing(false)
-      setSyncRunning(false)
-    })
-
-    es.onerror = () => {
-      es.close()
-      setSyncing(false)
-      setSyncRunning(false)
     }
+    es.onerror = () => { es.close(); setSyncing(false); setSyncRunning(false) }
   }
 
   async function handleStop() {
@@ -52,20 +49,21 @@ export function ProductsView() {
 
     const es = startSyncStream({ write: writeMode, domains: ['products'], itemCode })
 
-    es.addEventListener('log', (e) => {
+    es.onmessage = (event) => {
       try {
-        const d = JSON.parse((e as MessageEvent).data)
-        setLog(prev => [...prev.slice(-199), `[${d.level?.toUpperCase() ?? 'INFO'}] ${d.message}`])
+        const msg = JSON.parse(String(event.data))
+        if (msg.type === 'log' && msg.line) {
+          try {
+            const d = JSON.parse(msg.line)
+            setLog(prev => [...prev.slice(-199), `[${String(d.level ?? 'info').toUpperCase()}] ${d.message}`])
+          } catch {
+            setLog(prev => [...prev.slice(-199), msg.line])
+          }
+        }
+        if (msg.type === 'done') { es.close(); setSyncingItemCode(null); setSyncRunning(false) }
       } catch {}
-    })
-
-    const finish = () => {
-      es.close()
-      setSyncingItemCode(null)
-      setSyncRunning(false)
     }
-    es.addEventListener('done', finish)
-    es.onerror = finish
+    es.onerror = () => { es.close(); setSyncingItemCode(null); setSyncRunning(false) }
   }
 
   return (

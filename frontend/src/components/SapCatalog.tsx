@@ -189,6 +189,7 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
                 <tr>
                   <th>Código</th>
                   <th>Nombre</th>
+                  <th>Categoría</th>
                   <th style={{ textAlign: 'right' }}>Precio</th>
                   <th style={{ textAlign: 'right' }}>Stock</th>
                   <th>Estado</th>
@@ -206,6 +207,9 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
                         {a.itemCode ?? '—'}
                       </td>
                       <td>{a.itemName ?? '—'}</td>
+                      <td style={{ color: a.category ? undefined : 'var(--muted)', fontSize: '0.85rem' }}>
+                        {a.category ?? '—'}
+                      </td>
                       <td style={{ textAlign: 'right', fontWeight: 700 }}>{money(a.price)}</td>
                       <td style={{ textAlign: 'right' }}>
                         <span className={zeroStock && !inactive ? 'stock-zero' : ''}>

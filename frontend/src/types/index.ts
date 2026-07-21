@@ -145,6 +145,7 @@ export interface SapArticle {
   price?: number;
   stock?: number;
   status?: string;
+  category?: string | null;
   error?: string;
 }
 

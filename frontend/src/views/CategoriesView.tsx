@@ -82,7 +82,7 @@ function PsCategoryTree({ categories }: { categories: PsCategory[] }) {
 }
 
 export function CategoriesView() {
-  const { writeMode, syncRunning, setSyncRunning } = useAppContext()
+  const { writeMode, setWriteMode, syncRunning, setSyncRunning } = useAppContext()
 
   const [sapTree, setSapTree] = useState<SapCategoryTree | null>(null)
   const [loadingSap, setLoadingSap] = useState(false)
@@ -119,20 +119,21 @@ export function CategoriesView() {
 
     const es = startSyncStream({ write: writeMode, domains: ['categories'], fullCatalog: true })
 
-    es.addEventListener('log', (e) => {
+    es.onmessage = (event) => {
       try {
-        const d = JSON.parse((e as MessageEvent).data)
-        setLog(prev => [...prev.slice(-199), `[${d.level?.toUpperCase() ?? 'INFO'}] ${d.message}`])
+        const msg = JSON.parse(String(event.data))
+        if (msg.type === 'log' && msg.line) {
+          try {
+            const d = JSON.parse(msg.line)
+            setLog(prev => [...prev.slice(-199), `[${String(d.level ?? 'info').toUpperCase()}] ${d.message}`])
+          } catch {
+            setLog(prev => [...prev.slice(-199), msg.line])
+          }
+        }
+        if (msg.type === 'done') { es.close(); setSyncing(false); setSyncRunning(false) }
       } catch {}
-    })
-
-    const finish = () => {
-      es.close()
-      setSyncing(false)
-      setSyncRunning(false)
     }
-    es.addEventListener('done', finish)
-    es.onerror = finish
+    es.onerror = () => { es.close(); setSyncing(false); setSyncRunning(false) }
   }
 
   async function handleStop() {
@@ -247,7 +248,11 @@ export function CategoriesView() {
             <div style={{ fontWeight: 700, marginBottom: 2 }}>Sincronizar categorías SAP → PrestaShop</div>
             <div className="section-note">{writeMode ? 'Aplicará cambios reales en la tienda.' : 'Modo análisis — solo reporta, no modifica nada.'}</div>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+            <div className="toggle-group">
+              <button type="button" className={!writeMode ? 'active' : ''} onClick={() => setWriteMode(false)}>Analizar</button>
+              <button type="button" className={writeMode ? 'active danger' : ''} onClick={() => setWriteMode(true)}>Aplicar cambios</button>
+            </div>
             {syncing ? (
               <button className="btn-secondary" type="button" onClick={handleStop} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                 <span className="spinner-dark" />
@@ -255,7 +260,7 @@ export function CategoriesView() {
               </button>
             ) : (
               <button className="btn-dark" type="button" onClick={runSync} disabled={syncRunning}>
-                {writeMode ? 'Sincronizar categorías' : 'Analizar categorías'}
+                {writeMode ? 'Sincronizar' : 'Analizar'}
               </button>
             )}
           </div>

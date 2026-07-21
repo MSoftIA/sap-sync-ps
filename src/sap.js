@@ -132,7 +132,8 @@ function buildSapProductListQuery({
       "SELECT " +
       'I."ItemCode", I."ItemName", P."AddPrice1" AS "Price", ' +
       'C."WhsCode", C."OnHand" AS "Existencia", I."CodeBars", ' +
-      'I."validFor" AS "Status", I."ItmsGrpCod" AS "ItemGroupCode" ' +
+      'I."validFor" AS "Status", I."ItmsGrpCod" AS "ItemGroupCode", ' +
+      'COALESCE(CAT."Name", I."U_Categoria") AS "CatName" ' +
       'FROM "' +
       schema +
       '"."OITM" I ' +
@@ -142,6 +143,9 @@ function buildSapProductListQuery({
       'INNER JOIN "' +
       schema +
       '"."OITW" C ON C."ItemCode" = I."ItemCode" ' +
+      'LEFT JOIN "' +
+      schema +
+      '"."@CATEGORIA" CAT ON CAT."Code" = I."U_Categoria" ' +
       "WHERE " +
       whereClause +
       ' ORDER BY I."ItemCode" ASC ' +
@@ -226,6 +230,7 @@ function mapSapProductListRow(row) {
       row.ItemGroupCode === null || row.ItemGroupCode === undefined
         ? null
         : Number(row.ItemGroupCode),
+    category: row.CatName ? String(row.CatName).trim() : null,
   };
 }
 
