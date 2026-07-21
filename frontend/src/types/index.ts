@@ -101,7 +101,7 @@ export type View = "sync" | "products" | "categories" | "automation";
 
 export interface ScheduleConfig {
   enabled: boolean;
-  intervalHours: number;
+  runAt: string; // HH:MM hora local del servidor
   domains: string[];
   write: boolean;
 }

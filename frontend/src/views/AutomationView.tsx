@@ -5,8 +5,6 @@ import { DomainCard } from '../components/DomainCard'
 import { getSchedule, saveSchedule } from '../api/schedule'
 import type { ScheduleStatus } from '../types'
 
-const INTERVAL_PRESETS = [4, 8, 12, 24, 48, 72]
-
 function formatDatetime(iso: string | null | undefined): string {
   if (!iso) return '—'
   return new Date(iso).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' })
@@ -23,7 +21,7 @@ export function AutomationView() {
 
   // Config editable local
   const [enabled, setEnabled] = useState(false)
-  const [intervalHours, setIntervalHours] = useState(24)
+  const [runAt, setRunAt] = useState('02:00')
   const [selectedDomains, setSelectedDomains] = useState<string[]>(['products'])
   const [write, setWrite] = useState(false)
 
@@ -50,7 +48,7 @@ export function AutomationView() {
   function applyStatus(s: ScheduleStatus) {
     setStatus(s)
     setEnabled(s.config.enabled)
-    setIntervalHours(s.config.intervalHours)
+    setRunAt(s.config.runAt ?? '02:00')
     setSelectedDomains(s.config.domains)
     setWrite(s.config.write)
   }
@@ -58,11 +56,11 @@ export function AutomationView() {
   async function handleSave() {
     setSaving(true)
     try {
-      const updated = await saveSchedule({ enabled, intervalHours, domains: selectedDomains, write })
+      const updated = await saveSchedule({ enabled, runAt, domains: selectedDomains, write })
       applyStatus(updated)
       addToast({
         message: enabled
-          ? `Automatización activada — cada ${intervalHours}h.`
+          ? `Automatización activada — todos los días a las ${runAt}.`
           : 'Automatización desactivada.',
         kind: 'success',
       })
@@ -94,7 +92,7 @@ export function AutomationView() {
         <div className="section-header">
           <div>
             <h2 className="section-title">Automatización</h2>
-            <div className="section-note">Programa corridas periódicas sin intervención manual.</div>
+            <div className="section-note">Programa una corrida diaria a una hora fija del servidor.</div>
           </div>
           <button className="btn-secondary" type="button" disabled={loading} onClick={load}
             style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
@@ -114,7 +112,7 @@ export function AutomationView() {
                 </span>
                 {status.config.enabled && (
                   <div className="section-note" style={{ marginTop: 6 }}>
-                    Cada {status.config.intervalHours}h · {status.config.write ? 'Aplicar cambios' : 'Solo análisis'}
+                    Todos los días a las {status.config.runAt} · {status.config.write ? 'Aplicar cambios' : 'Solo análisis'}
                   </div>
                 )}
               </div>
@@ -170,38 +168,28 @@ export function AutomationView() {
                 </div>
               </div>
 
-              {/* Intervalo */}
+              {/* Hora de ejecución */}
               <div>
-                <div className="domain-title" style={{ marginBottom: 8 }}>Intervalo</div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                  {INTERVAL_PRESETS.map(h => (
-                    <button
-                      key={h}
-                      type="button"
-                      className={intervalHours === h ? 'btn-primary' : 'btn-secondary'}
-                      style={{ padding: '8px 14px', fontSize: '0.88rem' }}
-                      onClick={() => setIntervalHours(h)}
-                    >
-                      {h}h
-                    </button>
-                  ))}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input
-                      type="number"
-                      min={1}
-                      max={720}
-                      value={intervalHours}
-                      onChange={e => {
-                        const v = Math.max(1, Math.floor(Number(e.target.value) || 24))
-                        setIntervalHours(v)
-                      }}
-                      style={{
-                        width: 72, border: '1px solid #cfd8e3', borderRadius: 12,
-                        padding: '8px 10px', fontSize: '0.92rem', background: 'white',
-                      }}
-                    />
-                    <span className="section-note">horas</span>
-                  </div>
+                <div className="domain-title" style={{ marginBottom: 4 }}>Hora de ejecución</div>
+                <div className="section-note" style={{ marginBottom: 10 }}>
+                  Hora local del servidor — se ejecutará todos los días a esta hora.
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <input
+                    type="time"
+                    value={runAt}
+                    onChange={e => setRunAt(e.target.value)}
+                    style={{
+                      border: '1px solid #cfd8e3',
+                      borderRadius: 12,
+                      padding: '10px 14px',
+                      fontSize: '1.05rem',
+                      fontWeight: 700,
+                      background: 'white',
+                      width: 140,
+                    }}
+                  />
+                  <span className="section-note">hora del servidor</span>
                 </div>
               </div>
 

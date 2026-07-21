@@ -1,8 +1,8 @@
 "use strict";
 
 /**
- * Scheduler — programa corridas periódicas de sync sin dependencias externas.
- * Persiste config + lastRun en schedule.json para sobrevivir reinicios del servidor.
+ * Scheduler — dispara una corrida diaria a una hora fija (hora local del servidor).
+ * Persiste config + lastRun en schedule.json para sobrevivir reinicios.
  */
 
 const fs = require("fs");
@@ -13,7 +13,7 @@ const SCHEDULE_FILE = path.join(__dirname, "..", "schedule.json");
 
 const DEFAULT_CONFIG = {
   enabled: false,
-  intervalHours: 24,
+  runAt: "02:00", // HH:MM hora local del servidor
   domains: ["products"],
   write: false,
 };
@@ -22,7 +22,13 @@ let _config = { ...DEFAULT_CONFIG };
 let _lastRun = null; // { startedAt, finishedAt, exitCode, triggered }
 let _timer = null;
 let _nextRun = null; // ISO string o null
-let _triggerFn = null; // inyectado desde server.js
+let _triggerFn = null;
+
+// ── Validación ────────────────────────────────────────────────────────────────
+
+function isValidTime(v) {
+  return typeof v === "string" && /^([01]\d|2[0-3]):([0-5]\d)$/.test(v);
+}
 
 // ── Persistencia ─────────────────────────────────────────────────────────────
 
@@ -44,12 +50,33 @@ function load() {
     const data = JSON.parse(raw);
     if (data && data.config) _config = { ...DEFAULT_CONFIG, ...data.config };
     if (data && data.lastRun) _lastRun = data.lastRun;
+    // Migración: si venía de la versión anterior con intervalHours, ignorarlo
+    delete _config.intervalHours;
   } catch {
-    // El archivo no existe todavía — usar defaults
+    // Archivo no existe todavía — usar defaults
   }
 }
 
 // ── Timer ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Calcula la próxima ejecución: "hoy a runAt" si aún no pasó, si no "mañana a runAt".
+ * Garantiza al menos 5 segundos en el futuro para evitar disparos en el arranque.
+ */
+function computeNextDate() {
+  const [hh, mm] = _config.runAt.split(":").map(Number);
+  const now = new Date();
+
+  const candidate = new Date(now);
+  candidate.setHours(hh, mm, 0, 0);
+
+  // Si la hora ya pasó (o está en los próximos 5 segundos), programar para mañana
+  if (candidate.getTime() - now.getTime() < 5_000) {
+    candidate.setDate(candidate.getDate() + 1);
+  }
+
+  return candidate;
+}
 
 function arm() {
   if (_timer) {
@@ -62,33 +89,29 @@ function arm() {
     return;
   }
 
-  const intervalMs = _config.intervalHours * 60 * 60 * 1000;
-  const now = Date.now();
-
-  // Si hubo una corrida previa, calcular cuánto falta para la próxima
-  const lastFinishedAt = _lastRun?.finishedAt
-    ? new Date(_lastRun.finishedAt).getTime()
-    : null;
-
-  let delay;
-  if (lastFinishedAt) {
-    const elapsed = now - lastFinishedAt;
-    delay = Math.max(0, intervalMs - elapsed);
-    // Si ya pasó el intervalo, esperar un poco antes de disparar (evitar run en boot)
-    if (delay === 0) delay = 5_000;
-  } else {
-    // Primera vez — esperar el intervalo completo desde ahora
-    delay = intervalMs;
+  if (!isValidTime(_config.runAt)) {
+    log("warn", "[Scheduler] runAt inválido — desactivando", { runAt: _config.runAt });
+    _nextRun = null;
+    return;
   }
 
-  _nextRun = new Date(now + delay).toISOString();
-  log("info", "[Scheduler] Próxima corrida programada", { nextRun: _nextRun, delayMs: delay });
+  const next = computeNextDate();
+  const delay = next.getTime() - Date.now();
+  _nextRun = next.toISOString();
+
+  log("info", "[Scheduler] Próxima corrida programada", {
+    nextRun: _nextRun,
+    localTime: next.toLocaleString(),
+    delayMs: delay,
+  });
+
   _timer = setTimeout(fire, delay);
 }
 
 function fire() {
   _timer = null;
   log("info", "[Scheduler] Disparando sync automática", {
+    runAt: _config.runAt,
     domains: _config.domains,
     write: _config.write,
   });
@@ -108,10 +131,10 @@ function fire() {
       source: "scheduled",
     });
     if (!started) {
-      // Ya había una sync corriendo — reintentar en 5 minutos
-      log("warn", "[Scheduler] Sync en curso, reintentando en 5 minutos");
-      _nextRun = new Date(Date.now() + 5 * 60_000).toISOString();
-      _timer = setTimeout(fire, 5 * 60_000);
+      // Ya había una sync corriendo — reintentar en 10 minutos
+      log("warn", "[Scheduler] Sync en curso, reintentando en 10 minutos");
+      _nextRun = new Date(Date.now() + 10 * 60_000).toISOString();
+      _timer = setTimeout(fire, 10 * 60_000);
     }
   }
 }
@@ -124,7 +147,7 @@ function init(triggerFn) {
   arm();
   log("info", "[Scheduler] Inicializado", {
     enabled: _config.enabled,
-    intervalHours: _config.intervalHours,
+    runAt: _config.runAt,
     nextRun: _nextRun,
   });
 }
@@ -142,9 +165,7 @@ function updateConfig(updates) {
     ...DEFAULT_CONFIG,
     ..._config,
     ...(typeof updates.enabled === "boolean" && { enabled: updates.enabled }),
-    ...(Number.isFinite(Number(updates.intervalHours)) && Number(updates.intervalHours) >= 1 && {
-      intervalHours: Math.floor(Number(updates.intervalHours)),
-    }),
+    ...(isValidTime(updates.runAt) && { runAt: updates.runAt }),
     ...(Array.isArray(updates.domains) && updates.domains.length > 0 && {
       domains: updates.domains.filter((d) => typeof d === "string"),
     }),
@@ -160,8 +181,7 @@ function notifyDone(exitCode) {
     _lastRun = { ..._lastRun, finishedAt: new Date().toISOString(), exitCode };
     save();
   }
-  // Re-armar el timer desde cuando terminó
-  arm();
+  arm(); // Re-armar para el día siguiente
 }
 
 module.exports = { init, getStatus, updateConfig, notifyDone };
