@@ -34,6 +34,7 @@ function slugify(text) {
 function sanitizeProductName(text, fallback = "") {
   const normalized = String(text || fallback || "")
     .replace(/[\u0000-\u001f\u007f]+/g, " ")
+    .replace(/[<>;=#{}]+/g, " ") // PS isCatalogName: /^[^<>;=#{}]*$/u
     .replace(/\s+/g, " ")
     .trim();
 
@@ -432,8 +433,7 @@ async function executeSyncAction(client, row, log) {
 
       const tryPutName = async (nameValue) => {
         const nameXml = setLanguageTagValue(baseNameXml, "name", nameValue, langId);
-        const nameBlock = nameXml.match(/<name(?:\s[^>]*)?>[\s\S]*?<\/name>/);
-        log("info", "PUT nombre bloque: " + (nameBlock ? nameBlock[0].replace(/\s+/g, " ").slice(0, 300) : "NO ENCONTRADO"), { productId: row.productId });
+        log("info", "PUT nombre (intento)", { nameValue, productId: row.productId });
         await client.put("products/" + row.productId, nameXml, { display: "[id]" });
       };
 
