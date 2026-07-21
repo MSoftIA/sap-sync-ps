@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAppContext } from '../context/AppContext'
 import { SapCatalog } from '../components/SapCatalog'
+import { PrestaCatalog } from '../components/PrestaCatalog'
 import { startSyncStream, stopSync } from '../api/sync'
 
 export function ProductsView() {
@@ -94,7 +95,15 @@ export function ProductsView() {
           </div>
         </div>
 
+        <div className="section-header" style={{ marginTop: 24 }}>
+          <h2 className="section-title">SAP</h2>
+        </div>
         <SapCatalog onSyncItem={syncItem} syncingItemCode={syncingItemCode} />
+
+        <div className="section-header" style={{ marginTop: 24 }}>
+          <h2 className="section-title">PrestaShop</h2>
+        </div>
+        <PrestaCatalog />
 
         {log.length > 0 && (
           <div className="card" style={{ marginTop: 16 }}>

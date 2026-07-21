@@ -150,18 +150,6 @@ export function CategoriesView() {
             <h2 className="section-title">Categorías</h2>
             <div className="section-note">{writeMode ? 'Modo escritura activo' : 'Modo análisis — sin cambios en PrestaShop'}</div>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {syncing ? (
-              <button className="btn-secondary" type="button" onClick={handleStop} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <span className="spinner-dark" />
-                Detener
-              </button>
-            ) : (
-              <button className="btn-primary" type="button" onClick={runSync} disabled={syncRunning}>
-                {writeMode ? 'Sincronizar categorías' : 'Analizar categorías'}
-              </button>
-            )}
-          </div>
         </div>
 
         {/* SAP tree */}
@@ -253,9 +241,29 @@ export function CategoriesView() {
           )}
         </div>
 
+        {/* Sync action */}
+        <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontWeight: 700, marginBottom: 2 }}>Sincronizar categorías SAP → PrestaShop</div>
+            <div className="section-note">{writeMode ? 'Aplicará cambios reales en la tienda.' : 'Modo análisis — solo reporta, no modifica nada.'}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            {syncing ? (
+              <button className="btn-secondary" type="button" onClick={handleStop} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span className="spinner-dark" />
+                Detener
+              </button>
+            ) : (
+              <button className="btn-dark" type="button" onClick={runSync} disabled={syncRunning}>
+                {writeMode ? 'Sincronizar categorías' : 'Analizar categorías'}
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Log */}
         {log.length > 0 && (
-          <div className="card">
+          <div className="card" style={{ marginTop: 16 }}>
             <div className="section-title" style={{ marginBottom: 8 }}>Log sync</div>
             <div className="log-box">
               {log.map((line, i) => <div key={i}>{line}</div>)}

@@ -374,9 +374,11 @@ export function SyncView({ loading, onRefresh }: Props) {
                 {availableDomains.length === 0 ? (
                   <div className="empty">Cargando dominios...</div>
                 ) : (
-                  availableDomains.map((domain) => (
-                    <DomainCard key={domain.key} domain={domain} checked={activeDomains.includes(domain.key)} onChange={toggleDomain} />
-                  ))
+                  availableDomains
+                    .filter((d) => d.key !== 'orders')
+                    .map((domain) => (
+                      <DomainCard key={domain.key} domain={domain} checked={activeDomains.includes(domain.key)} onChange={toggleDomain} />
+                    ))
                 )}
               </div>
             </div>
