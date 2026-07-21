@@ -240,15 +240,6 @@ function buildPutProductXml(existingXml, payload = {}) {
     xml = setTagValue(xml, "active", payload.active);
   }
 
-  if (payload.name) {
-    xml = setLanguageTagValue(
-      xml,
-      "name",
-      sanitizeProductName(payload.name),
-      payload.languageId || 1,
-    );
-  }
-
   return xml;
 }
 
@@ -414,56 +405,62 @@ async function executeSyncAction(client, row, log) {
     await client.put("products/" + row.productId, productXml, { display: "[id]" });
   }
 
-  if (row.action === "update_product_name") {
-    if (!row.actionPayload || !row.actionPayload.product) {
-      throw new Error("Falta actionPayload.product para action=" + row.action);
-    }
+  // Name update: always via minimal XML, never inside the price PUT
+  if (
+    row.syncName &&
+    (row.action === "update_product_price" ||
+      row.action === "update_product_price_and_stock" ||
+      row.action === "update_product_stock" ||
+      row.action === "update_product_name")
+  ) {
+    const product = row.actionPayload && row.actionPayload.product;
+    const name = product && product.name;
+    const langId = (product && product.languageId) || 1;
 
-    const { name, languageId, id } = row.actionPayload.product;
-    const langId = languageId || 1;
+    if (name) {
+      const safeName = sanitizeProductName(name, row.itemCode);
+      const asciiName = sanitizeAsciiProductName(name, row.itemCode);
 
-    const safeName = sanitizeProductName(name, row.itemCode);
-    const asciiName = sanitizeAsciiProductName(name, row.itemCode);
+      log("info", "Actualizando nombre en PrestaShop", {
+        itemCode: row.itemCode,
+        productId: row.productId,
+        sapName: name,
+        safeName,
+        asciiName,
+        languageId: langId,
+      });
 
-    log("info", "Actualizando nombre en PrestaShop", {
-      itemCode: row.itemCode,
-      productId: row.productId,
-      sapName: name,
-      safeName,
-      asciiName,
-      languageId: langId,
-    });
-
-    const tryPutName = async (nameValue) => {
-      const minimalXml = `<?xml version="1.0" encoding="UTF-8"?>
+      const tryPutName = async (nameValue) => {
+        const minimalXml = `<?xml version="1.0" encoding="UTF-8"?>
 <prestashop xmlns:xlink="http://www.w3.org/1999/xlink">
   <product>
-    <id>${cdata(id || row.productId)}</id>
+    <id>${cdata(row.productId)}</id>
     <name><language id="${escapeXml(langId)}">${cdata(nameValue)}</language></name>
   </product>
 </prestashop>`;
-      log("info", "PUT nombre (intento)", { nameValue, productId: row.productId });
-      await client.put("products/" + row.productId, minimalXml, { display: "[id]" });
-    };
+        log("info", "PUT nombre (intento)", { nameValue, productId: row.productId });
+        await client.put("products/" + row.productId, minimalXml, { display: "[id]" });
+      };
 
-    try {
-      await tryPutName(safeName);
-      log("info", "Nombre actualizado en PrestaShop", { itemCode: row.itemCode, name: safeName });
-    } catch (firstError) {
-      log("warn", "Fallo PUT nombre UTF-8, reintentando con ASCII", {
-        itemCode: row.itemCode,
-        error: firstError.message,
-      });
       try {
-        await tryPutName(asciiName);
-        log("info", "Nombre actualizado en PrestaShop (ASCII)", { itemCode: row.itemCode, name: asciiName });
-      } catch (secondError) {
-        log("warn", "No se pudo actualizar el nombre del producto en PrestaShop", {
+        await tryPutName(safeName);
+        log("info", "Nombre actualizado en PrestaShop", { itemCode: row.itemCode, name: safeName });
+      } catch (firstError) {
+        log("warn", "Fallo PUT nombre UTF-8, reintentando con ASCII", {
           itemCode: row.itemCode,
-          productId: row.productId,
-          name,
-          error: secondError.message,
+          error: firstError.message,
         });
+        try {
+          await tryPutName(asciiName);
+          log("info", "Nombre actualizado en PrestaShop (ASCII)", { itemCode: row.itemCode, name: asciiName });
+        } catch (secondError) {
+          log("warn", "No se pudo actualizar el nombre del producto en PrestaShop", {
+            itemCode: row.itemCode,
+            productId: row.productId,
+            name,
+            error: secondError.message,
+          });
+        }
       }
     }
   }

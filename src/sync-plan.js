@@ -36,6 +36,7 @@ function buildCreatePayload(article, defaults) {
 
 function buildUpdatePayload(row, article, defaults) {
   const payload = {};
+  const langId = defaults ? defaults.languageId : 1;
 
   if (row.syncPrice) {
     payload.product = {
@@ -43,15 +44,22 @@ function buildUpdatePayload(row, article, defaults) {
       reference: row.productReference,
       price: roundPrice(row.sapPrice),
       name: article ? article.itemName : undefined,
-      languageId: defaults ? defaults.languageId : 1,
+      languageId: langId,
     };
   } else if (row.syncName && article) {
+    // update_product_name: only name, no price
     payload.product = {
       id: row.productId,
       reference: row.productReference,
       name: article.itemName,
-      languageId: defaults ? defaults.languageId : 1,
+      languageId: langId,
     };
+  }
+
+  // Attach name to price-update payload too so executor can sync it separately
+  if (row.syncPrice && row.syncName && article && payload.product) {
+    payload.product.name = article.itemName;
+    payload.product.languageId = langId;
   }
 
   if (row.syncStock) {
@@ -121,7 +129,8 @@ function buildActionPayload(row, article) {
   } else if (
     row.action === "update_product_price" ||
     row.action === "update_product_stock" ||
-    row.action === "update_product_price_and_stock"
+    row.action === "update_product_price_and_stock" ||
+    row.action === "update_product_name"
   ) {
     payload = buildUpdatePayload(row, article, defaults);
   }
