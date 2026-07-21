@@ -203,9 +203,13 @@ export function AutomationView() {
   const lastRunResult = status?.lastRun
     ? status.lastRun.exitCode === 0
       ? { label: 'Exitosa', color: 'var(--success)' }
-      : status.lastRun.exitCode === null
-        ? { label: 'En curso...', color: 'var(--muted)' }
-        : { label: `Con errores (código ${status.lastRun.exitCode})`, color: 'var(--danger)' }
+      : status.lastRun.interrupted
+        ? { label: 'Interrumpida (reinicio del servidor)', color: 'var(--warning)' }
+        : status.lastRun.exitCode === null
+          ? syncRunning
+            ? { label: 'En curso...', color: 'var(--muted)' }
+            : { label: 'Interrumpida', color: 'var(--warning)' }
+          : { label: `Con errores (código ${status.lastRun.exitCode})`, color: 'var(--danger)' }
     : null
 
   // ── Render ──────────────────────────────────────────────────────────────────

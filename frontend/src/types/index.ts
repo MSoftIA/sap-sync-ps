@@ -111,6 +111,7 @@ export interface ScheduleLastRun {
   finishedAt: string | null;
   exitCode: number | null;
   triggered: "auto" | "manual";
+  interrupted?: boolean;
 }
 
 export interface ScheduleStatus {

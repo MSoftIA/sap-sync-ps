@@ -55,6 +55,21 @@ function load() {
   } catch {
     // Archivo no existe todavía — usar defaults
   }
+
+  // Si la corrida anterior quedó sin cerrar (reinicio del servidor mid-sync),
+  // marcarla como interrumpida para que el frontend no la muestre como "en curso"
+  if (_lastRun && !_lastRun.finishedAt) {
+    _lastRun = {
+      ..._lastRun,
+      finishedAt: new Date().toISOString(),
+      exitCode: -1,
+      interrupted: true,
+    };
+    save();
+    log("warn", "[Scheduler] Corrida anterior interrumpida por reinicio del servidor", {
+      startedAt: _lastRun.startedAt,
+    });
+  }
 }
 
 // ── Timer ─────────────────────────────────────────────────────────────────────
