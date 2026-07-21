@@ -6,7 +6,7 @@ export function fmt(value: unknown): string {
 
 export function money(value: unknown): string {
   if (value === undefined || value === null || value === '') return '-'
-  return Number(value).toLocaleString('es', {
+  return '$ ' + Number(value).toLocaleString('es', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })

@@ -5,6 +5,8 @@ import { getSapCategories, getPsCategories } from '../api/sap'
 import { startSyncStream, stopSync } from '../api/sync'
 import { Tag } from '../components/Tag'
 import { Skeleton } from '../components/Skeleton'
+import { LogBox } from '../components/LogBox'
+import type { LogEntry } from '../components/LogBox'
 import { fmt } from '../utils'
 
 function CategoryNode({ node, depth = 0 }: { node: SapCategoryNode; depth?: number }) {
@@ -108,7 +110,7 @@ export function CategoriesView() {
   const [loadingPs, setLoadingPs] = useState(false)
   const [psError, setPsError] = useState<string | null>(null)
 
-  const [log, setLog] = useState<string[]>([])
+  const [log, setLog] = useState<LogEntry[]>([])
   const [syncing, setSyncing] = useState(false)
 
   async function loadSapTree() {
@@ -143,9 +145,11 @@ export function CategoriesView() {
         if (msg.type === 'log' && msg.line) {
           try {
             const d = JSON.parse(msg.line)
-            setLog(prev => [...prev.slice(-199), `[${String(d.level ?? 'info').toUpperCase()}] ${d.message}`])
+            const level = String(d.level ?? 'info')
+            const cls: LogEntry['cls'] = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'info'
+            setLog(prev => [...prev.slice(-199), { text: `[${level.toUpperCase()}] ${d.message}`, cls }])
           } catch {
-            setLog(prev => [...prev.slice(-199), msg.line])
+            setLog(prev => [...prev.slice(-199), { text: msg.line, cls: 'info' }])
           }
         }
         if (msg.type === 'done') done()
@@ -286,9 +290,7 @@ export function CategoriesView() {
         {log.length > 0 && (
           <div className="card" style={{ marginTop: 16 }}>
             <div className="section-title" style={{ marginBottom: 8 }}>Log sync</div>
-            <div className="log-box">
-              {log.map((line, i) => <div key={i}>{line}</div>)}
-            </div>
+            <LogBox entries={log} />
           </div>
         )}
       </section>

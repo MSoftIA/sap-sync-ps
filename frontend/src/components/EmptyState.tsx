@@ -5,7 +5,7 @@ interface Props {
   action?: { label: string; onClick: () => void }
 }
 
-export function EmptyState({ icon = 'o', title, description, action }: Props) {
+export function EmptyState({ icon = '○', title, description, action }: Props) {
   return (
     <div className="empty-state">
       <span className="empty-state-icon">{icon}</span>

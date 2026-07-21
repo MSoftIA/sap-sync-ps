@@ -90,7 +90,7 @@ export function PrestaCatalog() {
     return (
       <div className="card">
         <EmptyState
-          icon="o"
+          icon="○"
           title="Catalogo no cargado"
           description="Carga la lista de productos para explorar, filtrar y buscar en PrestaShop."
           action={{ label: 'Cargar catalogo', onClick: startLoad }}
@@ -200,7 +200,7 @@ export function PrestaCatalog() {
       {!loading && total === 0 ? (
         <div className="card">
           <EmptyState
-            icon="o"
+            icon="○"
             title="Sin resultados"
             description="Prueba ajustando la busqueda o los filtros."
             action={{ label: 'Limpiar filtros', onClick: clearFilters }}
