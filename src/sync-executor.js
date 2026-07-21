@@ -432,7 +432,8 @@ async function executeSyncAction(client, row, log) {
 
       const tryPutName = async (nameValue) => {
         const nameXml = setLanguageTagValue(baseNameXml, "name", nameValue, langId);
-        log("info", "PUT nombre (intento)", { nameValue, productId: row.productId });
+        const nameBlock = nameXml.match(/<name(?:\s[^>]*)?>[\s\S]*?<\/name>/);
+        log("info", "PUT nombre bloque: " + (nameBlock ? nameBlock[0].replace(/\s+/g, " ").slice(0, 300) : "NO ENCONTRADO"), { productId: row.productId });
         await client.put("products/" + row.productId, nameXml, { display: "[id]" });
       };
 
