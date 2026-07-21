@@ -190,7 +190,21 @@ export interface PaginationMeta {
   hasPreviousPage: boolean;
 }
 
-export type View = "sync" | "sap" | "presta";
+export interface SapCategoryNode {
+  name: string
+  total: number
+  children: SapCategoryNode[]
+}
+
+export interface SapCategoryTree {
+  totalProducts: number
+  categorized: number
+  uncategorized: number
+  categories: SapCategoryNode[]
+  error?: string
+}
+
+export type View = "sync" | "products" | "categories";
 export type TagTone = "green" | "amber" | "red" | "gray";
 export type MessageKind = "info" | "warn" | "error";
 export type StatusTone = "ok" | "warn" | "error";

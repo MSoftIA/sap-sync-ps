@@ -17,6 +17,7 @@ const {
 } = require("./src/prestashop");
 const {
   readSapArticleByCode,
+  readSapCategoryTree,
   readSapOrdersOverview,
   readSapOverview,
   readSapProductsPage,
@@ -502,6 +503,15 @@ app.get("/api/sap-products", (req, res) => {
       stock,
     });
     res.json(payload);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/sap-categories", (req, res) => {
+  try {
+    const tree = readSapCategoryTree(log);
+    res.json(tree);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

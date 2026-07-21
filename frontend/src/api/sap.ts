@@ -1,4 +1,4 @@
-import type { SapArticle, PaginationMeta } from '../types'
+import type { SapArticle, PaginationMeta, SapCategoryTree } from '../types'
 
 export interface SapProductsParams {
   page?: number
@@ -11,6 +11,12 @@ export interface SapProductsParams {
 export interface SapProductsResponse {
   pagination: PaginationMeta
   items: SapArticle[]
+}
+
+export async function getSapCategories(): Promise<SapCategoryTree> {
+  const res = await fetch('/api/sap-categories')
+  if (!res.ok) throw new Error('Error al cargar categorías SAP: ' + res.status)
+  return res.json()
 }
 
 export async function getSapProducts(params: SapProductsParams = {}): Promise<SapProductsResponse> {

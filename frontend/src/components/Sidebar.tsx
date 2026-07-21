@@ -17,16 +17,16 @@ interface Props {
 }
 
 const NAV_ITEMS: Omit<NavItem, 'badge'>[] = [
-  { key: 'sync',  label: 'Sync',        icon: '⟳' },
-  { key: 'sap',   label: 'SAP',         icon: '◈' },
-  { key: 'presta', label: 'PrestaShop', icon: '⊙' },
+  { key: 'sync',       label: 'Sync',       icon: '⟳' },
+  { key: 'products',   label: 'Productos',  icon: '◈' },
+  { key: 'categories', label: 'Categorías', icon: '⊙' },
 ]
 
 export function Sidebar({ currentView, onNavigate, lastRunLabel, overviewLabel, loading, badges }: Props) {
   const badgeMap: Record<View, number | undefined> = {
     sync: badges.sync,
-    sap: undefined,
-    presta: undefined,
+    products: undefined,
+    categories: undefined,
   }
 
   return (

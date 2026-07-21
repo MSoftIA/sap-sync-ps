@@ -5,8 +5,8 @@ import { ToastProvider } from './context/ToastContext'
 import { ToastContainer } from './components/ToastContainer'
 import { Sidebar } from './components/Sidebar'
 import { SyncView } from './views/SyncView'
-import { SapView } from './views/SapView'
-import { PrestaView } from './views/PrestaView'
+import { ProductsView } from './views/ProductsView'
+import { CategoriesView } from './views/CategoriesView'
 import { getCatalogOverview, getDomainAnalysis } from './api/catalog'
 import { getReports } from './api/reports'
 import { getSyncDomains } from './api/sync'
@@ -90,22 +90,8 @@ function AppContent() {
             onRefresh={() => loadAll(true)}
           />
         )}
-        {currentView === 'sap' && (
-          <SapView
-            overview={overview}
-            domainAnalysis={domainAnalysis}
-            loading={loadingAll}
-            onRefresh={() => loadAll(true)}
-          />
-        )}
-        {currentView === 'presta' && (
-          <PrestaView
-            overview={overview}
-            domainAnalysis={domainAnalysis}
-            loading={loadingAll}
-            onRefresh={() => loadAll(true)}
-          />
-        )}
+        {currentView === 'products' && <ProductsView />}
+        {currentView === 'categories' && <CategoriesView />}
       </div>
 
       <ToastContainer />
