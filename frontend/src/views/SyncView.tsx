@@ -8,7 +8,7 @@ import type { LogEntry } from "../components/LogBox";
 import { MessageBox } from "../components/MessageBox";
 import { ProgressBar } from "../components/ProgressBar";
 import { ConfirmModal } from "../components/ConfirmModal";
-import { fmt } from "../utils";
+import { fmt, buildLogDetails } from "../utils";
 import { startSyncStream, stopSync } from "../api/sync";
 
 interface Props {
@@ -16,35 +16,6 @@ interface Props {
   onRefresh: () => void;
 }
 
-function buildLogDetails(obj: Record<string, unknown>): string {
-  const keys = [
-    "itemCode",
-    "reference",
-    "productId",
-    "action",
-    "status",
-    "details",
-    "payloadSummary",
-    "sapPrice",
-    "prestashopProductPrice",
-    "sapStock",
-    "childSapLimit",
-    "effectiveSapLimit",
-  ];
-  const pairs: string[] = [];
-  for (const key of keys) {
-    if (!(key in obj)) continue;
-    const val = obj[key];
-    if (val === undefined || val === null || val === "") continue;
-    const str = Array.isArray(val)
-      ? val.join(", ")
-      : typeof val === "object"
-        ? JSON.stringify(val)
-        : String(val);
-    if (str) pairs.push(`${key}=${str}`);
-  }
-  return pairs.length ? " | " + pairs.join(" | ") : "";
-}
 
 function parseLogLine(raw: string): {
   text: string;
@@ -450,7 +421,10 @@ export function SyncView({ loading, onRefresh }: Props) {
                     <input type="text" id="item-code" placeholder="Opcional" value={itemCode} onChange={(e) => setItemCode(e.target.value)} />
                   </div>
                 </div>
-                <div className="button-row" style={{ marginTop: 12 }}>
+                <p className="section-note" style={{ margin: '10px 0 0', fontSize: '0.82rem' }}>
+                  El item code y el lote aplican solo a "Ejecutar corrida puntual". El botón principal siempre recorre el catálogo completo.
+                </p>
+                <div className="button-row" style={{ marginTop: 10 }}>
                   <button className="btn-primary" type="button" disabled={syncRunning} onClick={() => requestSync(false)}>
                     Ejecutar corrida puntual
                   </button>

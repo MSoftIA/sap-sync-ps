@@ -18,6 +18,8 @@ export function PrestaCatalog() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [categoryMap, setCategoryMap] = useState<Map<number, string>>(new Map())
+  const [categoryMapLoading, setCategoryMapLoading] = useState(false)
+  const [categoryMapError, setCategoryMapError] = useState(false)
 
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
@@ -56,9 +58,17 @@ export function PrestaCatalog() {
 
   useEffect(() => {
     if (!loaded) return
+    setCategoryMapLoading(true)
+    setCategoryMapError(false)
     getPsCategories()
-      .then(cats => setCategoryMap(new Map(cats.map(c => [c.id, c.name]))))
-      .catch(() => {})
+      .then(cats => {
+        setCategoryMap(new Map(cats.map(c => [c.id, c.name])))
+        setCategoryMapLoading(false)
+      })
+      .catch(() => {
+        setCategoryMapLoading(false)
+        setCategoryMapError(true)
+      })
   }, [loaded])
 
   function startLoad() {
@@ -226,7 +236,7 @@ export function PrestaCatalog() {
                   const inactive = p.active !== '1'
                   const zeroStock = p.stockTotal === 0
                   const catName = p.defaultCategory
-                    ? (categoryMap.get(Number(p.defaultCategory)) ?? `#${p.defaultCategory}`)
+                    ? (categoryMap.get(Number(p.defaultCategory)) ?? (categoryMapLoading ? null : `#${p.defaultCategory}`))
                     : null
 
                   return (
@@ -239,7 +249,11 @@ export function PrestaCatalog() {
                       </td>
                       <td>{p.name || <span style={{ color: 'var(--muted)' }}>-</span>}</td>
                       <td style={{ fontSize: '0.85rem', color: catName ? undefined : 'var(--muted)' }}>
-                        {catName ?? '-'}
+                        {categoryMapLoading && !catName
+                          ? <span style={{ opacity: 0.35 }}>···</span>
+                          : categoryMapError && !catName
+                            ? <span title="Error al cargar categorías" style={{ color: 'var(--danger)', fontSize: '0.8rem' }}>{p.defaultCategory ? `#${p.defaultCategory}` : '-'}</span>
+                            : catName ?? '-'}
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 700 }}>
                         {money(p.productPrice)}

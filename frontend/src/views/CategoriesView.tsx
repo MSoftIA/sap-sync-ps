@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { SapCategoryNode, SapCategoryTree, PsCategory } from '../types'
 import { useAppContext } from '../context/AppContext'
+import { useToast } from '../context/ToastContext'
 import { getSapCategories, getPsCategories } from '../api/sap'
 import { startSyncStream, stopSync } from '../api/sync'
 import { Tag } from '../components/Tag'
@@ -110,8 +111,10 @@ export function CategoriesView() {
   const [loadingPs, setLoadingPs] = useState(false)
   const [psError, setPsError] = useState<string | null>(null)
 
+  const { addToast } = useToast()
   const [log, setLog] = useState<LogEntry[]>([])
   const [syncing, setSyncing] = useState(false)
+  const [stopRequested, setStopRequested] = useState(false)
 
   async function loadSapTree() {
     setLoadingSap(true)
@@ -138,7 +141,10 @@ export function CategoriesView() {
     const es = startSyncStream({ write: writeMode, domains: ['categories'], fullCatalog: true })
     esRef.current = es
 
-    const done = () => { es.close(); esRef.current = null; setSyncing(false); setSyncRunning(false) }
+    const done = (ok: boolean) => {
+      es.close(); esRef.current = null; setSyncing(false); setSyncRunning(false); setStopRequested(false)
+      addToast({ message: ok ? 'Sync de categorías completado.' : 'Error en sync de categorías.', kind: ok ? 'success' : 'error' })
+    }
     es.onmessage = (event) => {
       try {
         const msg = JSON.parse(String(event.data))
@@ -152,13 +158,15 @@ export function CategoriesView() {
             setLog(prev => [...prev.slice(-199), { text: msg.line, cls: 'info' }])
           }
         }
-        if (msg.type === 'done') done()
+        if (msg.type === 'done') done(true)
       } catch {}
     }
-    es.onerror = done
+    es.onerror = () => done(false)
   }
 
   async function handleStop() {
+    if (stopRequested) return
+    setStopRequested(true)
     try { await stopSync() } catch {}
   }
 
@@ -274,9 +282,9 @@ export function CategoriesView() {
               <button type="button" className={writeMode ? 'active danger' : ''} onClick={() => setWriteMode(true)}>Aplicar cambios</button>
             </div>
             {syncing ? (
-              <button className="btn-secondary" type="button" onClick={handleStop} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <span className="spinner-dark" />
-                Detener
+              <button className="btn-secondary" type="button" onClick={handleStop} disabled={stopRequested} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                {stopRequested && <span className="spinner-dark" />}
+                {stopRequested ? 'Deteniendo...' : 'Detener'}
               </button>
             ) : (
               <button className="btn-dark" type="button" onClick={runSync} disabled={syncRunning}>
