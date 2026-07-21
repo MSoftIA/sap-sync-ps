@@ -7,9 +7,10 @@ import { Sidebar } from './components/Sidebar'
 import { SyncView } from './views/SyncView'
 import { ProductsView } from './views/ProductsView'
 import { CategoriesView } from './views/CategoriesView'
+import { AutomationView } from './views/AutomationView'
 import { getSyncDomains } from './api/sync'
 
-const VALID_VIEWS: View[] = ['sync', 'products', 'categories']
+const VALID_VIEWS: View[] = ['sync', 'products', 'categories', 'automation']
 
 function AppContent() {
   const { currentView, setCurrentView, setAvailableDomains } = useAppContext()
@@ -37,6 +38,7 @@ function AppContent() {
       sync: 'Sincronizar — SAP Sync',
       products: 'Productos — SAP Sync',
       categories: 'Categorías — SAP Sync',
+      automation: 'Automatización — SAP Sync',
     }
     document.title = titles[currentView]
   }, [currentView])
@@ -67,6 +69,7 @@ function AppContent() {
         )}
         {currentView === 'products' && <ProductsView />}
         {currentView === 'categories' && <CategoriesView />}
+        {currentView === 'automation' && <AutomationView />}
       </div>
 
       <ToastContainer />

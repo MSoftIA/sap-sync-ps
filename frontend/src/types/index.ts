@@ -97,7 +97,27 @@ export interface SapCategoryTree {
   error?: string
 }
 
-export type View = "sync" | "products" | "categories";
+export type View = "sync" | "products" | "categories" | "automation";
+
+export interface ScheduleConfig {
+  enabled: boolean;
+  intervalHours: number;
+  domains: string[];
+  write: boolean;
+}
+
+export interface ScheduleLastRun {
+  startedAt: string;
+  finishedAt: string | null;
+  exitCode: number | null;
+  triggered: "auto" | "manual";
+}
+
+export interface ScheduleStatus {
+  config: ScheduleConfig;
+  nextRun: string | null;
+  lastRun: ScheduleLastRun | null;
+}
 export type TagTone = "green" | "amber" | "red" | "gray";
 export type MessageKind = "info" | "warn" | "error";
 export type StatusTone = "ok" | "warn" | "error";

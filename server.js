@@ -22,6 +22,7 @@ const {
 } = require("./src/sap");
 const { log } = require("./src/logger");
 const { listSyncDomains } = require("./src/sync-domains");
+const scheduler = require("./src/scheduler");
 
 const app = express();
 const PORT = env("UI_PORT", "3000");
@@ -109,6 +110,93 @@ function parsePositiveInt(value, fallback, options = {}) {
   }
 
   return Math.min(max, Math.max(min, Math.floor(parsed)));
+}
+
+/**
+ * Inicia un proceso de sync hijo.
+ * Retorna el syncState si arrancó, o null si ya había uno corriendo.
+ * source: 'manual' | 'scheduled'
+ */
+function startSyncProcess({ fullCatalog = true, itemCode, limit, write = false, syncDomains, source = "manual" } = {}) {
+  if (activeSync) return null;
+
+  const childEnv = { ...process.env };
+  if (fullCatalog) {
+    delete childEnv.SAP_ITEM_CODE;
+  } else if (itemCode && String(itemCode).trim()) {
+    childEnv.SAP_ITEM_CODE = String(itemCode).trim();
+  } else {
+    delete childEnv.SAP_ITEM_CODE;
+  }
+  if (limit && String(limit).trim()) {
+    childEnv.SAP_LIMIT = String(limit).trim();
+  } else if (fullCatalog) {
+    childEnv.SAP_LIMIT = "0";
+  } else {
+    delete childEnv.SAP_LIMIT;
+  }
+  childEnv.SYNC_WRITE = write ? "true" : "false";
+  if (syncDomains && String(syncDomains).trim()) {
+    childEnv.SYNC_DOMAINS = String(syncDomains).trim();
+  } else {
+    delete childEnv.SYNC_DOMAINS;
+  }
+
+  log("info", "Iniciando proceso sync", {
+    source,
+    fullCatalog,
+    itemCode: childEnv.SAP_ITEM_CODE || "",
+    limit: childEnv.SAP_LIMIT || "",
+    write: childEnv.SYNC_WRITE,
+    domains: childEnv.SYNC_DOMAINS || "",
+  });
+
+  const proc = spawn("node", ["main.js"], { env: childEnv, cwd: __dirname });
+  const syncState = {
+    proc,
+    clients: new Set(),
+    logBuffer: [],
+    startedAt: new Date().toISOString(),
+    stopRequested: false,
+    stopTimer: null,
+    source,
+  };
+  activeSync = syncState;
+
+  const handleChunk = (type) => (chunk) => {
+    chunk
+      .toString()
+      .split("\n")
+      .filter(Boolean)
+      .forEach((line) => pushSyncLog(syncState, { type, line }));
+  };
+
+  proc.stdout.on("data", handleChunk("log"));
+  proc.stderr.on("data", handleChunk("log"));
+
+  proc.on("close", (code, signal) => {
+    if (syncState.stopTimer) {
+      clearTimeout(syncState.stopTimer);
+      syncState.stopTimer = null;
+    }
+    broadcastSync(syncState, {
+      type: "done",
+      code,
+      signal,
+      stopped: Boolean(syncState.stopRequested),
+    });
+    for (const connectedClient of syncState.clients) {
+      closeSseClient(connectedClient);
+    }
+    if (activeSync === syncState) {
+      activeSync = null;
+    }
+    if (source === "scheduled") {
+      scheduler.notifyDone(code);
+    }
+  });
+
+  return syncState;
 }
 
 app.get("/api/status", (req, res) => {
@@ -355,93 +443,25 @@ app.get("/api/sync", (req, res) => {
     attachSyncClient(activeSync, client);
     req.on("close", () => {
       closeSseClient(client);
-      if (activeSync) {
-        activeSync.clients.delete(client);
-      }
+      if (activeSync) activeSync.clients.delete(client);
     });
     return;
   }
 
-  const childEnv = { ...process.env };
-  if (fullCatalog === "true") {
-    delete childEnv.SAP_ITEM_CODE;
-  } else if (itemCode && itemCode.trim()) {
-    childEnv.SAP_ITEM_CODE = itemCode.trim();
-  } else {
-    delete childEnv.SAP_ITEM_CODE;
-  }
-  if (limit && limit.trim()) {
-    childEnv.SAP_LIMIT = limit.trim();
-  } else if (fullCatalog === "true") {
-    childEnv.SAP_LIMIT = "0";
-  } else {
-    delete childEnv.SAP_LIMIT;
-  }
-  childEnv.SYNC_WRITE = write === "true" ? "true" : "false";
-  if (syncDomains && String(syncDomains).trim()) {
-    childEnv.SYNC_DOMAINS = String(syncDomains).trim();
-  }
-
-  log("info", "Overrides aplicados al proceso sync", {
-    requestedItemCode: itemCode ? String(itemCode).trim() : "",
-    requestedLimit: limit ? String(limit).trim() : "",
-    fullCatalogRequested: fullCatalog === "true",
-    requestedSyncDomains: syncDomains ? String(syncDomains).trim() : "",
-    childSapItemCode: childEnv.SAP_ITEM_CODE || "",
-    childSapLimit: childEnv.SAP_LIMIT || "",
-    childSyncWrite: childEnv.SYNC_WRITE,
-    childSyncDomains: childEnv.SYNC_DOMAINS || "",
+  const syncState = startSyncProcess({
+    fullCatalog: fullCatalog === "true",
+    itemCode: itemCode ? String(itemCode).trim() : undefined,
+    limit: limit ? String(limit).trim() : undefined,
+    write: write === "true",
+    syncDomains: syncDomains ? String(syncDomains).trim() : undefined,
+    source: "manual",
   });
 
-  const proc = spawn("node", ["main.js"], { env: childEnv, cwd: __dirname });
-  const syncState = {
-    proc,
-    clients: new Set(),
-    logBuffer: [],
-    startedAt: new Date().toISOString(),
-    stopRequested: false,
-    stopTimer: null,
-  };
-  activeSync = syncState;
   attachSyncClient(syncState, client);
-
-  const handleChunk = (type) => (chunk) => {
-    chunk
-      .toString()
-      .split("\n")
-      .filter(Boolean)
-      .forEach((line) => pushSyncLog(syncState, { type, line }));
-  };
-
-  proc.stdout.on("data", handleChunk("log"));
-  proc.stderr.on("data", handleChunk("log"));
-
-  proc.on("close", (code, signal) => {
-
-    if (syncState.stopTimer) {
-      clearTimeout(syncState.stopTimer);
-      syncState.stopTimer = null;
-    }
-    broadcastSync(syncState, {
-      type: "done",
-      code,
-      signal,
-      stopped: Boolean(syncState.stopRequested),
-    });
-    for (const connectedClient of syncState.clients) {
-      closeSseClient(connectedClient);
-    }
-    if (activeSync === syncState) {
-      activeSync = null;
-    }
-  });
 
   req.on("close", () => {
     closeSseClient(client);
     syncState.clients.delete(client);
-    if (activeSync === syncState) {
-      activeSync.clients.delete(client);
-    }
   });
 });
 
@@ -490,6 +510,16 @@ app.post("/api/sync/stop", (req, res) => {
   res.json({ ok: true, message: "Se solicito detener la sync" });
 });
 
+app.get("/api/schedule", (req, res) => {
+  res.json(scheduler.getStatus());
+});
+
+app.post("/api/schedule", (req, res) => {
+  const { enabled, intervalHours, domains, write } = req.body;
+  const status = scheduler.updateConfig({ enabled, intervalHours, domains, write });
+  res.json(status);
+});
+
 // SPA fallback — sirve index.html para rutas no-API (debe ir después de todas las rutas /api)
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
@@ -497,4 +527,13 @@ app.get("*", (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Panel disponible en http://localhost:${PORT}`);
+  scheduler.init(function (opts) {
+    const syncState = startSyncProcess({
+      fullCatalog: true,
+      write: opts.write,
+      syncDomains: Array.isArray(opts.domains) ? opts.domains.join(",") : opts.domains,
+      source: "scheduled",
+    });
+    return syncState !== null;
+  });
 });
