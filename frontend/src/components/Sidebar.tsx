@@ -4,30 +4,21 @@ interface NavItem {
   key: View
   label: string
   icon: string
-  badge?: number
 }
 
 interface Props {
   currentView: View
   onNavigate: (view: View) => void
-  lastRunLabel: string
-  overviewLabel: string
   loading?: boolean
-  badges: { sync?: number }
 }
 
-const NAV_ITEMS: Omit<NavItem, 'badge'>[] = [
+const NAV_ITEMS: NavItem[] = [
   { key: 'sync',       label: 'Sync',       icon: '⟳' },
   { key: 'products',   label: 'Productos',  icon: '◈' },
   { key: 'categories', label: 'Categorías', icon: '⊙' },
 ]
 
-export function Sidebar({ currentView, onNavigate, lastRunLabel, overviewLabel, loading, badges }: Props) {
-  const badgeMap: Record<View, number | undefined> = {
-    sync: badges.sync,
-    products: undefined,
-    categories: undefined,
-  }
+export function Sidebar({ currentView, onNavigate, loading }: Props) {
 
   return (
     <aside className="sidebar">
@@ -48,27 +39,15 @@ export function Sidebar({ currentView, onNavigate, lastRunLabel, overviewLabel, 
             >
               <span className="nav-item-icon">{item.icon}</span>
               <span className="nav-label">{item.label}</span>
-              {badge != null && badge > 0 && (
-                <span className="nav-badge">{badge}</span>
-              )}
             </button>
           )
         })}
       </nav>
 
-      <hr className="sidebar-divider" />
-
-      <div className="sidebar-meta">
-        <div>Ultimo reporte</div>
-        <div style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 700 }}>{lastRunLabel}</div>
-        <div style={{ marginTop: 6 }}>Catalogo</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: 'rgba(255,255,255,0.7)', fontWeight: 700 }}>
-          {loading && <span className="spinner" style={{ width: 10, height: 10 }} />}
-          {overviewLabel}
-        </div>
+      <div className="sidebar-footer">
+        {loading && <span className="spinner" style={{ width: 10, height: 10, marginRight: 6 }} />}
+        v0.1.0
       </div>
-
-      <div className="sidebar-footer">v0.1.0</div>
     </aside>
   )
 }

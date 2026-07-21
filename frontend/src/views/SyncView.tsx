@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import type { Report, DomainAnalysis, SyncProgress } from "../types";
+import type { SyncProgress } from "../types";
 import { useAppContext, defaultProgress } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
 import { DomainCard } from "../components/DomainCard";
@@ -7,15 +7,11 @@ import { LogBox } from "../components/LogBox";
 import type { LogEntry } from "../components/LogBox";
 import { MessageBox } from "../components/MessageBox";
 import { ProgressBar } from "../components/ProgressBar";
-import { Tag } from "../components/Tag";
 import { ConfirmModal } from "../components/ConfirmModal";
-import { EmptyState } from "../components/EmptyState";
-import { fmt, fmtDate } from "../utils";
+import { fmt } from "../utils";
 import { startSyncStream, stopSync } from "../api/sync";
 
 interface Props {
-  reports: Report[];
-  domainAnalysis: DomainAnalysis | null;
   loading?: boolean;
   onRefresh: () => void;
 }
@@ -83,12 +79,7 @@ function parseLogLine(raw: string): {
   }
 }
 
-export function SyncView({
-  reports,
-  domainAnalysis,
-  loading,
-  onRefresh,
-}: Props) {
+export function SyncView({ loading, onRefresh }: Props) {
   const {
     writeMode,
     setWriteMode,
@@ -109,17 +100,6 @@ export function SyncView({
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingFullCatalog, setPendingFullCatalog] = useState(false);
   const [stopRequested, setStopRequested] = useState(false);
-
-  const latest = reports[0] ?? null;
-  const latestActions = latest?.recommendedActions ?? {};
-  const latestSummary = latest?.summary ?? {};
-  const updateCount =
-    (latestActions.updateProductPrice ?? 0) +
-    (latestActions.updateProductStock ?? 0) +
-    (latestActions.updateProductPriceAndStock ?? 0);
-  const reviewCount =
-    (latestActions.reviewCombinationMapping ?? 0) +
-    (latestActions.reviewError ?? 0);
 
   const normalizedDomains = selectedDomains.filter((k) =>
     availableDomains.some((d) => d.key === k),
@@ -466,67 +446,7 @@ export function SyncView({
         </div>
       </section>
 
-      {/* 2 — Estado del catalogo */}
-      <section className="section">
-        {!syncRunning && latest && (() => {
-          const totalPending = (latestActions.createProduct ?? 0) + updateCount + reviewCount;
-          const hasErrors = (latestSummary.errors ?? 0) > 0;
-          if (hasErrors) return (
-            <div className="sync-status-banner error" style={{ marginBottom: 12 }}>
-              <span>!</span>
-              <span>La ultima corrida tuvo {latestSummary.errors} error(es). Revisa el log.</span>
-            </div>
-          );
-          if (totalPending === 0 && (latestSummary.total ?? 0) > 0) return (
-            <div className="sync-status-banner ok" style={{ marginBottom: 12 }}>
-              <span>OK</span>
-              <span>Los {latestSummary.total} articulos de la ultima muestra estan sincronizados.</span>
-            </div>
-          );
-          if (totalPending > 0) return (
-            <div className="sync-status-banner warn" style={{ marginBottom: 12 }}>
-              <span>!</span>
-              <span>{totalPending} articulo(s) requieren accion.</span>
-            </div>
-          );
-          return null;
-        })()}
-
-        {latest ? (
-          <div className="action-cards">
-            <div className={`action-card${(latestActions.createProduct ?? 0) > 0 ? " pending-create" : ""}`}>
-              <div className="action-card-count">{fmt(latestActions.createProduct) ?? "0"}</div>
-              <div className="action-card-label">Por crear</div>
-              <div className="action-card-desc">En SAP, sin existir en PrestaShop.</div>
-            </div>
-            <div className={`action-card${updateCount > 0 ? " pending-update" : ""}`}>
-              <div className="action-card-count">{fmt(updateCount) ?? "0"}</div>
-              <div className="action-card-label">Por actualizar</div>
-              <div className="action-card-desc">Precio o stock diferente.</div>
-            </div>
-            <div className={`action-card${reviewCount > 0 ? " pending-review" : ""}`}>
-              <div className="action-card-count">{fmt(reviewCount) ?? "0"}</div>
-              <div className="action-card-label">Revision manual</div>
-              <div className="action-card-desc">Combinaciones o errores.</div>
-            </div>
-            <div className={`action-card${(latestActions.skipNoChange ?? 0) > 0 ? " all-clear" : ""}`}>
-              <div className="action-card-count">{fmt(latestActions.skipNoChange) ?? "0"}</div>
-              <div className="action-card-label">Sin cambios</div>
-              <div className="action-card-desc">Ya coinciden SAP y PrestaShop.</div>
-            </div>
-          </div>
-        ) : (
-          <div className="card">
-            <EmptyState
-              icon="o"
-              title="Sin corridas registradas"
-              description="Ejecuta un analisis para ver el estado del catalogo."
-            />
-          </div>
-        )}
-      </section>
-
-      {/* 3 — Progreso + Log */}
+      {/* 2 — Progreso + Log */}
       <section className="section">
         <div className="card" style={{ marginBottom: 12 }}>
           <ProgressBar
@@ -541,53 +461,6 @@ export function SyncView({
         <LogBox entries={logEntries} />
       </section>
 
-      {/* 4 — Historial */}
-      {reports.length > 0 && (
-        <section className="section">
-          <div className="section-header">
-            <h2 className="section-title">Historial</h2>
-            <div className="section-note">Ultimas ejecuciones.</div>
-          </div>
-          <div className="history-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Muestra</th>
-                  <th>Crear</th>
-                  <th>Actualizar</th>
-                  <th>Sin cambio</th>
-                  <th>Revision</th>
-                  <th>Aplicados</th>
-                  <th>Errores</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reports.map((r, i) => {
-                  const a = r.recommendedActions ?? {};
-                  const s = r.summary ?? {};
-                  const upd = (a.updateProductPrice ?? 0) + (a.updateProductStock ?? 0) + (a.updateProductPriceAndStock ?? 0);
-                  const rev = (a.reviewCombinationMapping ?? 0) + (a.reviewError ?? 0);
-                  const executed = a.executed ?? 0;
-                  const errors = s.errors ?? 0;
-                  return (
-                    <tr key={i}>
-                      <td>{fmtDate(r.generatedAt)}</td>
-                      <td>{fmt(s.total)}</td>
-                      <td>{fmt(a.createProduct)}</td>
-                      <td>{fmt(upd)}</td>
-                      <td>{fmt(a.skipNoChange)}</td>
-                      <td><Tag tone={rev > 0 ? "amber" : "gray"}>{fmt(rev)}</Tag></td>
-                      <td><Tag tone={executed > 0 ? "green" : "gray"}>{fmt(executed)}</Tag></td>
-                      <td><Tag tone={errors > 0 ? "red" : "gray"}>{fmt(errors)}</Tag></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
     </main>
   );
 }
