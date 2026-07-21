@@ -66,6 +66,7 @@ function getCategoryDefaults() {
   return {
     parentCategoryId: numberEnv("PRESTASHOP_CATEGORY_PARENT_ID", 2),
     languageId: numberEnv("PRESTASHOP_LANGUAGE_ID", 1),
+    defaultCategoryId: numberEnv("PRESTASHOP_DEFAULT_CATEGORY_ID", 0) || null,
   };
 }
 
@@ -189,6 +190,28 @@ async function ensureCategory(client, snapshot, row, defaults, log) {
     categoryName: row.proposedPrestaCategory,
     created: true,
   };
+}
+
+async function ensureCategoryPath(client, snapshot, path, defaults, log) {
+  let currentParentId = defaults.parentCategoryId;
+  let lastResult = null;
+
+  for (const name of path) {
+    const result = await ensureCategory(
+      client,
+      snapshot,
+      { proposedPrestaCategory: name },
+      { ...defaults, parentCategoryId: currentParentId },
+      log,
+    );
+    lastResult = result;
+    if (!result.categoryId) {
+      break;
+    }
+    currentParentId = result.categoryId;
+  }
+
+  return lastResult;
 }
 
 async function assignProductToCategory(client, productId, categoryId) {
@@ -340,59 +363,88 @@ async function runCategoryDomain(log) {
     let resultRow;
 
     try {
-      if (
-        !row.hasMainCategory ||
-        !String(row.proposedPrestaCategory || "").trim()
-      ) {
-        metrics.missingMainCategory += 1;
-        resultRow = {
-          status: "missing_main_category",
-          ...row,
-          categoryId: null,
-          categoryCreated: false,
-          productId: null,
-          productUpdated: false,
-          notes: "Articulo sin categoria principal valida en SAP.",
+      let categoryResult;
+
+      if (!row.hasMainCategory) {
+        if (!defaults.defaultCategoryId) {
+          metrics.missingMainCategory += 1;
+          resultRow = {
+            status: "missing_main_category",
+            ...row,
+            categoryId: null,
+            categoryCreated: false,
+            productId: null,
+            productUpdated: false,
+            notes:
+              "Articulo sin U_Categoria en SAP y sin PRESTASHOP_DEFAULT_CATEGORY_ID configurado.",
+          };
+          completed += 1;
+          if (
+            rows.length <= 100 ||
+            completed === rows.length ||
+            completed % 25 === 0
+          ) {
+            log("info", "Progreso de dominio", {
+              domain: "categories",
+              current: completed,
+              total: rows.length,
+              percent:
+                rows.length > 0
+                  ? Math.round((completed / rows.length) * 100)
+                  : 0,
+              itemCode: row.itemCode,
+            });
+          }
+          resultRows.push(resultRow);
+          continue;
+        }
+
+        categoryResult = {
+          categoryId: defaults.defaultCategoryId,
+          categoryName: "default",
+          created: false,
+          usedDefault: true,
         };
       } else {
-        const categoryKey = `${defaults.parentCategoryId}::${normalizeName(
-          row.proposedPrestaCategory,
-        )}`;
+        const categoryKey = row.proposedPrestaCategoryPath.join("||");
         const firstTimeSeeingCategory = !seenCategoryKeys.has(categoryKey);
         if (firstTimeSeeingCategory) {
           seenCategoryKeys.add(categoryKey);
         }
 
-        const categoryResult = await ensureCategory(
+        categoryResult = await ensureCategoryPath(
           client,
           categorySnapshot,
-          row,
+          row.proposedPrestaCategoryPath,
           defaults,
           log,
         );
 
         if (firstTimeSeeingCategory) {
-          if (categoryResult.created) {
+          if (categoryResult && categoryResult.created) {
             metrics.categoriesCreated += 1;
-          } else if (categoryResult.plannedCreate) {
+          } else if (categoryResult && categoryResult.plannedCreate) {
             metrics.categoriesToCreate += 1;
           } else {
             metrics.categoriesExisting += 1;
           }
         }
+      }
 
+      {
         const matches =
           productSnapshot.productsByReference.get(row.itemCode) || [];
 
         if (matches.length === 0) {
           metrics.productMissingInPrestashop += 1;
           resultRow = {
-            status: categoryResult.plannedCreate
-              ? "category_planned_product_missing"
-              : "product_missing_in_prestashop",
+            status:
+              categoryResult && categoryResult.plannedCreate
+                ? "category_planned_product_missing"
+                : "product_missing_in_prestashop",
             ...row,
-            categoryId: categoryResult.categoryId,
-            categoryCreated: categoryResult.created,
+            categoryId: categoryResult ? categoryResult.categoryId : null,
+            categoryCreated: categoryResult ? categoryResult.created : false,
             productId: null,
             productUpdated: false,
             notes: "No existe producto correspondiente en PrestaShop.",
@@ -402,8 +454,8 @@ async function runCategoryDomain(log) {
           resultRow = {
             status: "duplicate_product_reference",
             ...row,
-            categoryId: categoryResult.categoryId,
-            categoryCreated: categoryResult.created,
+            categoryId: categoryResult ? categoryResult.categoryId : null,
+            categoryCreated: categoryResult ? categoryResult.created : false,
             productId: matches[0].id,
             productUpdated: false,
             notes:
@@ -412,8 +464,12 @@ async function runCategoryDomain(log) {
         } else {
           metrics.productsFound += 1;
           const product = matches[0];
-          const currentDefaultCategoryId = Number(product.defaultCategory || 0);
-          const targetCategoryId = Number(categoryResult.categoryId || 0);
+          const currentDefaultCategoryId = Number(
+            product.defaultCategory || 0,
+          );
+          const targetCategoryId = Number(
+            categoryResult ? categoryResult.categoryId : 0,
+          );
           const needsUpdate =
             targetCategoryId > 0 &&
             currentDefaultCategoryId !== targetCategoryId;
@@ -423,7 +479,11 @@ async function runCategoryDomain(log) {
           }
 
           if (needsUpdate && isWriteEnabled()) {
-            await assignProductToCategory(client, product.id, targetCategoryId);
+            await assignProductToCategory(
+              client,
+              product.id,
+              targetCategoryId,
+            );
             metrics.productsUpdated += 1;
           }
 
@@ -434,8 +494,8 @@ async function runCategoryDomain(log) {
                 : "product_category_update_planned"
               : "product_category_ok",
             ...row,
-            categoryId: categoryResult.categoryId,
-            categoryCreated: categoryResult.created,
+            categoryId: categoryResult ? categoryResult.categoryId : null,
+            categoryCreated: categoryResult ? categoryResult.created : false,
             productId: product.id,
             productUpdated: needsUpdate && isWriteEnabled(),
             notes: needsUpdate
@@ -480,6 +540,7 @@ async function runCategoryDomain(log) {
       });
     }
   }
+
 
   const summary = buildCategorySummary(rows, metrics);
   const report = writeDomainSnapshot(log, {

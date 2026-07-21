@@ -250,6 +250,7 @@ function buildCategoryDiagnosticQuery({
     sql:
       "SELECT " +
       'I."ItemCode", I."ItemName", I."ItmsGrpCod", B."ItmsGrpNam", ' +
+      'I."U_Categoria", I."U_SubCategoria1", I."U_SubCategoria2", I."U_SubCategoria3", ' +
       propertyFields +
       ' FROM "' +
       schema +
@@ -436,6 +437,15 @@ function mapCategoryDiagnosticRow(row, propertyMap) {
     activePropertyNames.push(propertyMap.get(index) || `QryGroup${index}`);
   }
 
+  const categoryPath = [
+    row.U_Categoria,
+    row.U_SubCategoria1,
+    row.U_SubCategoria2,
+    row.U_SubCategoria3,
+  ]
+    .map((v) => String(v || "").trim())
+    .filter(Boolean);
+
   return {
     itemCode: row.ItemCode,
     itemName: row.ItemName,
@@ -444,11 +454,9 @@ function mapCategoryDiagnosticRow(row, propertyMap) {
     activePropertyCodes,
     activePropertyNames,
     activePropertyCount: activePropertyCodes.length,
-    proposedPrestaCategory: row.ItmsGrpNam || "",
-    proposedPrestaCategoryPath: row.ItmsGrpNam
-      ? [row.ItmsGrpNam]
-      : ["SIN_GRUPO_SAP"],
-    hasMainCategory: Boolean(row.ItmsGrpNam),
+    proposedPrestaCategory: categoryPath[categoryPath.length - 1] || "",
+    proposedPrestaCategoryPath: categoryPath,
+    hasMainCategory: categoryPath.length > 0,
   };
 }
 
