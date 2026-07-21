@@ -168,7 +168,21 @@ function startSyncProcess({ fullCatalog = true, itemCode, limit, write = false, 
       .toString()
       .split("\n")
       .filter(Boolean)
-      .forEach((line) => pushSyncLog(syncState, { type, line }));
+      .forEach((line) => {
+        pushSyncLog(syncState, { type, line });
+        // Para syncs programadas sin clientes SSE, echar al log del servidor
+        if (source === "scheduled") {
+          try {
+            const obj = JSON.parse(line);
+            log(obj.level || "info", `[Auto] ${obj.message}`, {
+              domain: obj.domain || undefined,
+              itemCode: obj.itemCode || undefined,
+            });
+          } catch {
+            log("info", `[Auto] ${line}`);
+          }
+        }
+      });
   };
 
   proc.stdout.on("data", handleChunk("log"));
@@ -208,6 +222,7 @@ app.get("/api/status", (req, res) => {
           pid: activeSync.proc.pid,
           logLines: activeSync.logBuffer.length,
           stopRequested: Boolean(activeSync.stopRequested),
+          source: activeSync.source || "manual",
         }
       : { running: false },
   );

@@ -1,8 +1,15 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import type { SyncProgress } from '../types'
 import { useAppContext } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
 import { DomainCard } from '../components/DomainCard'
+import { ProgressBar } from '../components/ProgressBar'
+import { LogBox } from '../components/LogBox'
+import type { LogEntry } from '../components/LogBox'
 import { getSchedule, saveSchedule } from '../api/schedule'
+import { startSyncStream, stopSync } from '../api/sync'
+import { fmt, parseLogLine } from '../utils'
+import { defaultProgress } from '../context/AppContext'
 import type { ScheduleStatus } from '../types'
 
 function formatDatetime(iso: string | null | undefined): string {
@@ -14,6 +21,7 @@ export function AutomationView() {
   const { availableDomains } = useAppContext()
   const { addToast } = useToast()
 
+  // Schedule status
   const [status, setStatus] = useState<ScheduleStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -24,12 +32,53 @@ export function AutomationView() {
   const [runAt, setRunAt] = useState('02:00')
   const [selectedDomains, setSelectedDomains] = useState<string[]>(['products'])
 
+  // Sync en curso
+  const [syncRunning, setSyncRunning] = useState(false)
+  const [stopRequested, setStopRequested] = useState(false)
+  const [progress, setProgress] = useState<SyncProgress>(defaultProgress)
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([])
+  const esRef = useRef<EventSource | null>(null)
+
   const visibleDomains = useMemo(
     () => availableDomains.filter(d => d.key !== 'orders'),
     [availableDomains],
   )
 
+  // Cerrar SSE al desmontar
+  useEffect(() => {
+    return () => {
+      esRef.current?.close()
+      esRef.current = null
+    }
+  }, [])
+
+  // Cargar configuración al montar
   useEffect(() => { load() }, [])
+
+  // Pollear /api/status cada 5 s para detectar sync en curso
+  useEffect(() => {
+    async function checkStatus() {
+      try {
+        const res = await fetch('/api/status')
+        const data = await res.json() as { running: boolean; source?: string }
+        if (data.running && !esRef.current) {
+          attachSse()
+        }
+        if (!data.running && syncRunning) {
+          // La sync terminó sin que llegara el evento 'done' (reconexión tardía)
+          setSyncRunning(false)
+          setStopRequested(false)
+          load()
+        }
+      } catch {}
+    }
+
+    checkStatus()
+    const id = setInterval(checkStatus, 5000)
+    return () => clearInterval(id)
+  }, [syncRunning])
+
+  // ── Funciones ───────────────────────────────────────────────────────────────
 
   async function load() {
     setLoading(true)
@@ -51,6 +100,71 @@ export function AutomationView() {
     setSelectedDomains(s.config.domains)
   }
 
+  function attachSse() {
+    setSyncRunning(true)
+    setStopRequested(false)
+    setLogEntries([])
+    setProgress(defaultProgress)
+
+    // El servidor ignora los params si hay una sync activa — solo nos adjunta
+    const es = startSyncStream({ fullCatalog: true, write: true, domains: ['products'] })
+    esRef.current = es
+
+    es.onmessage = (event: MessageEvent) => {
+      const msg = JSON.parse(String(event.data)) as {
+        type: string; line?: string; code?: number; stopped?: boolean
+      }
+
+      if (msg.type === 'log' && msg.line) {
+        const parsed = parseLogLine(msg.line)
+        setLogEntries(prev => [...prev.slice(-499), { text: parsed.text, cls: parsed.cls }])
+        if (parsed.progress) setProgress(parsed.progress)
+        return
+      }
+
+      if (msg.type === 'done') {
+        const ok = msg.code === 0
+        const stopped = msg.stopped === true
+        setLogEntries(prev => [
+          ...prev.slice(-499),
+          {
+            text: stopped
+              ? 'Sync detenida.'
+              : ok
+                ? 'Sync automática completada.'
+                : `Sync finalizó con código ${msg.code}.`,
+            cls: stopped || ok ? 'done-ok' : 'done-err',
+          },
+        ])
+        es.close()
+        esRef.current = null
+        setSyncRunning(false)
+        setStopRequested(false)
+        if (ok) setProgress(prev => ({ ...prev, percent: 100, known: true }))
+        load()
+      }
+    }
+
+    es.onerror = () => {
+      es.close()
+      esRef.current = null
+      setSyncRunning(false)
+      setStopRequested(false)
+    }
+  }
+
+  async function handleStop() {
+    if (!syncRunning || stopRequested) return
+    setStopRequested(true)
+    try {
+      await stopSync()
+      addToast({ message: 'Se envió la solicitud para detener la sync.', kind: 'info' })
+    } catch (err) {
+      setStopRequested(false)
+      addToast({ message: err instanceof Error ? err.message : 'No se pudo detener.', kind: 'error' })
+    }
+  }
+
   async function handleSave() {
     setSaving(true)
     try {
@@ -58,7 +172,7 @@ export function AutomationView() {
       applyStatus(updated)
       addToast({
         message: enabled
-          ? `Automatización activada — todos los días a las ${runAt} (aplicando cambios).`
+          ? `Automatización activada — todos los días a las ${runAt}.`
           : 'Automatización desactivada.',
         kind: 'success',
       })
@@ -76,6 +190,16 @@ export function AutomationView() {
     setSelectedDomains(next.length > 0 ? next : ['products'])
   }
 
+  // ── Datos derivados para ProgressBar ────────────────────────────────────────
+
+  const progressTitle = progress.domain ? `Dominio ${progress.domain}` : 'Corrida en curso'
+  const progressMeta = progress.known
+    ? `${fmt(progress.current)} de ${fmt(progress.total)} (${fmt(progress.percent)}%)`
+    : 'Calculando avance'
+  const progressNote = progress.itemCode
+    ? `Procesando ${progress.itemCode}`
+    : 'Procesando dominio seleccionado'
+
   const lastRunResult = status?.lastRun
     ? status.lastRun.exitCode === 0
       ? { label: 'Exitosa', color: 'var(--success)' }
@@ -83,6 +207,8 @@ export function AutomationView() {
         ? { label: 'En curso...', color: 'var(--muted)' }
         : { label: `Con errores (código ${status.lastRun.exitCode})`, color: 'var(--danger)' }
     : null
+
+  // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <main>
@@ -99,7 +225,48 @@ export function AutomationView() {
           </button>
         </div>
 
-        {/* Tarjeta de estado actual */}
+        {/* ── Corrida en curso ── */}
+        {syncRunning && (
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '0.95rem', marginBottom: 2 }}>
+                  Corrida automática en curso
+                </div>
+                <div className="section-note">
+                  Iniciada a las {formatDatetime(status?.lastRun?.startedAt)}
+                </div>
+              </div>
+              <button
+                className="btn-secondary"
+                type="button"
+                disabled={stopRequested}
+                onClick={handleStop}
+                style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}
+              >
+                {stopRequested && <span className="spinner-dark" />}
+                {stopRequested ? 'Deteniendo...' : 'Detener'}
+              </button>
+            </div>
+
+            <ProgressBar
+              title={progressTitle}
+              meta={progressMeta}
+              note={progressNote}
+              percent={progress.percent}
+              known={progress.known}
+              running={syncRunning}
+            />
+
+            {logEntries.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <LogBox entries={logEntries} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Estado ── */}
         {status && (
           <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 20 }}>
@@ -135,7 +302,7 @@ export function AutomationView() {
           </div>
         )}
 
-        {/* Tarjeta de configuración */}
+        {/* ── Configuración ── */}
         <div className="card">
           {loading && !status && (
             <div className="section-note">Cargando configuración...</div>
@@ -166,7 +333,7 @@ export function AutomationView() {
                 </div>
               </div>
 
-              {/* Hora de ejecución */}
+              {/* Hora */}
               <div>
                 <div className="domain-title" style={{ marginBottom: 4 }}>Hora de ejecución</div>
                 <div className="section-note" style={{ marginBottom: 10 }}>
@@ -178,13 +345,9 @@ export function AutomationView() {
                     value={runAt}
                     onChange={e => setRunAt(e.target.value)}
                     style={{
-                      border: '1px solid #cfd8e3',
-                      borderRadius: 12,
-                      padding: '10px 14px',
-                      fontSize: '1.05rem',
-                      fontWeight: 700,
-                      background: 'white',
-                      width: 140,
+                      border: '1px solid #cfd8e3', borderRadius: 12,
+                      padding: '10px 14px', fontSize: '1.05rem', fontWeight: 700,
+                      background: 'white', width: 140,
                     }}
                   />
                   <span className="section-note">hora del servidor</span>

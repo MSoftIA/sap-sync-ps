@@ -8,46 +8,12 @@ import type { LogEntry } from "../components/LogBox";
 import { MessageBox } from "../components/MessageBox";
 import { ProgressBar } from "../components/ProgressBar";
 import { ConfirmModal } from "../components/ConfirmModal";
-import { fmt, buildLogDetails } from "../utils";
+import { fmt, parseLogLine } from "../utils";
 import { startSyncStream, stopSync } from "../api/sync";
 
 interface Props {
   loading?: boolean;
   onRefresh: () => void;
-}
-
-
-function parseLogLine(raw: string): {
-  text: string;
-  cls: LogEntry["cls"];
-  progress?: SyncProgress;
-} {
-  try {
-    const obj = JSON.parse(raw) as Record<string, unknown>;
-    let progress: SyncProgress | undefined;
-    if (obj.message === "Progreso de dominio") {
-      progress = {
-        domain: String(obj.domain ?? ""),
-        current: Number(obj.current ?? 0),
-        total: Number(obj.total ?? 0),
-        percent: Number(obj.percent ?? 0),
-        itemCode: String(obj.itemCode ?? ""),
-        known: Number.isFinite(Number(obj.total)) && Number(obj.total) > 0,
-      };
-    }
-    const time = obj.ts
-      ? new Date(String(obj.ts)).toLocaleTimeString("es")
-      : "";
-    const level = String(obj.level ?? "info");
-    const text =
-      `[${time}] ${level.toUpperCase()} ${String(obj.message ?? raw)}` +
-      buildLogDetails(obj);
-    const cls: LogEntry["cls"] =
-      level === "error" ? "error" : level === "warn" ? "warn" : "info";
-    return { text, cls, progress };
-  } catch {
-    return { text: raw, cls: "info" };
-  }
 }
 
 export function SyncView({ loading, onRefresh }: Props) {
