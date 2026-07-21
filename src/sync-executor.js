@@ -400,8 +400,7 @@ async function executeSyncAction(client, row, log) {
 
   if (
     row.action === "update_product_price" ||
-    row.action === "update_product_price_and_stock" ||
-    row.action === "update_product_name"
+    row.action === "update_product_price_and_stock"
   ) {
     if (!row.actionPayload || !row.actionPayload.product) {
       throw new Error("Falta actionPayload.product para action=" + row.action);
@@ -412,29 +411,41 @@ async function executeSyncAction(client, row, log) {
       existingProductXml,
       row.actionPayload.product,
     );
+    await client.put("products/" + row.productId, productXml, { display: "[id]" });
+  }
+
+  if (row.action === "update_product_name") {
+    if (!row.actionPayload || !row.actionPayload.product) {
+      throw new Error("Falta actionPayload.product para action=" + row.action);
+    }
+
+    const { name, languageId, id } = row.actionPayload.product;
+    const langId = languageId || 1;
+
+    const tryPutName = async (nameValue) => {
+      const minimalXml = `<?xml version="1.0" encoding="UTF-8"?>
+<prestashop xmlns:xlink="http://www.w3.org/1999/xlink">
+  <product>
+    <id>${cdata(id || row.productId)}</id>
+    <name><language id="${escapeXml(langId)}">${cdata(nameValue)}</language></name>
+  </product>
+</prestashop>`;
+      await client.put("products/" + row.productId, minimalXml, { display: "[id]" });
+    };
 
     try {
-      await client.put("products/" + row.productId, productXml, { display: "[id]" });
-    } catch (putError) {
-      const isNameError =
-        putError.message &&
-        putError.message.includes("Product->name") &&
-        putError.message.includes("Validation error");
-
-      if (!isNameError || !row.actionPayload.product.name) {
-        throw putError;
+      await tryPutName(sanitizeProductName(name, row.itemCode));
+    } catch (firstError) {
+      try {
+        await tryPutName(sanitizeAsciiProductName(name, row.itemCode));
+      } catch (secondError) {
+        log("warn", "No se pudo actualizar el nombre del producto en PrestaShop", {
+          itemCode: row.itemCode,
+          productId: row.productId,
+          name,
+          error: secondError.message,
+        });
       }
-
-      // Retry with ASCII-only name
-      const asciiPayload = {
-        ...row.actionPayload.product,
-        name: sanitizeAsciiProductName(
-          row.actionPayload.product.name,
-          row.actionPayload.product.reference,
-        ),
-      };
-      const asciiXml = buildPutProductXml(existingProductXml, asciiPayload);
-      await client.put("products/" + row.productId, asciiXml, { display: "[id]" });
     }
   }
 
