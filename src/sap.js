@@ -251,6 +251,7 @@ function buildCategoryDiagnosticQuery({
       "SELECT " +
       'I."ItemCode", I."ItemName", I."ItmsGrpCod", B."ItmsGrpNam", ' +
       'I."U_Categoria", I."U_SubCategoria1", I."U_SubCategoria2", I."U_SubCategoria3", ' +
+      'CAT."Name" AS "CatName", SC1."Name" AS "Sub1Name", SC2."Name" AS "Sub2Name", SC3."Name" AS "Sub3Name", ' +
       propertyFields +
       ' FROM "' +
       schema +
@@ -264,6 +265,18 @@ function buildCategoryDiagnosticQuery({
       'LEFT JOIN "' +
       schema +
       '"."OITB" B ON B."ItmsGrpCod" = I."ItmsGrpCod" ' +
+      'LEFT JOIN "' +
+      schema +
+      '"."@CATEGORIA" CAT ON CAT."Code" = I."U_Categoria" ' +
+      'LEFT JOIN "' +
+      schema +
+      '"."@SUBCAT_1" SC1 ON SC1."Code" = I."U_SubCategoria1" ' +
+      'LEFT JOIN "' +
+      schema +
+      '"."@SUBCAT_2" SC2 ON SC2."Code" = I."U_SubCategoria2" ' +
+      'LEFT JOIN "' +
+      schema +
+      '"."@SUBCAT_3" SC3 ON SC3."Code" = I."U_SubCategoria3" ' +
       "WHERE I.\"frozenFor\" = 'N' " +
       'AND P."PriceList" = ? ' +
       'AND C."WhsCode" = ? ' +
@@ -438,10 +451,10 @@ function mapCategoryDiagnosticRow(row, propertyMap) {
   }
 
   const categoryPath = [
-    row.U_Categoria,
-    row.U_SubCategoria1,
-    row.U_SubCategoria2,
-    row.U_SubCategoria3,
+    row.CatName || row.U_Categoria,
+    row.Sub1Name || row.U_SubCategoria1,
+    row.Sub2Name || row.U_SubCategoria2,
+    row.Sub3Name || row.U_SubCategoria3,
   ]
     .map((v) => String(v || "").trim())
     .filter(Boolean);

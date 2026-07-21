@@ -30,18 +30,25 @@ try {
     sslValidateCertificate: false,
   });
 
-  // Combinaciones distintas con conteo
+  // Combinaciones distintas con conteo, resolviendo codigos a nombres via JOIN
   const rows = conn.exec(
     "SELECT " +
-      'I."U_Categoria", I."U_SubCategoria1", I."U_SubCategoria2", I."U_SubCategoria3", ' +
+      'COALESCE(CAT."Name", I."U_Categoria") AS "CatName", ' +
+      'COALESCE(SC1."Name", I."U_SubCategoria1") AS "Sub1Name", ' +
+      'COALESCE(SC2."Name", I."U_SubCategoria2") AS "Sub2Name", ' +
+      'COALESCE(SC3."Name", I."U_SubCategoria3") AS "Sub3Name", ' +
       'COUNT(*) AS "Total" ' +
       'FROM "' + schema + '"."OITM" I ' +
       'INNER JOIN "' + schema + '"."ITM1" P ON P."ItemCode" = I."ItemCode" ' +
       'INNER JOIN "' + schema + '"."OITW" C ON C."ItemCode" = I."ItemCode" ' +
+      'LEFT JOIN "' + schema + '"."@CATEGORIA" CAT ON CAT."Code" = I."U_Categoria" ' +
+      'LEFT JOIN "' + schema + '"."@SUBCAT_1" SC1 ON SC1."Code" = I."U_SubCategoria1" ' +
+      'LEFT JOIN "' + schema + '"."@SUBCAT_2" SC2 ON SC2."Code" = I."U_SubCategoria2" ' +
+      'LEFT JOIN "' + schema + '"."@SUBCAT_3" SC3 ON SC3."Code" = I."U_SubCategoria3" ' +
       "WHERE I.\"frozenFor\" = 'N' " +
       "AND P.\"PriceList\" = ? AND C.\"WhsCode\" = ? " +
-      'GROUP BY I."U_Categoria", I."U_SubCategoria1", I."U_SubCategoria2", I."U_SubCategoria3" ' +
-      'ORDER BY I."U_Categoria", I."U_SubCategoria1", I."U_SubCategoria2", I."U_SubCategoria3"',
+      'GROUP BY CAT."Name", I."U_Categoria", SC1."Name", I."U_SubCategoria1", SC2."Name", I."U_SubCategoria2", SC3."Name", I."U_SubCategoria3" ' +
+      'ORDER BY CAT."Name", SC1."Name", SC2."Name", SC3."Name"',
     [priceList, warehouse],
   );
 
@@ -64,10 +71,10 @@ try {
   const catMap = new Map();
 
   for (const r of rows) {
-    const cat = String(r.U_Categoria || "").trim() || "(sin categoria)";
-    const sub1 = String(r.U_SubCategoria1 || "").trim() || null;
-    const sub2 = String(r.U_SubCategoria2 || "").trim() || null;
-    const sub3 = String(r.U_SubCategoria3 || "").trim() || null;
+    const cat = String(r.CatName || "").trim() || "(sin categoria)";
+    const sub1 = String(r.Sub1Name || "").trim() || null;
+    const sub2 = String(r.Sub2Name || "").trim() || null;
+    const sub3 = String(r.Sub3Name || "").trim() || null;
     const count = Number(r.Total);
 
     if (!catMap.has(cat)) {
