@@ -34,7 +34,7 @@ function buildCreatePayload(article, defaults) {
   };
 }
 
-function buildUpdatePayload(row) {
+function buildUpdatePayload(row, article, defaults) {
   const payload = {};
 
   if (row.syncPrice) {
@@ -42,6 +42,8 @@ function buildUpdatePayload(row) {
       id: row.productId,
       reference: row.productReference,
       price: roundPrice(row.sapPrice),
+      name: article ? article.itemName : undefined,
+      languageId: defaults ? defaults.languageId : 1,
     };
   }
 
@@ -114,7 +116,7 @@ function buildActionPayload(row, article) {
     row.action === "update_product_stock" ||
     row.action === "update_product_price_and_stock"
   ) {
-    payload = buildUpdatePayload(row);
+    payload = buildUpdatePayload(row, article, defaults);
   }
 
   return {

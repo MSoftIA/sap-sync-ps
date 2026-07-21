@@ -95,7 +95,7 @@ function setLanguageTagValue(xml, tagName, value, fallbackLanguageId = 1) {
 }
 
 function buildCreateProductXml(payload) {
-  const safeName = sanitizeAsciiProductName(
+  const safeName = sanitizeProductName(
     payload.product.name,
     payload.product.reference,
   );
@@ -123,7 +123,7 @@ function buildCreateProductXml(payload) {
 }
 
 function buildCreateProductXmlFromSchema(schemaXml, payload) {
-  const safeName = sanitizeAsciiProductName(
+  const safeName = sanitizeProductName(
     payload.product.name,
     payload.product.reference,
   );
@@ -238,6 +238,15 @@ function buildPutProductXml(existingXml, payload = {}) {
 
   if (payload.active !== undefined) {
     xml = setTagValue(xml, "active", payload.active);
+  }
+
+  if (payload.name) {
+    xml = setLanguageTagValue(
+      xml,
+      "name",
+      sanitizeProductName(payload.name),
+      payload.languageId || 1,
+    );
   }
 
   return xml;
