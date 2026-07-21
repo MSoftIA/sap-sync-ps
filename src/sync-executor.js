@@ -400,7 +400,8 @@ async function executeSyncAction(client, row, log) {
 
   if (
     row.action === "update_product_price" ||
-    row.action === "update_product_price_and_stock"
+    row.action === "update_product_price_and_stock" ||
+    row.action === "update_product_name"
   ) {
     if (!row.actionPayload || !row.actionPayload.product) {
       throw new Error("Falta actionPayload.product para action=" + row.action);

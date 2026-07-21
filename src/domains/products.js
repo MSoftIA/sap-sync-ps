@@ -48,6 +48,10 @@ function roundDiff(value) {
   return Math.round(value * 10000) / 10000;
 }
 
+function normalizeName(str) {
+  return String(str || "").trim().toLowerCase();
+}
+
 function buildMetrics(article, inspection) {
   const selectedPrice =
     inspection.bestMatch.kind === "combination"
@@ -66,6 +70,10 @@ function buildMetrics(article, inspection) {
       : roundDiff(article.stock - selectedStock);
   const isPriceEqual = priceDiff === 0;
   const isStockEqual = stockDiff === 0;
+  const isNameEqual =
+    inspection.bestMatch.kind === "combination"
+      ? true
+      : normalizeName(article.itemName) === normalizeName(inspection.name);
 
   return {
     selectedPrice,
@@ -74,6 +82,7 @@ function buildMetrics(article, inspection) {
     stockDiff,
     isPriceEqual,
     isStockEqual,
+    isNameEqual,
   };
 }
 
@@ -99,6 +108,15 @@ function buildSyncPlan(status, metrics, isCombination) {
   }
 
   if (status === "matched_product_ok") {
+    if (!metrics.isNameEqual) {
+      return {
+        action: "update_product_name",
+        syncPrice: false,
+        syncStock: false,
+        syncName: true,
+        reason: "name_mismatch",
+      };
+    }
     return {
       action: "skip_no_change",
       syncPrice: false,
@@ -110,6 +128,7 @@ function buildSyncPlan(status, metrics, isCombination) {
 
   const syncPrice = metrics.isPriceEqual === false;
   const syncStock = metrics.isStockEqual === false;
+  const syncName = !metrics.isNameEqual;
 
   let action = "update_product";
   if (syncPrice && syncStock) {
@@ -124,7 +143,7 @@ function buildSyncPlan(status, metrics, isCombination) {
     action,
     syncPrice,
     syncStock,
-    syncName: false,
+    syncName,
     reason: "existing_product_diff",
   };
 }

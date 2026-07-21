@@ -45,6 +45,13 @@ function buildUpdatePayload(row, article, defaults) {
       name: article ? article.itemName : undefined,
       languageId: defaults ? defaults.languageId : 1,
     };
+  } else if (row.syncName && article) {
+    payload.product = {
+      id: row.productId,
+      reference: row.productReference,
+      name: article.itemName,
+      languageId: defaults ? defaults.languageId : 1,
+    };
   }
 
   if (row.syncStock) {
