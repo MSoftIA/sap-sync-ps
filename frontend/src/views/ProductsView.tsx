@@ -100,7 +100,7 @@ export function ProductsView() {
         <div className="section-header" style={{ marginTop: 24 }}>
           <h2 className="section-title">SAP</h2>
         </div>
-        <SapCatalog onSyncItem={syncItem} syncingItemCode={syncingItemCode} />
+        <SapCatalog onSyncItem={writeMode ? syncItem : undefined} syncingItemCode={syncingItemCode} />
 
         <div className="section-header" style={{ marginTop: 24 }}>
           <h2 className="section-title">PrestaShop</h2>
