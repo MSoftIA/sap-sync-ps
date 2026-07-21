@@ -421,13 +421,9 @@ async function executeSyncAction(client, row, log) {
       const safeName = sanitizeProductName(name, row.itemCode);
       const asciiName = sanitizeAsciiProductName(name, row.itemCode);
 
-      log("info", "Actualizando nombre en PrestaShop", {
+      log("info", `Actualizando nombre: safe="${safeName}" ascii="${asciiName}" lang=${langId}`, {
         itemCode: row.itemCode,
         productId: row.productId,
-        sapName: name,
-        safeName,
-        asciiName,
-        languageId: langId,
       });
 
       const existingXmlForName = await client.get("products/" + row.productId);
@@ -444,19 +440,18 @@ async function executeSyncAction(client, row, log) {
         await tryPutName(safeName);
         log("info", "Nombre actualizado en PrestaShop", { itemCode: row.itemCode, name: safeName });
       } catch (firstError) {
-        log("warn", "Fallo PUT nombre UTF-8, reintentando con ASCII", {
+        log("warn", "Fallo PUT nombre UTF-8: " + firstError.message, {
           itemCode: row.itemCode,
-          error: firstError.message,
+          safeName,
         });
         try {
           await tryPutName(asciiName);
           log("info", "Nombre actualizado en PrestaShop (ASCII)", { itemCode: row.itemCode, name: asciiName });
         } catch (secondError) {
-          log("warn", "No se pudo actualizar el nombre del producto en PrestaShop", {
+          log("warn", "Fallo PUT nombre ASCII: " + secondError.message, {
             itemCode: row.itemCode,
             productId: row.productId,
-            name,
-            error: secondError.message,
+            asciiName,
           });
         }
       }
