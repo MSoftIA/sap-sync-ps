@@ -1,4 +1,4 @@
-import type { SapArticle, PaginationMeta, SapCategoryTree } from '../types'
+import type { SapArticle, PaginationMeta, SapCategoryTree, PsCategory } from '../types'
 
 export interface SapProductsParams {
   page?: number
@@ -11,6 +11,13 @@ export interface SapProductsParams {
 export interface SapProductsResponse {
   pagination: PaginationMeta
   items: SapArticle[]
+}
+
+export async function getPsCategories(): Promise<PsCategory[]> {
+  const res = await fetch('/api/prestashop-categories')
+  if (!res.ok) throw new Error('Error al cargar categorías PrestaShop: ' + res.status)
+  const data = await res.json()
+  return data.categories ?? []
 }
 
 export async function getSapCategories(): Promise<SapCategoryTree> {

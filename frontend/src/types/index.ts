@@ -190,6 +190,13 @@ export interface PaginationMeta {
   hasPreviousPage: boolean;
 }
 
+export interface PsCategory {
+  id: number
+  parentId: number
+  active: string
+  name: string
+}
+
 export interface SapCategoryNode {
   name: string
   total: number

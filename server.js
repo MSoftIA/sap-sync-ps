@@ -11,6 +11,7 @@ const {
   createPrestaClient,
   hasPrestaConfig,
   inspectProductByReferenceValue,
+  listPrestaCategories,
   readPrestaProductsPage,
   readPrestaOverview,
   updatePrestaProductActive,
@@ -503,6 +504,20 @@ app.get("/api/sap-products", (req, res) => {
       stock,
     });
     res.json(payload);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/prestashop-categories", async (req, res) => {
+  if (!hasPrestaConfig()) {
+    res.status(400).json({ error: "PRESTASHOP_ENDPOINT o PRESTASHOP_API_KEY no configurados" });
+    return;
+  }
+  try {
+    const client = createPrestaClient(log);
+    const categories = await listPrestaCategories(client);
+    res.json({ categories });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
