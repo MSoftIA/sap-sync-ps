@@ -34,10 +34,15 @@ function CategoryNode({ node, depth = 0 }: { node: SapCategoryNode; depth?: numb
   )
 }
 
+function countSapNodes(nodes: SapCategoryNode[]): number {
+  return nodes.reduce((acc, n) => acc + 1 + countSapNodes(n.children), 0)
+}
+
 function PsCategoryTree({ categories }: { categories: PsCategory[] }) {
   const byId = new Map(categories.map(c => [c.id, c]))
-  // Root categories: parentId 0 or 1 (PrestaShop root is id=1, home is id=2)
-  const rootIds = new Set(categories.filter(c => c.parentId <= 1).map(c => c.id))
+  // Root categories: only parentId === 0 (PS internal root, id=1)
+  // parentId=1 (Home category) must NOT be treated as root — it causes the tree to appear twice
+  const rootIds = new Set(categories.filter(c => c.parentId === 0).map(c => c.id))
   const childrenOf = new Map<number, PsCategory[]>()
   for (const c of categories) {
     if (!childrenOf.has(c.parentId)) childrenOf.set(c.parentId, [])
@@ -191,7 +196,7 @@ export function CategoriesView() {
                 <span className="section-note" style={{ color: sapTree.uncategorized > 0 ? 'var(--warning)' : undefined }}>
                   Sin categoría: <strong>{fmt(sapTree.uncategorized)}</strong>
                 </span>
-                <span className="section-note">Raíces: <strong>{sapTree.categories.length}</strong></span>
+                <span className="section-note">Categorías: <strong>{fmt(countSapNodes(sapTree.categories))}</strong></span>
               </div>
               {sapTree.categories.length === 0
                 ? <div className="section-note">No se encontraron categorías con U_Categoria definido.</div>
