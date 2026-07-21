@@ -13,11 +13,25 @@ export interface SapProductsResponse {
   items: SapArticle[]
 }
 
-export async function getPsCategories(): Promise<PsCategory[]> {
-  const res = await fetch('/api/prestashop-categories')
-  if (!res.ok) throw new Error('Error al cargar categorías PrestaShop: ' + res.status)
-  const data = await res.json()
-  return data.categories ?? []
+// Module-level cache: deduplicates concurrent calls and avoids re-fetching
+// across PrestaCatalog and CategoriesView within the same session.
+// Cleared on error so the next call retries.
+let psCategoriesCache: Promise<PsCategory[]> | null = null
+
+export function getPsCategories(): Promise<PsCategory[]> {
+  if (!psCategoriesCache) {
+    psCategoriesCache = fetch('/api/prestashop-categories')
+      .then(res => {
+        if (!res.ok) throw new Error('Error al cargar categorías PrestaShop: ' + res.status)
+        return res.json() as Promise<{ categories?: PsCategory[] }>
+      })
+      .then(data => data.categories ?? [])
+      .catch(err => {
+        psCategoriesCache = null
+        throw err
+      })
+  }
+  return psCategoriesCache
 }
 
 export async function getSapCategories(): Promise<SapCategoryTree> {

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import type { SyncProgress } from "../types";
 import { useAppContext, defaultProgress } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
@@ -83,12 +83,16 @@ export function SyncView({ loading, onRefresh }: Props) {
   const [pendingFullCatalog, setPendingFullCatalog] = useState(false);
   const [stopRequested, setStopRequested] = useState(false);
 
-  const visibleDomains = availableDomains.filter((d) => d.key !== 'orders')
-  const normalizedDomains = selectedDomains.filter((k) =>
-    k !== 'orders' && visibleDomains.some((d) => d.key === k),
+  const visibleDomains = useMemo(
+    () => availableDomains.filter((d) => d.key !== 'orders'),
+    [availableDomains],
   );
-  const activeDomains =
-    normalizedDomains.length > 0 ? normalizedDomains : ["products"];
+  const activeDomains = useMemo(() => {
+    const normalized = selectedDomains.filter(
+      (k) => k !== 'orders' && visibleDomains.some((d) => d.key === k),
+    );
+    return normalized.length > 0 ? normalized : ["products"];
+  }, [selectedDomains, visibleDomains]);
   const blockedWriteDomains = activeDomains.filter((key) => {
     const domain = availableDomains.find((item) => item.key === key);
     return domain
@@ -143,7 +147,7 @@ export function SyncView({ loading, onRefresh }: Props) {
       setCurrentProgress(defaultProgress);
 
       const appendLog = (text: string, cls: LogEntry["cls"]) =>
-        setLogEntries((prev) => [...prev, { text, cls }]);
+        setLogEntries((prev) => [...prev.slice(-499), { text, cls }]);
 
       appendLog(
         fullCatalog
@@ -179,7 +183,7 @@ export function SyncView({ loading, onRefresh }: Props) {
         if (msg.type === "log" && msg.line) {
           const parsed = parseLogLine(msg.line);
           setLogEntries((prev) => [
-            ...prev,
+            ...prev.slice(-499),
             { text: parsed.text, cls: parsed.cls },
           ]);
           if (parsed.progress) {
@@ -193,7 +197,7 @@ export function SyncView({ loading, onRefresh }: Props) {
           const ok = msg.code === 0;
           const stopped = msg.stopped === true;
           setLogEntries((prev) => [
-            ...prev,
+            ...prev.slice(-499),
             {
               text: stopped
                 ? "Sync detenida por el usuario."
@@ -233,7 +237,7 @@ export function SyncView({ loading, onRefresh }: Props) {
 
       es.onerror = () => {
         setLogEntries((prev) => [
-          ...prev,
+          ...prev.slice(-499),
           { text: "Error de conexion con el servidor.", cls: "error" },
         ]);
         es.close();
