@@ -430,16 +430,14 @@ async function executeSyncAction(client, row, log) {
         languageId: langId,
       });
 
+      const existingXmlForName = await client.get("products/" + row.productId);
+      let baseNameXml = removeTag(existingXmlForName, "manufacturer_name");
+      baseNameXml = removeTag(baseNameXml, "quantity");
+
       const tryPutName = async (nameValue) => {
-        const minimalXml = `<?xml version="1.0" encoding="UTF-8"?>
-<prestashop xmlns:xlink="http://www.w3.org/1999/xlink">
-  <product>
-    <id>${cdata(row.productId)}</id>
-    <name><language id="${escapeXml(langId)}">${cdata(nameValue)}</language></name>
-  </product>
-</prestashop>`;
+        const nameXml = setLanguageTagValue(baseNameXml, "name", nameValue, langId);
         log("info", "PUT nombre (intento)", { nameValue, productId: row.productId });
-        await client.put("products/" + row.productId, minimalXml, { display: "[id]" });
+        await client.put("products/" + row.productId, nameXml, { display: "[id]" });
       };
 
       try {
