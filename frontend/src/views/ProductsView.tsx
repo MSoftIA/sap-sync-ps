@@ -5,7 +5,7 @@ import { PrestaCatalog } from '../components/PrestaCatalog'
 import { startSyncStream, stopSync } from '../api/sync'
 
 export function ProductsView() {
-  const { writeMode, syncRunning, setSyncRunning } = useAppContext()
+  const { writeMode, setWriteMode, syncRunning, setSyncRunning } = useAppContext()
   const [log, setLog] = useState<string[]>([])
   const [syncing, setSyncing] = useState(false)
   const [syncingItemCode, setSyncingItemCode] = useState<string | null>(null)
@@ -78,11 +78,12 @@ export function ProductsView() {
     <main>
       <section className="section">
         <div className="section-header">
-          <div>
-            <h2 className="section-title">Productos</h2>
-            <div className="section-note">{writeMode ? 'Modo escritura activo' : 'Modo análisis — sin cambios en PrestaShop'}</div>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <h2 className="section-title">Productos</h2>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div className="toggle-group">
+              <button type="button" className={!writeMode ? 'active' : ''} onClick={() => setWriteMode(false)} disabled={syncing}>Analizar</button>
+              <button type="button" className={writeMode ? 'active danger' : ''} onClick={() => setWriteMode(true)} disabled={syncing}>Aplicar cambios</button>
+            </div>
             {syncing ? (
               <button className="btn-secondary" type="button" onClick={handleStop} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                 <span className="spinner-dark" />
