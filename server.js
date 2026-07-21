@@ -18,10 +18,10 @@ const {
 } = require("./src/prestashop");
 const {
   readSapArticleByCode,
-  readSapCategoryTree,
+  readSapCategoryTreeAsync,
   readSapOrdersOverview,
   readSapOverview,
-  readSapProductsPage,
+  readSapProductsPageAsync,
 } = require("./src/sap");
 const { log } = require("./src/logger");
 const { listSyncDomains } = require("./src/sync-domains");
@@ -472,7 +472,7 @@ app.get("/api/domain-analysis", (req, res) => {
   res.json(buildDomainAnalysisSummary());
 });
 
-app.get("/api/sap-products", (req, res) => {
+app.get("/api/sap-products", async (req, res) => {
   const page = parsePositiveInt(req.query.page, 1);
   const pageSize = parsePositiveInt(req.query.pageSize, 50, { max: 250 });
   const search = String(req.query.search || "").trim();
@@ -496,13 +496,7 @@ app.get("/api/sap-products", (req, res) => {
   }
 
   try {
-    const payload = readSapProductsPage(log, {
-      page,
-      pageSize,
-      search,
-      status,
-      stock,
-    });
+    const payload = await readSapProductsPageAsync(log, { page, pageSize, search, status, stock });
     res.json(payload);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -523,9 +517,9 @@ app.get("/api/prestashop-categories", async (req, res) => {
   }
 });
 
-app.get("/api/sap-categories", (req, res) => {
+app.get("/api/sap-categories", async (req, res) => {
   try {
-    const tree = readSapCategoryTree(log);
+    const tree = await readSapCategoryTreeAsync(log);
     res.json(tree);
   } catch (error) {
     res.status(500).json({ error: error.message });

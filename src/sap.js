@@ -2,6 +2,19 @@ const hana = require("@sap/hana-client");
 
 const { env, numberEnv, requiredEnv } = require("./env");
 
+// Async wrappers for @sap/hana-client so Express doesn't block the event loop
+function hanaConnect(conn, params) {
+  return new Promise((resolve, reject) => {
+    conn.connect(params, (err) => (err ? reject(err) : resolve()));
+  });
+}
+
+function hanaExec(conn, sql, params) {
+  return new Promise((resolve, reject) => {
+    conn.exec(sql, params || [], (err, rows) => (err ? reject(err) : resolve(rows)));
+  });
+}
+
 function getSapConfig() {
   const schema = env("HANA_SCHEMA", "BD_CARBALLO");
 
@@ -908,6 +921,130 @@ function readSapCategoryTree(log) {
   }
 }
 
+async function readSapProductsPageAsync(log, options = {}) {
+  const config = getSapConfig();
+  const conn = hana.createConnection();
+  const page = Math.max(1, Number(options.page) || 1);
+  const pageSize = Math.min(250, Math.max(1, Number(options.pageSize) || 50));
+  const search = String(options.search || "").trim();
+  const status = String(options.status || "all").trim().toLowerCase();
+  const stock = String(options.stock || "all").trim().toLowerCase();
+
+  const listQuery = buildSapProductListQuery({
+    schema: config.query.schema,
+    priceList: config.query.priceList,
+    warehouse: config.query.warehouse,
+    search, status, stock, page, pageSize,
+  });
+  const countQuery = buildSapProductListCountQuery({
+    schema: config.query.schema,
+    priceList: config.query.priceList,
+    warehouse: config.query.warehouse,
+    search, status, stock,
+  });
+
+  try {
+    if (log) log("info", "Consultando pagina de productos SAP (async)", { schema: config.query.schema, page, pageSize, search, status });
+    await hanaConnect(conn, config.connection);
+    const startedAt = Date.now();
+    const rows = await hanaExec(conn, listQuery.sql, listQuery.params);
+    const totalRows = await hanaExec(conn, countQuery.sql, countQuery.params);
+    const total = Number(totalRows[0]?.Total || 0);
+    const items = rows.map(mapSapProductListRow);
+    const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
+    if (log) log("info", "Pagina de productos SAP cargada", { page, pageSize, returned: items.length, total, elapsedMs: Date.now() - startedAt });
+    return {
+      source: "sap",
+      schema: config.query.schema,
+      warehouse: config.query.warehouse,
+      priceList: config.query.priceList,
+      filters: { search, status },
+      pagination: { page, pageSize, total, totalPages, hasNextPage: page < totalPages, hasPreviousPage: page > 1 },
+      items,
+    };
+  } finally {
+    try { conn.disconnect(); } catch {}
+  }
+}
+
+async function readSapCategoryTreeAsync(log) {
+  const config = getSapConfig();
+  const conn = hana.createConnection();
+  const schema = config.query.schema;
+
+  const sql =
+    "SELECT " +
+    'COALESCE(CAT."Name", I."U_Categoria") AS "CatName", ' +
+    'COALESCE(SC1."Name", I."U_SubCategoria1") AS "Sub1Name", ' +
+    'COALESCE(SC2."Name", I."U_SubCategoria2") AS "Sub2Name", ' +
+    'COALESCE(SC3."Name", I."U_SubCategoria3") AS "Sub3Name", ' +
+    'COUNT(*) AS "Total" ' +
+    'FROM "' + schema + '"."OITM" I ' +
+    'INNER JOIN "' + schema + '"."ITM1" P ON P."ItemCode" = I."ItemCode" ' +
+    'INNER JOIN "' + schema + '"."OITW" C ON C."ItemCode" = I."ItemCode" ' +
+    'LEFT JOIN "' + schema + '"."@CATEGORIA" CAT ON CAT."Code" = I."U_Categoria" ' +
+    'LEFT JOIN "' + schema + '"."@SUBCAT_1" SC1 ON SC1."Code" = I."U_SubCategoria1" ' +
+    'LEFT JOIN "' + schema + '"."@SUBCAT_2" SC2 ON SC2."Code" = I."U_SubCategoria2" ' +
+    'LEFT JOIN "' + schema + '"."@SUBCAT_3" SC3 ON SC3."Code" = I."U_SubCategoria3" ' +
+    "WHERE I.\"frozenFor\" = 'N' " +
+    'AND P."PriceList" = ? AND C."WhsCode" = ? ' +
+    'GROUP BY CAT."Name", I."U_Categoria", SC1."Name", I."U_SubCategoria1", SC2."Name", I."U_SubCategoria2", SC3."Name", I."U_SubCategoria3" ' +
+    'ORDER BY CAT."Name", SC1."Name", SC2."Name", SC3."Name"';
+
+  try {
+    if (log) log("info", "Consultando arbol de categorias SAP (async)");
+    await hanaConnect(conn, config.connection);
+    const rows = await hanaExec(conn, sql, [config.query.priceList, config.query.warehouse]);
+
+    const totalProducts = rows.reduce((s, r) => s + Number(r.Total), 0);
+    const uncategorized = rows
+      .filter((r) => !r.CatName || String(r.CatName).trim() === "")
+      .reduce((s, r) => s + Number(r.Total), 0);
+
+    const catMap = new Map();
+    for (const r of rows) {
+      const cat = String(r.CatName || "").trim();
+      if (!cat) continue;
+      const sub1 = String(r.Sub1Name || "").trim() || null;
+      const sub2 = String(r.Sub2Name || "").trim() || null;
+      const sub3 = String(r.Sub3Name || "").trim() || null;
+      const count = Number(r.Total);
+
+      if (!catMap.has(cat)) catMap.set(cat, { name: cat, total: 0, children: new Map() });
+      const catNode = catMap.get(cat);
+      catNode.total += count;
+
+      if (sub1) {
+        if (!catNode.children.has(sub1)) catNode.children.set(sub1, { name: sub1, total: 0, children: new Map() });
+        const sub1Node = catNode.children.get(sub1);
+        sub1Node.total += count;
+        if (sub2) {
+          if (!sub1Node.children.has(sub2)) sub1Node.children.set(sub2, { name: sub2, total: 0, children: new Map() });
+          const sub2Node = sub1Node.children.get(sub2);
+          sub2Node.total += count;
+          if (sub3) {
+            if (!sub2Node.children.has(sub3)) sub2Node.children.set(sub3, { name: sub3, total: 0, children: new Map() });
+            sub2Node.children.get(sub3).total += count;
+          }
+        }
+      }
+    }
+
+    function serializeNode(node) {
+      return { name: node.name, total: node.total, children: Array.from(node.children.values()).map(serializeNode) };
+    }
+
+    return {
+      totalProducts,
+      categorized: totalProducts - uncategorized,
+      uncategorized,
+      categories: Array.from(catMap.values()).map(serializeNode),
+    };
+  } finally {
+    try { conn.disconnect(); } catch {}
+  }
+}
+
 module.exports = {
   buildArticleQuery,
   buildCategoryDiagnosticQuery,
@@ -920,8 +1057,10 @@ module.exports = {
   readSapCategoryGroups,
   readSapCategoryPropertyCatalog,
   readSapCategoryTree,
+  readSapCategoryTreeAsync,
   readSapOrdersOverview,
   readSapOrdersSnapshot,
   readSapOverview,
   readSapProductsPage,
+  readSapProductsPageAsync,
 };
