@@ -23,7 +23,6 @@ export function AutomationView() {
   const [enabled, setEnabled] = useState(false)
   const [runAt, setRunAt] = useState('02:00')
   const [selectedDomains, setSelectedDomains] = useState<string[]>(['products'])
-  const [write, setWrite] = useState(false)
 
   const visibleDomains = useMemo(
     () => availableDomains.filter(d => d.key !== 'orders'),
@@ -50,17 +49,16 @@ export function AutomationView() {
     setEnabled(s.config.enabled)
     setRunAt(s.config.runAt ?? '02:00')
     setSelectedDomains(s.config.domains)
-    setWrite(s.config.write)
   }
 
   async function handleSave() {
     setSaving(true)
     try {
-      const updated = await saveSchedule({ enabled, runAt, domains: selectedDomains, write })
+      const updated = await saveSchedule({ enabled, runAt, domains: selectedDomains, write: true })
       applyStatus(updated)
       addToast({
         message: enabled
-          ? `Automatización activada — todos los días a las ${runAt}.`
+          ? `Automatización activada — todos los días a las ${runAt} (aplicando cambios).`
           : 'Automatización desactivada.',
         kind: 'success',
       })
@@ -112,7 +110,7 @@ export function AutomationView() {
                 </span>
                 {status.config.enabled && (
                   <div className="section-note" style={{ marginTop: 6 }}>
-                    Todos los días a las {status.config.runAt} · {status.config.write ? 'Aplicar cambios' : 'Solo análisis'}
+                    Todos los días a las {status.config.runAt}
                   </div>
                 )}
               </div>
@@ -214,24 +212,6 @@ export function AutomationView() {
                       ))
                   }
                 </div>
-              </div>
-
-              {/* Modo */}
-              <div>
-                <div className="domain-title" style={{ marginBottom: 8 }}>Modo de ejecución</div>
-                <div className="toggle-group">
-                  <button type="button" className={!write ? 'active' : ''} onClick={() => setWrite(false)}>
-                    Analizar
-                  </button>
-                  <button type="button" className={write ? 'active danger' : ''} onClick={() => setWrite(true)}>
-                    Aplicar cambios
-                  </button>
-                </div>
-                {write && (
-                  <div className="section-note" style={{ marginTop: 8, color: 'var(--warning)' }}>
-                    Las corridas automáticas aplicarán cambios reales en la tienda sin confirmación.
-                  </div>
-                )}
               </div>
 
               {/* Guardar */}

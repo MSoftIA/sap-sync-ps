@@ -515,8 +515,8 @@ app.get("/api/schedule", (req, res) => {
 });
 
 app.post("/api/schedule", (req, res) => {
-  const { enabled, intervalHours, domains, write } = req.body;
-  const status = scheduler.updateConfig({ enabled, intervalHours, domains, write });
+  const { enabled, runAt, domains, write } = req.body;
+  const status = scheduler.updateConfig({ enabled, runAt, domains, write });
   res.json(status);
 });
 
