@@ -11,7 +11,12 @@ type StockFilter  = 'all' | 'with'   | 'without'
 
 const PAGE_SIZE = 50
 
-export function SapCatalog() {
+interface Props {
+  onSyncItem?: (itemCode: string) => void
+  syncingItemCode?: string | null
+}
+
+export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
   const [loaded, setLoaded] = useState(false)
   const [items, setItems] = useState<SapArticle[]>([])
   const [pagination, setPagination] = useState<PaginationMeta | null>(null)
@@ -187,12 +192,14 @@ export function SapCatalog() {
                   <th style={{ textAlign: 'right' }}>Precio</th>
                   <th style={{ textAlign: 'right' }}>Stock</th>
                   <th>Estado</th>
+                  {onSyncItem && <th style={{ width: 80 }} />}
                 </tr>
               </thead>
               <tbody>
                 {items.map(a => {
                   const inactive = a.status !== 'Y'
                   const zeroStock = (a.stock ?? 0) === 0
+                  const isSyncing = syncingItemCode === a.itemCode
                   return (
                     <tr key={a.itemCode} className={inactive ? 'row-inactive' : ''}>
                       <td style={{ fontFamily: 'Consolas, monospace', fontSize: '0.88rem' }}>
@@ -210,6 +217,20 @@ export function SapCatalog() {
                           {inactive ? 'Inactivo' : 'Activo'}
                         </Tag>
                       </td>
+                      {onSyncItem && (
+                        <td>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            style={{ padding: '3px 10px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 5 }}
+                            disabled={!!syncingItemCode}
+                            onClick={() => a.itemCode && onSyncItem(a.itemCode)}
+                          >
+                            {isSyncing && <span className="spinner-dark" style={{ width: 10, height: 10 }} />}
+                            {isSyncing ? 'Sync...' : 'Sync'}
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   )
                 })}

@@ -7,6 +7,7 @@ export function ProductsView() {
   const { writeMode, syncRunning, setSyncRunning } = useAppContext()
   const [log, setLog] = useState<string[]>([])
   const [syncing, setSyncing] = useState(false)
+  const [syncingItemCode, setSyncingItemCode] = useState<string | null>(null)
 
   function runSync() {
     if (syncing) return
@@ -42,6 +43,30 @@ export function ProductsView() {
     setSyncRunning(false)
   }
 
+  function syncItem(itemCode: string) {
+    if (syncingItemCode || syncRunning) return
+    setSyncingItemCode(itemCode)
+    setSyncRunning(true)
+    setLog([])
+
+    const es = startSyncStream({ write: writeMode, domains: ['products'], itemCode })
+
+    es.addEventListener('log', (e) => {
+      try {
+        const d = JSON.parse((e as MessageEvent).data)
+        setLog(prev => [...prev.slice(-199), `[${d.level?.toUpperCase() ?? 'INFO'}] ${d.message}`])
+      } catch {}
+    })
+
+    const finish = () => {
+      es.close()
+      setSyncingItemCode(null)
+      setSyncRunning(false)
+    }
+    es.addEventListener('done', finish)
+    es.onerror = finish
+  }
+
   return (
     <main>
       <section className="section">
@@ -69,7 +94,7 @@ export function ProductsView() {
           </div>
         </div>
 
-        <SapCatalog />
+        <SapCatalog onSyncItem={syncItem} syncingItemCode={syncingItemCode} />
 
         {log.length > 0 && (
           <div className="card" style={{ marginTop: 16 }}>
