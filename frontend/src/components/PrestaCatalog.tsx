@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import type { PrestaProductSummary, PaginationMeta } from '../types'
 import { getPrestaProducts } from '../api/prestashop'
+import { getPsCategories } from '../api/sap'
 import { Skeleton } from './Skeleton'
 import { EmptyState } from './EmptyState'
 import { Tag } from './Tag'
 import { money, fmt } from '../utils'
 
 type StatusFilter = 'all' | 'active' | 'inactive'
-type TypeFilter = 'all' | 'simple' | 'combo'
 
 const PAGE_SIZE = 50
 
@@ -17,11 +17,11 @@ export function PrestaCatalog() {
   const [pagination, setPagination] = useState<PaginationMeta | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [categoryMap, setCategoryMap] = useState<Map<number, string>>(new Map())
 
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
   const [page, setPage] = useState(1)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -30,7 +30,6 @@ export function PrestaCatalog() {
     page: number
     search: string
     status: StatusFilter
-    combo: TypeFilter
   }) {
     setLoading(true)
     setError(null)
@@ -40,7 +39,6 @@ export function PrestaCatalog() {
         pageSize: PAGE_SIZE,
         search: params.search || undefined,
         status: params.status,
-        combo: params.combo,
       })
       setItems(data.items)
       setPagination(data.pagination)
@@ -53,8 +51,15 @@ export function PrestaCatalog() {
 
   useEffect(() => {
     if (!loaded) return
-    fetchPage({ page, search, status: statusFilter, combo: typeFilter })
-  }, [loaded, page, search, statusFilter, typeFilter])
+    fetchPage({ page, search, status: statusFilter })
+  }, [loaded, page, search, statusFilter])
+
+  useEffect(() => {
+    if (!loaded) return
+    getPsCategories()
+      .then(cats => setCategoryMap(new Map(cats.map(c => [c.id, c.name]))))
+      .catch(() => {})
+  }, [loaded])
 
   function startLoad() {
     setLoaded(true)
@@ -74,16 +79,10 @@ export function PrestaCatalog() {
     setPage(1)
   }
 
-  function onType(v: TypeFilter) {
-    setTypeFilter(v)
-    setPage(1)
-  }
-
   function clearFilters() {
     setSearchInput('')
     setSearch('')
     setStatusFilter('all')
-    setTypeFilter('all')
     setPage(1)
   }
 
@@ -125,13 +124,7 @@ export function PrestaCatalog() {
           description={error}
           action={{
             label: 'Reintentar',
-            onClick: () =>
-              fetchPage({
-                page,
-                search,
-                status: statusFilter,
-                combo: typeFilter,
-              }),
+            onClick: () => fetchPage({ page, search, status: statusFilter }),
           }}
         />
       </div>
@@ -179,43 +172,18 @@ export function PrestaCatalog() {
           </button>
         </div>
 
-        <div className="catalog-filter-group">
-          <button
-            type="button"
-            className={typeFilter === 'all' ? 'active' : ''}
-            onClick={() => onType('all')}
-          >
-            Todos
-          </button>
-          <button
-            type="button"
-            className={typeFilter === 'simple' ? 'active' : ''}
-            onClick={() => onType('simple')}
-          >
-            Simples
-          </button>
-          <button
-            type="button"
-            className={typeFilter === 'combo' ? 'active' : ''}
-            onClick={() => onType('combo')}
-          >
-            Con combinaciones
-          </button>
-        </div>
-
         <button
           className="btn-secondary"
           type="button"
           disabled={loading}
-          onClick={() =>
-            fetchPage({ page, search, status: statusFilter, combo: typeFilter })
-          }
+          onClick={() => fetchPage({ page, search, status: statusFilter })}
           style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 7 }}
         >
           {loading && <span className="spinner-dark" />}
           {loading ? 'Cargando' : 'Recargar'}
         </button>
       </div>
+
 
       <div
         className="catalog-info"
@@ -247,17 +215,19 @@ export function PrestaCatalog() {
                   <th>ID</th>
                   <th>Referencia</th>
                   <th>Nombre</th>
+                  <th>Categoría</th>
                   <th style={{ textAlign: 'right' }}>Precio</th>
                   <th style={{ textAlign: 'right' }}>Stock</th>
-                  <th>Tipo</th>
                   <th>Estado</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((p) => {
                   const inactive = p.active !== '1'
-                  const hasCombo = p.hasCombinations
                   const zeroStock = p.stockTotal === 0
+                  const catName = p.defaultCategory
+                    ? (categoryMap.get(Number(p.defaultCategory)) ?? `#${p.defaultCategory}`)
+                    : null
 
                   return (
                     <tr key={p.productId} className={inactive ? 'row-inactive' : ''}>
@@ -268,26 +238,16 @@ export function PrestaCatalog() {
                         {p.reference || <span style={{ color: 'var(--muted)' }}>-</span>}
                       </td>
                       <td>{p.name || <span style={{ color: 'var(--muted)' }}>-</span>}</td>
+                      <td style={{ fontSize: '0.85rem', color: catName ? undefined : 'var(--muted)' }}>
+                        {catName ?? '-'}
+                      </td>
                       <td style={{ textAlign: 'right', fontWeight: 700 }}>
                         {money(p.productPrice)}
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        {hasCombo ? (
-                          <span style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>
-                            ver combos
-                          </span>
-                        ) : (
-                          <span className={zeroStock && !inactive ? 'stock-zero' : ''}>
-                            {fmt(p.stockTotal)}
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        {hasCombo ? (
-                          <Tag tone="amber">{p.combinationCount} combos</Tag>
-                        ) : (
-                          <Tag tone="gray">Simple</Tag>
-                        )}
+                        <span className={zeroStock && !inactive ? 'stock-zero' : ''}>
+                          {fmt(p.stockTotal)}
+                        </span>
                       </td>
                       <td>
                         <Tag tone={inactive ? 'gray' : 'green'}>

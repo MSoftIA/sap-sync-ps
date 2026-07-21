@@ -60,6 +60,7 @@ export interface PrestaProductSummary {
   reference: string;
   name: string;
   active: "1" | "0";
+  defaultCategory: string;
   productPrice: number;
   combinationCount: number;
   hasCombinations: boolean;
