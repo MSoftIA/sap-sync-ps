@@ -54,7 +54,7 @@ try {
 
   const totalArticulos = rows.reduce((s, r) => s + Number(r.Total), 0);
   const sinCategoria = rows
-    .filter((r) => !r.U_Categoria || String(r.U_Categoria).trim() === "")
+    .filter((r) => !r.CatName || String(r.CatName).trim() === "")
     .reduce((s, r) => s + Number(r.Total), 0);
   const conCategoria = totalArticulos - sinCategoria;
 
