@@ -1,6 +1,9 @@
-const hana = require("@sap/hana-client");
-
 const { env, numberEnv, requiredEnv } = require("./env");
+
+function createSapConnection() {
+  const hana = require("@sap/hana-client");
+  return hana.createConnection();
+}
 
 // Async wrappers for @sap/hana-client so Express doesn't block the event loop
 function hanaConnect(conn, params) {
@@ -51,7 +54,9 @@ function buildArticleQuery({ schema, priceList, warehouse, itemCode, limit }) {
     sql:
       "SELECT " +
       'I."ItemCode", I."ItemName", P."AddPrice1" AS "Price", ' +
-      'C."WhsCode", C."OnHand" AS "Existencia", I."CodeBars", I."validFor" AS "Status" ' +
+      'C."WhsCode", C."OnHand" AS "Existencia", I."CodeBars", I."validFor" AS "Status", ' +
+      'I."UserText", I."U_Desc_Logistica", I."FirmCode", I."SuppCatNum", ' +
+      'I."SalUnitMsr", I."SalPackUn", I."SWeight1" ' +
       'FROM "' +
       schema +
       '"."OITM" I ' +
@@ -218,6 +223,26 @@ function connectSap(conn, log, config) {
 }
 
 function mapSapRow(row) {
+  const metadata = {
+    longDescription: row.UserText || "",
+    shortDescription: row.U_Desc_Logistica || "",
+    manufacturerCode:
+      row.FirmCode === null || row.FirmCode === undefined
+        ? null
+        : Number(row.FirmCode),
+    manufacturerCatalogNumber: row.SuppCatNum || "",
+    salesUnit: row.SalUnitMsr || "",
+    unitsPerPackage:
+      row.SalPackUn === null || row.SalPackUn === undefined
+        ? null
+        : Number(row.SalPackUn),
+    weight:
+      row.SWeight1 === null || row.SWeight1 === undefined
+        ? null
+        : Number(row.SWeight1),
+    barcode: row.CodeBars || "",
+  };
+
   return {
     itemCode: row.ItemCode,
     itemName: row.ItemName,
@@ -226,6 +251,7 @@ function mapSapRow(row) {
     stock: Number(row.Existencia),
     barcode: row.CodeBars || null,
     status: row.Status,
+    metadata,
     raw: row,
   };
 }
@@ -309,7 +335,7 @@ function buildCategoryDiagnosticQuery({
 
 function readSapOrdersOverview(log) {
   const config = getSapConfig();
-  const conn = hana.createConnection();
+  const conn = createSapConnection();
   const sql =
     "SELECT " +
     'COUNT(*) AS "TotalOrders", ' +
@@ -363,7 +389,7 @@ function readSapOrdersOverview(log) {
 
 function readSapOrdersSnapshot(log, options = {}) {
   const config = getSapConfig();
-  const conn = hana.createConnection();
+  const conn = createSapConnection();
   const limit = Math.max(1, Number(options.limit) || 200);
   const sql =
     "SELECT " +
@@ -430,7 +456,7 @@ function mapPropertyCatalogRow(row) {
 
 function readSapCategoryPropertyCatalog(log) {
   const config = getSapConfig();
-  const conn = hana.createConnection();
+  const conn = createSapConnection();
   const sql =
     'SELECT "ItmsTypCod", "ItmsGrpNam", "UserSign" ' +
     'FROM "' +
@@ -493,7 +519,7 @@ function mapCategoryDiagnosticRow(row, propertyMap) {
 
 function readSapOverview(log) {
   const config = getSapConfig();
-  const conn = hana.createConnection();
+  const conn = createSapConnection();
   const sql =
     "SELECT " +
     'COUNT(*) AS "TotalProducts", ' +
@@ -552,7 +578,7 @@ function readSapOverview(log) {
 
 function readSapProductsPage(log, options = {}) {
   const config = getSapConfig();
-  const conn = hana.createConnection();
+  const conn = createSapConnection();
   const page = Math.max(1, Number(options.page) || 1);
   const pageSize = Math.min(250, Math.max(1, Number(options.pageSize) || 50));
   const search = String(options.search || "").trim();
@@ -643,7 +669,7 @@ function readSapProductsPage(log, options = {}) {
 
 function readSapArticles(log) {
   const config = getSapConfig();
-  const conn = hana.createConnection();
+  const conn = createSapConnection();
 
   log("info", "Configuracion SAP cargada", {
     serverNode: config.connection.serverNode,
@@ -697,7 +723,7 @@ function readSapArticles(log) {
 
 function readSapArticleByCode(log, itemCode) {
   const config = getSapConfig();
-  const conn = hana.createConnection();
+  const conn = createSapConnection();
   const query = buildArticleQuery({
     ...config.query,
     itemCode,
@@ -725,7 +751,7 @@ function readSapArticleByCode(log, itemCode) {
 
 function readSapCategoryDiagnostics(log) {
   const config = getSapConfig();
-  const conn = hana.createConnection();
+  const conn = createSapConnection();
 
   log("info", "Configuracion SAP cargada para categories", {
     serverNode: config.connection.serverNode,
@@ -781,7 +807,7 @@ function readSapCategoryDiagnostics(log) {
 
 function readSapCategoryGroups(log) {
   const config = getSapConfig();
-  const conn = hana.createConnection();
+  const conn = createSapConnection();
   const schema = config.query.schema;
   const sql =
     'SELECT B."ItmsGrpCod", B."ItmsGrpNam", COUNT(*) AS "ProductCount" ' +
@@ -832,7 +858,7 @@ function readSapCategoryGroups(log) {
 
 function readSapCategoryTree(log) {
   const config = getSapConfig();
-  const conn = hana.createConnection();
+  const conn = createSapConnection();
   const schema = config.query.schema;
 
   const sql =
@@ -923,7 +949,7 @@ function readSapCategoryTree(log) {
 
 async function readSapProductsPageAsync(log, options = {}) {
   const config = getSapConfig();
-  const conn = hana.createConnection();
+  const conn = createSapConnection();
   const page = Math.max(1, Number(options.page) || 1);
   const pageSize = Math.min(250, Math.max(1, Number(options.pageSize) || 50));
   const search = String(options.search || "").trim();
@@ -969,7 +995,7 @@ async function readSapProductsPageAsync(log, options = {}) {
 
 async function readSapCategoryTreeAsync(log) {
   const config = getSapConfig();
-  const conn = hana.createConnection();
+  const conn = createSapConnection();
   const schema = config.query.schema;
 
   const sql =
@@ -1051,6 +1077,7 @@ module.exports = {
   buildSapProductListCountQuery,
   buildSapProductListQuery,
   getSapConfig,
+  mapSapRow,
   readSapArticleByCode,
   readSapArticles,
   readSapCategoryDiagnostics,

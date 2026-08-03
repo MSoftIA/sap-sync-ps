@@ -236,6 +236,7 @@ export function PrestaCatalog() {
                   <th scope="col" style={{ textAlign: 'right' }}>Precio</th>
                   <th scope="col" style={{ textAlign: 'right' }}>Stock</th>
                   <th scope="col">Estado</th>
+                  <th scope="col">Web</th>
                 </tr>
               </thead>
               <tbody>
@@ -274,6 +275,20 @@ export function PrestaCatalog() {
                         <Tag tone={inactive ? 'gray' : 'green'}>
                           {inactive ? 'Inactivo' : 'Activo'}
                         </Tag>
+                      </td>
+                      <td>
+                        {p.publicUrl ? (
+                          <a
+                            className="btn-secondary btn-compact-link"
+                            href={p.publicUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Ver web
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--muted)' }}>-</span>
+                        )}
                       </td>
                     </tr>
                   )

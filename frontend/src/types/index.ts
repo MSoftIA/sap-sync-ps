@@ -57,6 +57,7 @@ export interface PrestaControlResult {
 
 export interface PrestaProductSummary {
   productId: number;
+  publicUrl?: string;
   reference: string;
   name: string;
   active: "1" | "0";

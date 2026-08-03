@@ -257,6 +257,22 @@ button:disabled {
   color: #243b9c;
 }
 
+a.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.btn-compact-link {
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .btn-dark {
   background: #172033;
   color: white;

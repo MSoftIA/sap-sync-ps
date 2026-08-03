@@ -11,6 +11,7 @@ function getPrestaConfig() {
   return {
     endpoint: env("PRESTASHOP_ENDPOINT"),
     apiKey: env("PRESTASHOP_API_KEY"),
+    publicProductUrlTemplate: env("PRESTASHOP_PUBLIC_PRODUCT_URL_TEMPLATE", ""),
   };
 }
 
@@ -120,6 +121,7 @@ function parseProductSummary(productXml) {
     defaultCategory: xmlText(productXml, "id_category_default"),
     productPrice: Number(xmlText(productXml, "price") || 0),
     name: xmlLanguageText(productXml, "name"),
+    linkRewrite: xmlLanguageText(productXml, "link_rewrite"),
   };
 }
 
@@ -296,6 +298,59 @@ function sanitizePrestaText(value) {
   return raw.replace(/<[^>]+>/g, " ").trim();
 }
 
+function buildPrestaPublicProductUrl(product) {
+  const template = env("PRESTASHOP_PUBLIC_PRODUCT_URL_TEMPLATE", "").trim();
+  const endpoint = env("PRESTASHOP_ENDPOINT", "").trim();
+  const id = Number(product && product.id);
+  const linkRewrite = String((product && product.linkRewrite) || "").trim();
+
+  if (!Number.isFinite(id) || id <= 0) {
+    return "";
+  }
+
+  if (template) {
+    const resolvedTemplate = template
+      .replace(/\{id\}/g, encodeURIComponent(String(id)))
+      .replace(/\{slug\}/g, encodeURIComponent(linkRewrite));
+
+    if (/^https?:\/\//i.test(resolvedTemplate)) {
+      return resolvedTemplate;
+    }
+
+    if (!endpoint) {
+      return "";
+    }
+
+    return (
+      endpoint.replace(/\/+$/, "") +
+      "/" +
+      resolvedTemplate.replace(/^\/+/, "")
+    );
+  }
+
+  if (!endpoint) {
+    return "";
+  }
+
+  if (!linkRewrite) {
+    return (
+      endpoint.replace(/\/+$/, "") +
+      "/index.php?id_product=" +
+      encodeURIComponent(String(id)) +
+      "&controller=product"
+    );
+  }
+
+  return (
+    endpoint.replace(/\/+$/, "") +
+    "/" +
+    encodeURIComponent(String(id)) +
+    "-" +
+    encodeURIComponent(linkRewrite) +
+    ".html"
+  );
+}
+
 function mapPrestaProductListItem(product, stockRows) {
   const directStockRow =
     stockRows.find((row) => Number(row.productAttributeId) === 0) || null;
@@ -309,6 +364,7 @@ function mapPrestaProductListItem(product, stockRows) {
 
   return {
     productId: product.id,
+    publicUrl: buildPrestaPublicProductUrl(product),
     reference: product.reference || "",
     name: sanitizePrestaText(product.name || ""),
     active: product.active,
@@ -445,7 +501,7 @@ async function listPrestaProducts(client, params = {}, batchSize = 250) {
 
   while (true) {
     const xml = await client.get("products", {
-      display: "[id,reference,active,id_category_default,price,name]",
+      display: "[id,reference,active,id_category_default,price,name,link_rewrite]",
       limit: `${offset},${batchSize}`,
       ...params,
     });
@@ -1023,6 +1079,7 @@ async function inspectProductByReferenceCached(client, snapshot, article, log) {
 }
 
 module.exports = {
+  buildPrestaPublicProductUrl,
   buildPrestaCatalogSnapshot,
   countPrestaResources,
   createPrestaClient,

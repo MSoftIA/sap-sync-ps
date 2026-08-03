@@ -148,6 +148,21 @@ function buildSyncPlan(status, metrics, isCombination) {
   };
 }
 
+function buildMetadataReportFields(article) {
+  const metadata = article.metadata || {};
+
+  return {
+    sapLongDescription: metadata.longDescription || "",
+    sapShortDescription: metadata.shortDescription || "",
+    sapManufacturerCode: metadata.manufacturerCode ?? null,
+    sapManufacturerCatalogNumber: metadata.manufacturerCatalogNumber || "",
+    sapSalesUnit: metadata.salesUnit || "",
+    sapUnitsPerPackage: metadata.unitsPerPackage ?? null,
+    sapWeight: metadata.weight ?? null,
+    sapBarcode: metadata.barcode || article.barcode || "",
+  };
+}
+
 function buildResultRow(article, inspection) {
   const isCombination = inspection.bestMatch.kind === "combination";
   const metrics = buildMetrics(article, inspection);
@@ -175,6 +190,7 @@ function buildResultRow(article, inspection) {
     needsReview,
     itemCode: article.itemCode,
     itemName: article.itemName,
+    ...buildMetadataReportFields(article),
     sapPrice: article.price,
     sapStock: article.stock,
     productId: inspection.productId,
@@ -251,7 +267,31 @@ function createProductMetrics() {
       planning: 0,
       execution: 0,
     },
+    metadataCoverage: {
+      sapLongDescription: 0,
+      sapShortDescription: 0,
+      sapManufacturerCode: 0,
+      sapManufacturerCatalogNumber: 0,
+      sapSalesUnit: 0,
+      sapUnitsPerPackage: 0,
+      sapWeight: 0,
+      sapBarcode: 0,
+    },
   };
+}
+
+function hasMetadataValue(value) {
+  return value !== null && value !== undefined && String(value).trim() !== "";
+}
+
+function applyMetadataCoverage(metrics, article) {
+  const fields = buildMetadataReportFields(article);
+
+  for (const [key, value] of Object.entries(fields)) {
+    if (hasMetadataValue(value)) {
+      metrics.metadataCoverage[key] += 1;
+    }
+  }
 }
 
 function applyExecutionMetrics(metrics, row) {
@@ -276,6 +316,7 @@ function summarizeMetrics(metrics, totalArticles) {
     skipped: metrics.skipped,
     blocked: metrics.blocked,
     phaseMs: metrics.phaseMs,
+    metadataCoverage: metrics.metadataCoverage,
   };
 }
 
@@ -382,6 +423,7 @@ async function runProductDomain(log) {
             needsReview: false,
             itemCode: article.itemCode,
             itemName: article.itemName,
+            ...buildMetadataReportFields(article),
             sapPrice: article.price,
             sapStock: article.stock,
             productId: null,
@@ -401,6 +443,7 @@ async function runProductDomain(log) {
             matchCount: 0,
             error: "",
           };
+          applyMetadataCoverage(metrics, article);
           const actionPayload = buildActionPayload(createdRow, article);
           createdRow.blockedReason = actionPayload.blockedReason;
           createdRow.payloadSummary = actionPayload.payloadSummary;
@@ -458,6 +501,7 @@ async function runProductDomain(log) {
 
         const planningStartedAt = Date.now();
         const row = buildResultRow(article, inspection);
+        applyMetadataCoverage(metrics, article);
         metrics.phaseMs.planning += Date.now() - planningStartedAt;
 
         log("info", "Plan de sincronizacion", {
@@ -513,6 +557,7 @@ async function runProductDomain(log) {
           needsReview: true,
           itemCode: article.itemCode,
           itemName: article.itemName,
+          ...buildMetadataReportFields(article),
           sapPrice: article.price,
           sapStock: article.stock,
           productId: null,
