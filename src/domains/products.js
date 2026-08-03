@@ -550,6 +550,17 @@ async function runProductDomain(log) {
           syncPrice: row.syncPrice,
           syncStock: row.syncStock,
           syncName: row.syncName,
+          syncMetadata: row.syncMetadata,
+          metadataFromSap: {
+            longDescription: hasMetadataValue(row.sapLongDescription),
+            shortDescription: hasMetadataValue(row.sapShortDescription),
+            manufacturerCatalogNumber: hasMetadataValue(
+              row.sapManufacturerCatalogNumber,
+            ),
+            barcode: hasMetadataValue(row.sapBarcode),
+            weight: hasMetadataValue(row.sapWeight),
+            pictureName: hasMetadataValue(row.sapPictureName),
+          },
           blockedReason: row.blockedReason || null,
           payloadSummary: row.payloadSummary,
         });

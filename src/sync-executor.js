@@ -453,6 +453,22 @@ async function executeSyncAction(client, row, log) {
       existingProductXml,
       row.actionPayload.product,
     );
+    log("info", "Actualizando ficha de producto en PrestaShop", {
+      itemCode: row.itemCode,
+      action: row.action,
+      productId: row.productId,
+      syncMetadata: Boolean(row.syncMetadata),
+      fields: {
+        price: row.actionPayload.product.price !== undefined,
+        description: Boolean(row.actionPayload.product.description),
+        descriptionShort: Boolean(row.actionPayload.product.descriptionShort),
+        mpn: Boolean(row.actionPayload.product.mpn),
+        ean13: Boolean(row.actionPayload.product.ean13),
+        weight:
+          row.actionPayload.product.weight !== undefined &&
+          row.actionPayload.product.weight !== null,
+      },
+    });
     await client.put("products/" + row.productId, productXml, { display: "[id]" });
   }
 

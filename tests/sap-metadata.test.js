@@ -103,3 +103,28 @@ test("incluye metadata SAP en payload de actualizacion PrestaShop", () => {
     }
   }
 });
+
+test("usa la descripcion logistica como fallback visible si SAP no trae UserText", () => {
+  const article = mapSapRow({
+    ItemCode: "ABC",
+    ItemName: "Producto demo",
+    Price: "10.5",
+    WhsCode: "AC01",
+    Existencia: "4",
+    Status: "Y",
+    UserText: "",
+    U_Desc_Logistica: "Caja de 12",
+  });
+  const result = buildActionPayload(
+    {
+      action: "update_product_metadata",
+      productId: 10,
+      productReference: "ABC",
+      syncMetadata: true,
+    },
+    article,
+  );
+
+  assert.equal(result.payload.product.description, "Caja de 12");
+  assert.equal(result.payload.product.descriptionShort, "Caja de 12");
+});

@@ -40,14 +40,17 @@ function buildCreatePayload(article, defaults) {
 function buildProductMetadata(article) {
   const metadata = article && article.metadata ? article.metadata : {};
   const barcode = String(metadata.barcode || "").trim();
+  const longDescription = String(metadata.longDescription || "").trim();
+  const shortDescription = String(metadata.shortDescription || "").trim();
   const productMetadata = {};
 
-  if (metadata.longDescription) {
-    productMetadata.description = metadata.longDescription;
+  if (longDescription || shortDescription) {
+    productMetadata.description = longDescription || shortDescription;
   }
 
-  if (metadata.shortDescription) {
-    productMetadata.descriptionShort = metadata.shortDescription;
+  if (shortDescription || longDescription) {
+    productMetadata.descriptionShort =
+      shortDescription || longDescription.slice(0, 800);
   }
 
   if (metadata.manufacturerCatalogNumber) {
