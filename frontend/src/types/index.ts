@@ -37,6 +37,9 @@ export interface SapArticle {
     longDescription?: string;
     shortDescription?: string;
     foreignName?: string;
+    itemGroupCode?: number | null;
+    itemGroupName?: string;
+    category?: string;
     manufacturerCode?: number | null;
     manufacturerCatalogNumber?: string;
     salesUnit?: string;

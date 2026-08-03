@@ -116,6 +116,7 @@ function buildCreateProductXml(payload) {
     <price>${cdata(payload.product.price)}</price>
     <ean13>${cdata(payload.product.ean13 || "")}</ean13>
     <mpn>${cdata(payload.product.mpn || "")}</mpn>
+    <supplier_reference>${cdata(payload.product.supplierReference || "")}</supplier_reference>
     <weight>${cdata(payload.product.weight || 0)}</weight>
     <active>${cdata(payload.product.active)}</active>
     <name>
@@ -130,6 +131,12 @@ function buildCreateProductXml(payload) {
     <description_short>
       <language id="${escapeXml(payload.product.languageId)}">${cdata(payload.product.descriptionShort || safeName)}</language>
     </description_short>
+    <meta_title>
+      <language id="${escapeXml(payload.product.languageId)}">${cdata(payload.product.metaTitle || safeName)}</language>
+    </meta_title>
+    <meta_description>
+      <language id="${escapeXml(payload.product.languageId)}">${cdata(payload.product.metaDescription || payload.product.descriptionShort || safeName)}</language>
+    </meta_description>
   </product>
 </prestashop>`;
 }
@@ -180,6 +187,13 @@ function buildCreateProductXmlFromSchema(schemaXml, payload) {
   }
   if (payload.product.mpn) {
     xml = setTagValue(xml, "mpn", payload.product.mpn);
+  }
+  if (payload.product.supplierReference) {
+    xml = setTagValue(
+      xml,
+      "supplier_reference",
+      payload.product.supplierReference,
+    );
   }
   if (payload.product.weight !== undefined) {
     xml = setTagValue(xml, "weight", payload.product.weight);
@@ -265,6 +279,10 @@ function buildPutProductXml(existingXml, payload = {}) {
     xml = setTagValue(xml, "mpn", payload.mpn);
   }
 
+  if (payload.supplierReference) {
+    xml = setTagValue(xml, "supplier_reference", payload.supplierReference);
+  }
+
   if (payload.weight !== undefined && payload.weight !== null) {
     xml = setTagValue(xml, "weight", payload.weight);
   }
@@ -283,6 +301,24 @@ function buildPutProductXml(existingXml, payload = {}) {
       xml,
       "description_short",
       payload.descriptionShort,
+      payload.languageId || 1,
+    );
+  }
+
+  if (payload.metaTitle) {
+    xml = setLanguageTagValue(
+      xml,
+      "meta_title",
+      payload.metaTitle,
+      payload.languageId || 1,
+    );
+  }
+
+  if (payload.metaDescription) {
+    xml = setLanguageTagValue(
+      xml,
+      "meta_description",
+      payload.metaDescription,
       payload.languageId || 1,
     );
   }
@@ -624,10 +660,15 @@ async function executeSyncAction(client, row, log) {
           description: Boolean(row.actionPayload.product.description),
           descriptionShort: Boolean(row.actionPayload.product.descriptionShort),
           mpn: Boolean(row.actionPayload.product.mpn),
+          supplierReference: Boolean(
+            row.actionPayload.product.supplierReference,
+          ),
           ean13: Boolean(row.actionPayload.product.ean13),
           weight:
             row.actionPayload.product.weight !== undefined &&
             row.actionPayload.product.weight !== null,
+          metaTitle: Boolean(row.actionPayload.product.metaTitle),
+          metaDescription: Boolean(row.actionPayload.product.metaDescription),
         },
       });
       await client.put("products/" + row.productId, productXml, {

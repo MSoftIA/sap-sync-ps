@@ -57,6 +57,8 @@ function buildArticleQuery({ schema, priceList, warehouse, itemCode, limit }) {
       "SELECT " +
       'I."ItemCode", I."ItemName", P."AddPrice1" AS "Price", ' +
       'C."WhsCode", C."OnHand" AS "Existencia", I."CodeBars", I."validFor" AS "Status", ' +
+      'I."ItmsGrpCod" AS "ItemGroupCode", B."ItmsGrpNam" AS "ItemGroupName", ' +
+      'COALESCE(CAT."Name", I."U_Categoria") AS "CatName", ' +
       'I."FrgnName", I."UserText", I."U_Desc_Logistica", I."FirmCode", I."SuppCatNum", ' +
       'I."SalUnitMsr", I."SalPackUn", I."SWeight1", I."PicturName", ' +
       '(SELECT TO_NVARCHAR(D."BitmapPath") FROM "' +
@@ -71,6 +73,12 @@ function buildArticleQuery({ schema, priceList, warehouse, itemCode, limit }) {
       'INNER JOIN "' +
       schema +
       '"."OITW" C ON C."ItemCode" = I."ItemCode" ' +
+      'LEFT JOIN "' +
+      schema +
+      '"."OITB" B ON B."ItmsGrpCod" = I."ItmsGrpCod" ' +
+      'LEFT JOIN "' +
+      schema +
+      '"."@CATEGORIA" CAT ON CAT."Code" = I."U_Categoria" ' +
       'WHERE I."frozenFor" = ' +
       "'N'" +
       " " +
@@ -170,7 +178,7 @@ function buildSapProductListQuery({
       'I."ItemCode", I."ItemName", P."AddPrice1" AS "Price", ' +
       'C."WhsCode", C."OnHand" AS "Existencia", I."CodeBars", ' +
       'I."validFor" AS "Status", I."ItmsGrpCod" AS "ItemGroupCode", ' +
-      'COALESCE(CAT."Name", I."U_Categoria") AS "CatName", ' +
+      'B."ItmsGrpNam" AS "ItemGroupName", COALESCE(CAT."Name", I."U_Categoria") AS "CatName", ' +
       'I."FrgnName", I."UserText", I."U_Desc_Logistica", I."FirmCode", I."SuppCatNum", ' +
       'I."SalUnitMsr", I."SalPackUn", I."SWeight1", I."PicturName", ' +
       '(SELECT TO_NVARCHAR(D."BitmapPath") FROM "' +
@@ -185,6 +193,9 @@ function buildSapProductListQuery({
       'INNER JOIN "' +
       schema +
       '"."OITW" C ON C."ItemCode" = I."ItemCode" ' +
+      'LEFT JOIN "' +
+      schema +
+      '"."OITB" B ON B."ItmsGrpCod" = I."ItmsGrpCod" ' +
       'LEFT JOIN "' +
       schema +
       '"."@CATEGORIA" CAT ON CAT."Code" = I."U_Categoria" ' +
@@ -257,6 +268,12 @@ function mapSapRow(row) {
     longDescription: userText || foreignName,
     shortDescription: logisticDescription || foreignName,
     foreignName,
+    itemGroupCode:
+      row.ItemGroupCode === null || row.ItemGroupCode === undefined
+        ? null
+        : Number(row.ItemGroupCode),
+    itemGroupName: row.ItemGroupName || "",
+    category: row.CatName ? String(row.CatName).trim() : "",
     manufacturerCode:
       row.FirmCode === null || row.FirmCode === undefined
         ? null

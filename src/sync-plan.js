@@ -8,6 +8,25 @@ function normalizeStock(value) {
   return Math.max(0, Math.round(Number(value || 0)));
 }
 
+function htmlEscape(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function textValue(value) {
+  return String(value ?? "").trim();
+}
+
+function compactText(value, maxLength) {
+  const compacted = textValue(value).replace(/\s+/g, " ");
+  return compacted.length > maxLength
+    ? compacted.slice(0, maxLength - 1).trim() + "..."
+    : compacted;
+}
+
 function getSyncDefaults() {
   const defaultCategoryId = env("PRESTASHOP_DEFAULT_CATEGORY_ID", "");
   const languageId = numberEnv("PRESTASHOP_LANGUAGE_ID", 1);
@@ -40,12 +59,48 @@ function buildCreatePayload(article, defaults) {
 function buildProductMetadata(article) {
   const metadata = article && article.metadata ? article.metadata : {};
   const barcode = String(metadata.barcode || "").trim();
-  const longDescription = String(metadata.longDescription || "").trim();
-  const shortDescription = String(metadata.shortDescription || "").trim();
+  const longDescription = textValue(metadata.longDescription);
+  const shortDescription = textValue(metadata.shortDescription);
+  const manufacturerCatalogNumber = textValue(
+    metadata.manufacturerCatalogNumber,
+  );
   const productMetadata = {};
+  const technicalRows = [
+    ["Codigo SAP", article.itemCode],
+    ["Codigo de barras", barcode],
+    ["Referencia proveedor", manufacturerCatalogNumber],
+    ["Nombre internacional", metadata.foreignName],
+    ["Categoria SAP", metadata.category],
+    ["Grupo SAP", metadata.itemGroupName || metadata.itemGroupCode],
+    ["Marca SAP", metadata.manufacturerCode],
+    ["Unidad de venta", metadata.salesUnit],
+    ["Unidades por paquete", metadata.unitsPerPackage],
+    ["Peso", metadata.weight],
+  ].filter(([, value]) => textValue(value));
+
+  const technicalHtml =
+    technicalRows.length > 0
+      ? '<section class="sap-product-specs"><h3>Ficha tecnica</h3><table><tbody>' +
+        technicalRows
+          .map(
+            ([label, value]) =>
+              "<tr><th>" +
+              htmlEscape(label) +
+              "</th><td>" +
+              htmlEscape(value) +
+              "</td></tr>",
+          )
+          .join("") +
+        "</tbody></table></section>"
+      : "";
 
   if (longDescription || shortDescription) {
-    productMetadata.description = longDescription || shortDescription;
+    productMetadata.description = [
+      longDescription || shortDescription,
+      technicalHtml,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
   }
 
   if (shortDescription || longDescription) {
@@ -53,8 +108,9 @@ function buildProductMetadata(article) {
       shortDescription || longDescription.slice(0, 800);
   }
 
-  if (metadata.manufacturerCatalogNumber) {
-    productMetadata.mpn = metadata.manufacturerCatalogNumber;
+  if (manufacturerCatalogNumber) {
+    productMetadata.mpn = manufacturerCatalogNumber;
+    productMetadata.supplierReference = manufacturerCatalogNumber;
   }
 
   if (/^\d{13}$/.test(barcode)) {
@@ -64,6 +120,15 @@ function buildProductMetadata(article) {
   if (metadata.weight !== null && metadata.weight !== undefined) {
     productMetadata.weight = metadata.weight;
   }
+
+  productMetadata.metaTitle = compactText(
+    metadata.foreignName || article.itemName,
+    70,
+  );
+  productMetadata.metaDescription = compactText(
+    longDescription || shortDescription || article.itemName,
+    160,
+  );
 
   return productMetadata;
 }
@@ -146,11 +211,20 @@ function buildPayloadSummary(action, payload) {
     if (payload.product.mpn !== undefined) {
       parts.push("mpn=" + payload.product.mpn);
     }
+    if (payload.product.supplierReference !== undefined) {
+      parts.push("supplierReference=" + payload.product.supplierReference);
+    }
     if (payload.product.ean13 !== undefined) {
       parts.push("ean13=" + payload.product.ean13);
     }
     if (payload.product.weight !== undefined) {
       parts.push("weight=" + payload.product.weight);
+    }
+    if (payload.product.metaTitle !== undefined) {
+      parts.push("metaTitle=SAP");
+    }
+    if (payload.product.metaDescription !== undefined) {
+      parts.push("metaDescription=SAP");
     }
   }
 

@@ -15,6 +15,8 @@ test("incluye campos de metadata POC en la query principal de articulos", () => 
 
   assert.match(query.sql, /I\."UserText"/);
   assert.match(query.sql, /I\."FrgnName"/);
+  assert.match(query.sql, /B\."ItmsGrpNam"/);
+  assert.match(query.sql, /COALESCE\(CAT\."Name", I\."U_Categoria"\)/);
   assert.match(query.sql, /I\."U_Desc_Logistica"/);
   assert.match(query.sql, /I\."FirmCode"/);
   assert.match(query.sql, /I\."SuppCatNum"/);
@@ -65,6 +67,9 @@ test("mapea metadata SAP para nutrir la prueba de concepto de PrestaShop", () =>
     Existencia: "4",
     CodeBars: "1234567890123",
     Status: "Y",
+    ItemGroupCode: "159",
+    ItemGroupName: "Cristaleria",
+    CatName: "Copas",
     UserText: "Descripcion larga",
     U_Desc_Logistica: "Caja de 12",
     FrgnName: "Foreign demo name",
@@ -81,6 +86,9 @@ test("mapea metadata SAP para nutrir la prueba de concepto de PrestaShop", () =>
     longDescription: "Descripcion larga",
     shortDescription: "Caja de 12",
     foreignName: "Foreign demo name",
+    itemGroupCode: 159,
+    itemGroupName: "Cristaleria",
+    category: "Copas",
     manufacturerCode: 7,
     manufacturerCatalogNumber: "MPN-1",
     salesUnit: "Caja",
@@ -107,8 +115,13 @@ test("incluye metadata SAP en payload de actualizacion PrestaShop", () => {
       Status: "Y",
       UserText: "Descripcion larga",
       U_Desc_Logistica: "Caja de 12",
+      FrgnName: "Foreign demo name",
       SuppCatNum: "MPN-1",
+      SalUnitMsr: "Caja",
+      SalPackUn: "12",
       SWeight1: "1.25",
+      ItemGroupName: "Cristaleria",
+      CatName: "Copas",
     });
     const result = buildActionPayload(
       {
@@ -126,11 +139,15 @@ test("incluye metadata SAP en payload de actualizacion PrestaShop", () => {
       price: undefined,
       name: undefined,
       languageId: 1,
-      description: "Descripcion larga",
+      description:
+        'Descripcion larga\n\n<section class="sap-product-specs"><h3>Ficha tecnica</h3><table><tbody><tr><th>Codigo SAP</th><td>ABC</td></tr><tr><th>Codigo de barras</th><td>1234567890123</td></tr><tr><th>Referencia proveedor</th><td>MPN-1</td></tr><tr><th>Nombre internacional</th><td>Foreign demo name</td></tr><tr><th>Categoria SAP</th><td>Copas</td></tr><tr><th>Grupo SAP</th><td>Cristaleria</td></tr><tr><th>Unidad de venta</th><td>Caja</td></tr><tr><th>Unidades por paquete</th><td>12</td></tr><tr><th>Peso</th><td>1.25</td></tr></tbody></table></section>',
       descriptionShort: "Caja de 12",
       mpn: "MPN-1",
+      supplierReference: "MPN-1",
       ean13: "1234567890123",
       weight: 1.25,
+      metaTitle: "Foreign demo name",
+      metaDescription: "Descripcion larga",
     });
   } finally {
     if (previousLanguage === undefined) {
@@ -162,7 +179,9 @@ test("usa la descripcion logistica como fallback visible si SAP no trae UserText
     article,
   );
 
-  assert.equal(result.payload.product.description, "Caja de 12");
+  assert.match(result.payload.product.description, /^Caja de 12/);
+  assert.match(result.payload.product.description, /Ficha tecnica/);
+  assert.match(result.payload.product.description, /Codigo SAP/);
   assert.equal(result.payload.product.descriptionShort, "Caja de 12");
 });
 
@@ -188,10 +207,12 @@ test("usa FrgnName como fallback de descripcion cuando SAP no trae textos dedica
     article,
   );
 
-  assert.equal(
+  assert.match(
     result.payload.product.description,
-    "UNIVERSAL BORDEAUX GLASS 23oz",
+    /^UNIVERSAL BORDEAUX GLASS 23oz/,
   );
+  assert.match(result.payload.product.description, /Ficha tecnica/);
+  assert.match(result.payload.product.description, /Nombre internacional/);
   assert.equal(
     result.payload.product.descriptionShort,
     "UNIVERSAL BORDEAUX GLASS 23oz",

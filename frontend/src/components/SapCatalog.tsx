@@ -484,7 +484,13 @@ function FragmentRow({
                 </div>
                 <div>
                   <span>Grupo SAP</span>
-                  <strong>{fmt(article.itemGroupCode)}</strong>
+                  <strong>
+                    {fmt(metadata.itemGroupName || article.itemGroupCode)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Categoria SAP</span>
+                  <strong>{fmt(metadata.category || article.category)}</strong>
                 </div>
                 <div>
                   <span>Codigo barras</span>

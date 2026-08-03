@@ -68,6 +68,11 @@ function getWritableMetadata(article) {
     mpn: metadata.manufacturerCatalogNumber || "",
     ean13: /^\d{13}$/.test(barcode) ? barcode : "",
     weight: metadata.weight ?? null,
+    foreignName: metadata.foreignName || "",
+    category: metadata.category || "",
+    itemGroupName: metadata.itemGroupName || "",
+    salesUnit: metadata.salesUnit || "",
+    unitsPerPackage: metadata.unitsPerPackage ?? null,
   };
 }
 
@@ -220,6 +225,9 @@ function buildMetadataReportFields(article) {
     sapLongDescription: metadata.longDescription || "",
     sapShortDescription: metadata.shortDescription || "",
     sapForeignName: metadata.foreignName || "",
+    sapCategory: metadata.category || "",
+    sapItemGroupCode: metadata.itemGroupCode ?? null,
+    sapItemGroupName: metadata.itemGroupName || "",
     sapManufacturerCode: metadata.manufacturerCode ?? null,
     sapManufacturerCatalogNumber: metadata.manufacturerCatalogNumber || "",
     sapSalesUnit: metadata.salesUnit || "",
