@@ -52,6 +52,29 @@ function normalizeName(str) {
   return String(str || "").trim().toLowerCase();
 }
 
+function hasMetadataValue(value) {
+  return value !== null && value !== undefined && String(value).trim() !== "";
+}
+
+function getWritableMetadata(article) {
+  const metadata = article.metadata || {};
+  const barcode = String(metadata.barcode || "").trim();
+
+  return {
+    description: metadata.longDescription || "",
+    descriptionShort: metadata.shortDescription || "",
+    mpn: metadata.manufacturerCatalogNumber || "",
+    ean13: /^\d{13}$/.test(barcode) ? barcode : "",
+    weight: metadata.weight ?? null,
+  };
+}
+
+function hasWritableMetadata(article) {
+  return Object.values(getWritableMetadata(article)).some((value) =>
+    hasMetadataValue(value),
+  );
+}
+
 function buildMetrics(article, inspection) {
   const selectedPrice =
     inspection.bestMatch.kind === "combination"
@@ -83,6 +106,7 @@ function buildMetrics(article, inspection) {
     isPriceEqual,
     isStockEqual,
     isNameEqual,
+    hasWritableMetadata: hasWritableMetadata(article),
   };
 }
 
@@ -93,6 +117,7 @@ function buildSyncPlan(status, metrics, isCombination) {
       syncPrice: true,
       syncStock: true,
       syncName: true,
+      syncMetadata: true,
       reason: "missing_in_prestashop",
     };
   }
@@ -103,6 +128,7 @@ function buildSyncPlan(status, metrics, isCombination) {
       syncPrice: metrics.isPriceEqual === false,
       syncStock: metrics.isStockEqual === false,
       syncName: false,
+      syncMetadata: false,
       reason: "combination_requires_review",
     };
   }
@@ -114,7 +140,18 @@ function buildSyncPlan(status, metrics, isCombination) {
         syncPrice: false,
         syncStock: false,
         syncName: true,
+        syncMetadata: metrics.hasWritableMetadata,
         reason: "name_mismatch",
+      };
+    }
+    if (metrics.hasWritableMetadata) {
+      return {
+        action: "update_product_metadata",
+        syncPrice: false,
+        syncStock: false,
+        syncName: false,
+        syncMetadata: true,
+        reason: "metadata_from_sap",
       };
     }
     return {
@@ -122,6 +159,7 @@ function buildSyncPlan(status, metrics, isCombination) {
       syncPrice: false,
       syncStock: false,
       syncName: false,
+      syncMetadata: false,
       reason: "already_in_sync",
     };
   }
@@ -129,6 +167,7 @@ function buildSyncPlan(status, metrics, isCombination) {
   const syncPrice = metrics.isPriceEqual === false;
   const syncStock = metrics.isStockEqual === false;
   const syncName = !metrics.isNameEqual;
+  const syncMetadata = metrics.hasWritableMetadata;
 
   let action = "update_product";
   if (syncPrice && syncStock) {
@@ -144,6 +183,7 @@ function buildSyncPlan(status, metrics, isCombination) {
     syncPrice,
     syncStock,
     syncName,
+    syncMetadata,
     reason: "existing_product_diff",
   };
 }
@@ -160,6 +200,7 @@ function buildMetadataReportFields(article) {
     sapUnitsPerPackage: metadata.unitsPerPackage ?? null,
     sapWeight: metadata.weight ?? null,
     sapBarcode: metadata.barcode || article.barcode || "",
+    sapPictureName: metadata.pictureName || "",
   };
 }
 
@@ -184,6 +225,7 @@ function buildResultRow(article, inspection) {
     syncPrice: syncPlan.syncPrice,
     syncStock: syncPlan.syncStock,
     syncName: syncPlan.syncName,
+    syncMetadata: syncPlan.syncMetadata,
     blockedReason: "",
     payloadSummary: "",
     actionPayload: {},
@@ -276,12 +318,9 @@ function createProductMetrics() {
       sapUnitsPerPackage: 0,
       sapWeight: 0,
       sapBarcode: 0,
+      sapPictureName: 0,
     },
   };
-}
-
-function hasMetadataValue(value) {
-  return value !== null && value !== undefined && String(value).trim() !== "";
 }
 
 function applyMetadataCoverage(metrics, article) {
@@ -417,6 +456,7 @@ async function runProductDomain(log) {
             syncPrice: true,
             syncStock: true,
             syncName: true,
+            syncMetadata: true,
             blockedReason: "",
             payloadSummary: "",
             actionPayload: {},
@@ -551,6 +591,7 @@ async function runProductDomain(log) {
           syncPrice: false,
           syncStock: false,
           syncName: false,
+          syncMetadata: false,
           blockedReason: "",
           payloadSummary: "",
           actionPayload: {},

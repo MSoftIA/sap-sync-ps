@@ -112,6 +112,9 @@ function buildCreateProductXml(payload) {
     <state>${cdata(1)}</state>
     <product_type>${cdata("standard")}</product_type>
     <price>${cdata(payload.product.price)}</price>
+    <ean13>${cdata(payload.product.ean13 || "")}</ean13>
+    <mpn>${cdata(payload.product.mpn || "")}</mpn>
+    <weight>${cdata(payload.product.weight || 0)}</weight>
     <active>${cdata(payload.product.active)}</active>
     <name>
       <language id="${escapeXml(payload.product.languageId)}">${cdata(safeName)}</language>
@@ -119,6 +122,12 @@ function buildCreateProductXml(payload) {
     <link_rewrite>
       <language id="${escapeXml(payload.product.languageId)}">${cdata(safeSlug)}</language>
     </link_rewrite>
+    <description>
+      <language id="${escapeXml(payload.product.languageId)}">${cdata(payload.product.description || safeName)}</language>
+    </description>
+    <description_short>
+      <language id="${escapeXml(payload.product.languageId)}">${cdata(payload.product.descriptionShort || safeName)}</language>
+    </description_short>
   </product>
 </prestashop>`;
 }
@@ -155,15 +164,24 @@ function buildCreateProductXmlFromSchema(schemaXml, payload) {
   xml = setLanguageTagValue(
     xml,
     "description",
-    safeName,
+    payload.product.description || safeName,
     payload.product.languageId,
   );
   xml = setLanguageTagValue(
     xml,
     "description_short",
-    safeName,
+    payload.product.descriptionShort || safeName,
     payload.product.languageId,
   );
+  if (payload.product.ean13) {
+    xml = setTagValue(xml, "ean13", payload.product.ean13);
+  }
+  if (payload.product.mpn) {
+    xml = setTagValue(xml, "mpn", payload.product.mpn);
+  }
+  if (payload.product.weight !== undefined) {
+    xml = setTagValue(xml, "weight", payload.product.weight);
+  }
   xml = setTagValue(xml, "id", "");
   xml = removeTag(xml, "associations");
   xml = xml.replace(
@@ -235,6 +253,36 @@ function buildPutProductXml(existingXml, payload = {}) {
 
   if (payload.price !== undefined) {
     xml = setTagValue(xml, "price", payload.price);
+  }
+
+  if (payload.ean13) {
+    xml = setTagValue(xml, "ean13", payload.ean13);
+  }
+
+  if (payload.mpn) {
+    xml = setTagValue(xml, "mpn", payload.mpn);
+  }
+
+  if (payload.weight !== undefined && payload.weight !== null) {
+    xml = setTagValue(xml, "weight", payload.weight);
+  }
+
+  if (payload.description) {
+    xml = setLanguageTagValue(
+      xml,
+      "description",
+      payload.description,
+      payload.languageId || 1,
+    );
+  }
+
+  if (payload.descriptionShort) {
+    xml = setLanguageTagValue(
+      xml,
+      "description_short",
+      payload.descriptionShort,
+      payload.languageId || 1,
+    );
   }
 
   if (payload.active !== undefined) {
@@ -392,7 +440,9 @@ async function executeSyncAction(client, row, log) {
 
   if (
     row.action === "update_product_price" ||
-    row.action === "update_product_price_and_stock"
+    row.action === "update_product_price_and_stock" ||
+    row.action === "update_product_metadata" ||
+    (row.syncMetadata && row.actionPayload && row.actionPayload.product)
   ) {
     if (!row.actionPayload || !row.actionPayload.product) {
       throw new Error("Falta actionPayload.product para action=" + row.action);

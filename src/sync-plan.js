@@ -19,6 +19,8 @@ function getSyncDefaults() {
 }
 
 function buildCreatePayload(article, defaults) {
+  const metadata = buildProductMetadata(article);
+
   return {
     product: {
       reference: article.itemCode,
@@ -27,6 +29,7 @@ function buildCreatePayload(article, defaults) {
       active: article.status === "Y" ? 1 : 0,
       defaultCategoryId: defaults.defaultCategoryId,
       languageId: defaults.languageId,
+      ...metadata,
     },
     stockAvailable: {
       quantity: normalizeStock(article.stock),
@@ -34,17 +37,47 @@ function buildCreatePayload(article, defaults) {
   };
 }
 
+function buildProductMetadata(article) {
+  const metadata = article && article.metadata ? article.metadata : {};
+  const barcode = String(metadata.barcode || "").trim();
+  const productMetadata = {};
+
+  if (metadata.longDescription) {
+    productMetadata.description = metadata.longDescription;
+  }
+
+  if (metadata.shortDescription) {
+    productMetadata.descriptionShort = metadata.shortDescription;
+  }
+
+  if (metadata.manufacturerCatalogNumber) {
+    productMetadata.mpn = metadata.manufacturerCatalogNumber;
+  }
+
+  if (/^\d{13}$/.test(barcode)) {
+    productMetadata.ean13 = barcode;
+  }
+
+  if (metadata.weight !== null && metadata.weight !== undefined) {
+    productMetadata.weight = metadata.weight;
+  }
+
+  return productMetadata;
+}
+
 function buildUpdatePayload(row, article, defaults) {
   const payload = {};
   const langId = defaults ? defaults.languageId : 1;
+  const metadata = row.syncMetadata ? buildProductMetadata(article) : {};
 
-  if (row.syncPrice) {
+  if (row.syncPrice || row.syncMetadata) {
     payload.product = {
       id: row.productId,
       reference: row.productReference,
-      price: roundPrice(row.sapPrice),
-      name: article ? article.itemName : undefined,
+      price: row.syncPrice ? roundPrice(row.sapPrice) : undefined,
+      name: row.syncName && article ? article.itemName : undefined,
       languageId: langId,
+      ...metadata,
     };
   } else if (row.syncName && article) {
     // update_product_name: only name, no price
@@ -130,7 +163,8 @@ function buildActionPayload(row, article) {
     row.action === "update_product_price" ||
     row.action === "update_product_stock" ||
     row.action === "update_product_price_and_stock" ||
-    row.action === "update_product_name"
+    row.action === "update_product_name" ||
+    row.action === "update_product_metadata"
   ) {
     payload = buildUpdatePayload(row, article, defaults);
   }

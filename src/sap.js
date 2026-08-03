@@ -56,7 +56,7 @@ function buildArticleQuery({ schema, priceList, warehouse, itemCode, limit }) {
       'I."ItemCode", I."ItemName", P."AddPrice1" AS "Price", ' +
       'C."WhsCode", C."OnHand" AS "Existencia", I."CodeBars", I."validFor" AS "Status", ' +
       'I."UserText", I."U_Desc_Logistica", I."FirmCode", I."SuppCatNum", ' +
-      'I."SalUnitMsr", I."SalPackUn", I."SWeight1" ' +
+      'I."SalUnitMsr", I."SalPackUn", I."SWeight1", I."PicturName" ' +
       'FROM "' +
       schema +
       '"."OITM" I ' +
@@ -241,6 +241,7 @@ function mapSapRow(row) {
         ? null
         : Number(row.SWeight1),
     barcode: row.CodeBars || "",
+    pictureName: row.PicturName || "",
   };
 
   return {
