@@ -1,3 +1,5 @@
+const fs = require("node:fs");
+const path = require("node:path");
 const { env, requiredEnv } = require("./env");
 const {
   parseAnyIdList,
@@ -45,14 +47,22 @@ function createPrestaClient(log) {
     return clone.toString();
   }
 
-  async function request(method, resource, { params = {}, body = null } = {}) {
+  async function request(
+    method,
+    resource,
+    { params = {}, body = null, headers = null } = {},
+  ) {
     const url = buildUrl(resource, params);
     log("debug", method + " PrestaShop", { url: safeUrl(url) });
 
     const startedAt = Date.now();
     const response = await fetch(url, {
       method,
-      headers: body ? { "Content-Type": "application/xml" } : undefined,
+      headers:
+        headers ||
+        (body && typeof body === "string"
+          ? { "Content-Type": "application/xml" }
+          : undefined),
       body,
     });
     const text = await response.text();
@@ -89,6 +99,24 @@ function createPrestaClient(log) {
     return request("POST", resource, { params, body });
   }
 
+  async function postImage(resource, imagePath, mimeType, params = {}) {
+    const formData = new FormData();
+    const buffer = fs.readFileSync(imagePath);
+    const apiKey = requiredEnv("PRESTASHOP_API_KEY");
+    formData.append(
+      "image",
+      new Blob([buffer], { type: mimeType }),
+      path.basename(imagePath),
+    );
+    return request("POST", resource, {
+      params,
+      body: formData,
+      headers: {
+        Authorization: "Basic " + Buffer.from(apiKey + ":").toString("base64"),
+      },
+    });
+  }
+
   async function put(resource, body, params = {}) {
     return request("PUT", resource, { params, body });
   }
@@ -101,7 +129,15 @@ function createPrestaClient(log) {
     return request("DELETE", resource);
   }
 
-  return { get, getSchema, post, put, patch, delete: deleteResource };
+  return {
+    get,
+    getSchema,
+    post,
+    postImage,
+    put,
+    patch,
+    delete: deleteResource,
+  };
 }
 
 async function findProductIdsByReference(client, reference) {
@@ -322,9 +358,7 @@ function buildPrestaPublicProductUrl(product) {
     }
 
     return (
-      endpoint.replace(/\/+$/, "") +
-      "/" +
-      resolvedTemplate.replace(/^\/+/, "")
+      endpoint.replace(/\/+$/, "") + "/" + resolvedTemplate.replace(/^\/+/, "")
     );
   }
 
@@ -501,7 +535,8 @@ async function listPrestaProducts(client, params = {}, batchSize = 250) {
 
   while (true) {
     const xml = await client.get("products", {
-      display: "[id,reference,active,id_category_default,price,name,link_rewrite]",
+      display:
+        "[id,reference,active,id_category_default,price,name,link_rewrite]",
       limit: `${offset},${batchSize}`,
       ...params,
     });

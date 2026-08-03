@@ -23,6 +23,35 @@ test("incluye campos de metadata POC en la query principal de articulos", () => 
   assert.match(query.sql, /I\."PicturName"/);
 });
 
+test("permite filtrar articulos SAP con categoria asignada", () => {
+  const { buildSapProductListQuery } = require("../src/sap");
+  const withCategory = buildSapProductListQuery({
+    schema: "BD_CARBALLO",
+    priceList: 14,
+    warehouse: "AC01",
+    category: "with",
+    page: 1,
+    pageSize: 10,
+  });
+  const withoutCategory = buildSapProductListQuery({
+    schema: "BD_CARBALLO",
+    priceList: 14,
+    warehouse: "AC01",
+    category: "without",
+    page: 1,
+    pageSize: 10,
+  });
+
+  assert.match(
+    withCategory.sql,
+    /COALESCE\(TRIM\(I\."U_Categoria"\), ''\) <> ''/,
+  );
+  assert.match(
+    withoutCategory.sql,
+    /COALESCE\(TRIM\(I\."U_Categoria"\), ''\) = ''/,
+  );
+});
+
 test("mapea metadata SAP para nutrir la prueba de concepto de PrestaShop", () => {
   const article = mapSapRow({
     ItemCode: "ABC",

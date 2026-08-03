@@ -1,3 +1,5 @@
+const fs = require("node:fs");
+const path = require("node:path");
 const { env } = require("./env");
 const { findProductIdsByReference } = require("./prestashop");
 const { parseAnyIdList } = require("./xml");
@@ -296,6 +298,153 @@ function buildPutStockXml(existingXml, quantity) {
   return setTagValue(existingXml, "quantity", quantity);
 }
 
+function hasProductImages(productXml) {
+  const defaultImageMatch = String(productXml || "").match(
+    /<id_default_image(?:\s[^>]*)?><!\[CDATA\[(.*?)\]\]><\/id_default_image>/,
+  );
+  const defaultImageId = defaultImageMatch ? Number(defaultImageMatch[1]) : 0;
+
+  return (
+    defaultImageId > 0 ||
+    /<images\b[\s\S]*?<image\b[\s\S]*?<\/image>[\s\S]*?<\/images>/i.test(
+      String(productXml || ""),
+    )
+  );
+}
+
+function getImageMimeType(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === ".png") return "image/png";
+  if (ext === ".webp") return "image/webp";
+  return "image/jpeg";
+}
+
+function getConfiguredImageExtensions() {
+  return String(env("SAP_IMAGE_EXTENSIONS", ".jpg,.jpeg,.png,.webp"))
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+    .map((value) => (value.startsWith(".") ? value : "." + value));
+}
+
+function resolveSapImagePath(pictureName) {
+  const imageDir = String(env("SAP_IMAGE_DIR", "")).trim();
+  const rawPictureName = String(pictureName || "").trim();
+
+  if (!rawPictureName) {
+    return { status: "missing_picture_name" };
+  }
+
+  if (!imageDir) {
+    return { status: "missing_image_dir", pictureName: rawPictureName };
+  }
+
+  const imageRoot = path.resolve(imageDir);
+  const safeFileName = path.basename(rawPictureName);
+  const ext = path.extname(safeFileName);
+  const candidates = ext
+    ? [safeFileName]
+    : getConfiguredImageExtensions().map(
+        (candidateExt) => safeFileName + candidateExt,
+      );
+
+  for (const candidate of candidates) {
+    const candidatePath = path.resolve(imageRoot, candidate);
+    if (
+      candidatePath !== imageRoot &&
+      !candidatePath.startsWith(imageRoot + path.sep)
+    ) {
+      continue;
+    }
+
+    try {
+      const stat = fs.statSync(candidatePath);
+      if (stat.isFile()) {
+        return {
+          status: "found",
+          imagePath: candidatePath,
+          mimeType: getImageMimeType(candidatePath),
+          pictureName: rawPictureName,
+        };
+      }
+    } catch {}
+  }
+
+  return {
+    status: "missing_file",
+    imageDir: imageRoot,
+    pictureName: rawPictureName,
+    candidates,
+  };
+}
+
+async function syncProductImageFromSap(
+  client,
+  row,
+  productId,
+  existingProductXml,
+  log,
+) {
+  if (!row.syncImage) {
+    return null;
+  }
+
+  if (String(env("SYNC_IMAGES", "true")).toLowerCase() !== "true") {
+    log("info", "Imagen no subida: SYNC_IMAGES desactivado", {
+      itemCode: row.itemCode,
+      productId,
+      sapPictureName: row.sapPictureName || "",
+    });
+    return { status: "disabled" };
+  }
+
+  const productXml =
+    existingProductXml || (await client.get("products/" + productId));
+
+  if (hasProductImages(productXml)) {
+    log("info", "Imagen no subida: el producto ya tiene imagen", {
+      itemCode: row.itemCode,
+      productId,
+      sapPictureName: row.sapPictureName || "",
+    });
+    return { status: "already_has_image" };
+  }
+
+  const resolved = resolveSapImagePath(row.sapPictureName);
+  if (resolved.status !== "found") {
+    log("warn", "Imagen SAP no subida", {
+      itemCode: row.itemCode,
+      productId,
+      reason: resolved.status,
+      sapPictureName: row.sapPictureName || "",
+      imageDir: resolved.imageDir || "",
+      candidates: resolved.candidates || [],
+    });
+    return { status: resolved.status };
+  }
+
+  log("info", "Subiendo imagen de producto a PrestaShop", {
+    itemCode: row.itemCode,
+    productId,
+    sapPictureName: resolved.pictureName,
+    imageFile: path.basename(resolved.imagePath),
+  });
+
+  await client.postImage(
+    "images/products/" + productId,
+    resolved.imagePath,
+    resolved.mimeType,
+  );
+
+  log("info", "Imagen subida a PrestaShop", {
+    itemCode: row.itemCode,
+    productId,
+    sapPictureName: resolved.pictureName,
+  });
+
+  return { status: "uploaded", imagePath: resolved.imagePath };
+}
+
 async function createProductWithFallbackName(client, row) {
   const createXml = buildCreateProductXml(row.actionPayload);
 
@@ -428,6 +577,8 @@ async function executeSyncAction(client, row, log) {
       stockId: stockId || null,
     });
 
+    await syncProductImageFromSap(client, row, productId, null, log);
+
     return {
       mode: "write",
       executed: true,
@@ -438,38 +589,61 @@ async function executeSyncAction(client, row, log) {
     };
   }
 
+  let existingProductXmlForImage = null;
+
   if (
     row.action === "update_product_price" ||
     row.action === "update_product_price_and_stock" ||
     row.action === "update_product_metadata" ||
+    row.action === "update_product_image" ||
     (row.syncMetadata && row.actionPayload && row.actionPayload.product)
   ) {
-    if (!row.actionPayload || !row.actionPayload.product) {
+    if (
+      row.action !== "update_product_image" &&
+      (!row.actionPayload || !row.actionPayload.product)
+    ) {
       throw new Error("Falta actionPayload.product para action=" + row.action);
     }
 
     const existingProductXml = await client.get("products/" + row.productId);
-    const productXml = buildPutProductXml(
-      existingProductXml,
-      row.actionPayload.product,
+    existingProductXmlForImage = existingProductXml;
+
+    if (row.action !== "update_product_image") {
+      const productXml = buildPutProductXml(
+        existingProductXml,
+        row.actionPayload.product,
+      );
+      log("info", "Actualizando ficha de producto en PrestaShop", {
+        itemCode: row.itemCode,
+        action: row.action,
+        productId: row.productId,
+        syncMetadata: Boolean(row.syncMetadata),
+        syncImage: Boolean(row.syncImage),
+        fields: {
+          price: row.actionPayload.product.price !== undefined,
+          description: Boolean(row.actionPayload.product.description),
+          descriptionShort: Boolean(row.actionPayload.product.descriptionShort),
+          mpn: Boolean(row.actionPayload.product.mpn),
+          ean13: Boolean(row.actionPayload.product.ean13),
+          weight:
+            row.actionPayload.product.weight !== undefined &&
+            row.actionPayload.product.weight !== null,
+        },
+      });
+      await client.put("products/" + row.productId, productXml, {
+        display: "[id]",
+      });
+    }
+  }
+
+  if (row.syncImage && row.productId) {
+    await syncProductImageFromSap(
+      client,
+      row,
+      row.productId,
+      existingProductXmlForImage,
+      log,
     );
-    log("info", "Actualizando ficha de producto en PrestaShop", {
-      itemCode: row.itemCode,
-      action: row.action,
-      productId: row.productId,
-      syncMetadata: Boolean(row.syncMetadata),
-      fields: {
-        price: row.actionPayload.product.price !== undefined,
-        description: Boolean(row.actionPayload.product.description),
-        descriptionShort: Boolean(row.actionPayload.product.descriptionShort),
-        mpn: Boolean(row.actionPayload.product.mpn),
-        ean13: Boolean(row.actionPayload.product.ean13),
-        weight:
-          row.actionPayload.product.weight !== undefined &&
-          row.actionPayload.product.weight !== null,
-      },
-    });
-    await client.put("products/" + row.productId, productXml, { display: "[id]" });
   }
 
   // Name update: always via minimal XML, never inside the price PUT
@@ -488,24 +662,41 @@ async function executeSyncAction(client, row, log) {
       const safeName = sanitizeProductName(name, row.itemCode);
       const asciiName = sanitizeAsciiProductName(name, row.itemCode);
 
-      log("info", `Actualizando nombre: safe="${safeName}" ascii="${asciiName}" lang=${langId}`, {
-        itemCode: row.itemCode,
-        productId: row.productId,
-      });
+      log(
+        "info",
+        `Actualizando nombre: safe="${safeName}" ascii="${asciiName}" lang=${langId}`,
+        {
+          itemCode: row.itemCode,
+          productId: row.productId,
+        },
+      );
 
       const existingXmlForName = await client.get("products/" + row.productId);
       let baseNameXml = removeTag(existingXmlForName, "manufacturer_name");
       baseNameXml = removeTag(baseNameXml, "quantity");
 
       const tryPutName = async (nameValue) => {
-        const nameXml = setLanguageTagValue(baseNameXml, "name", nameValue, langId);
-        log("info", "PUT nombre (intento)", { nameValue, productId: row.productId });
-        await client.put("products/" + row.productId, nameXml, { display: "[id]" });
+        const nameXml = setLanguageTagValue(
+          baseNameXml,
+          "name",
+          nameValue,
+          langId,
+        );
+        log("info", "PUT nombre (intento)", {
+          nameValue,
+          productId: row.productId,
+        });
+        await client.put("products/" + row.productId, nameXml, {
+          display: "[id]",
+        });
       };
 
       try {
         await tryPutName(safeName);
-        log("info", "Nombre actualizado en PrestaShop", { itemCode: row.itemCode, name: safeName });
+        log("info", "Nombre actualizado en PrestaShop", {
+          itemCode: row.itemCode,
+          name: safeName,
+        });
       } catch (firstError) {
         log("warn", "Fallo PUT nombre UTF-8: " + firstError.message, {
           itemCode: row.itemCode,
@@ -513,7 +704,10 @@ async function executeSyncAction(client, row, log) {
         });
         try {
           await tryPutName(asciiName);
-          log("info", "Nombre actualizado en PrestaShop (ASCII)", { itemCode: row.itemCode, name: asciiName });
+          log("info", "Nombre actualizado en PrestaShop (ASCII)", {
+            itemCode: row.itemCode,
+            name: asciiName,
+          });
         } catch (secondError) {
           log("warn", "Fallo PUT nombre ASCII: " + secondError.message, {
             itemCode: row.itemCode,

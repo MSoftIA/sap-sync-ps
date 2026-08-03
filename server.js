@@ -117,7 +117,14 @@ function parsePositiveInt(value, fallback, options = {}) {
  * Retorna el syncState si arrancó, o null si ya había uno corriendo.
  * source: 'manual' | 'scheduled'
  */
-function startSyncProcess({ fullCatalog = true, itemCode, limit, write = false, syncDomains, source = "manual" } = {}) {
+function startSyncProcess({
+  fullCatalog = true,
+  itemCode,
+  limit,
+  write = false,
+  syncDomains,
+  source = "manual",
+} = {}) {
   if (activeSync) return null;
 
   const childEnv = { ...process.env };
@@ -238,6 +245,9 @@ app.get("/api/sap-products", async (req, res) => {
   const stock = String(req.query.stock || "all")
     .trim()
     .toLowerCase();
+  const category = String(req.query.category || "all")
+    .trim()
+    .toLowerCase();
 
   if (!["all", "active", "inactive"].includes(status)) {
     res
@@ -251,8 +261,22 @@ app.get("/api/sap-products", async (req, res) => {
     return;
   }
 
+  if (!["all", "with", "without"].includes(category)) {
+    res
+      .status(400)
+      .json({ error: "category invalido. Usa all, with o without" });
+    return;
+  }
+
   try {
-    const payload = await readSapProductsPageAsync(log, { page, pageSize, search, status, stock });
+    const payload = await readSapProductsPageAsync(log, {
+      page,
+      pageSize,
+      search,
+      status,
+      stock,
+      category,
+    });
     res.json(payload);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -261,7 +285,11 @@ app.get("/api/sap-products", async (req, res) => {
 
 app.get("/api/prestashop-categories", async (req, res) => {
   if (!hasPrestaConfig()) {
-    res.status(400).json({ error: "PRESTASHOP_ENDPOINT o PRESTASHOP_API_KEY no configurados" });
+    res
+      .status(400)
+      .json({
+        error: "PRESTASHOP_ENDPOINT o PRESTASHOP_API_KEY no configurados",
+      });
     return;
   }
   try {
@@ -546,7 +574,9 @@ app.listen(PORT, () => {
     const syncState = startSyncProcess({
       fullCatalog: true,
       write: opts.write,
-      syncDomains: Array.isArray(opts.domains) ? opts.domains.join(",") : opts.domains,
+      syncDomains: Array.isArray(opts.domains)
+        ? opts.domains.join(",")
+        : opts.domains,
       source: "scheduled",
     });
     return syncState !== null;

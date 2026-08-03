@@ -14,7 +14,9 @@ function hanaConnect(conn, params) {
 
 function hanaExec(conn, sql, params) {
   return new Promise((resolve, reject) => {
-    conn.exec(sql, params || [], (err, rows) => (err ? reject(err) : resolve(rows)));
+    conn.exec(sql, params || [], (err, rows) =>
+      err ? reject(err) : resolve(rows),
+    );
   });
 }
 
@@ -85,6 +87,7 @@ function buildSapProductListFilters({
   search = "",
   status = "all",
   stock = "all",
+  category = "all",
 }) {
   const filters = [
     `I."frozenFor" = 'N'`,
@@ -111,11 +114,22 @@ function buildSapProductListFilters({
     filters.push(`I."validFor" <> 'Y'`);
   }
 
-  const normalizedStock = String(stock || "all").trim().toLowerCase();
+  const normalizedStock = String(stock || "all")
+    .trim()
+    .toLowerCase();
   if (normalizedStock === "with") {
     filters.push(`C."OnHand" > 0`);
   } else if (normalizedStock === "without") {
     filters.push(`C."OnHand" <= 0`);
+  }
+
+  const normalizedCategory = String(category || "all")
+    .trim()
+    .toLowerCase();
+  if (normalizedCategory === "with") {
+    filters.push(`COALESCE(TRIM(I."U_Categoria"), '') <> ''`);
+  } else if (normalizedCategory === "without") {
+    filters.push(`COALESCE(TRIM(I."U_Categoria"), '') = ''`);
   }
 
   return {
@@ -131,6 +145,7 @@ function buildSapProductListQuery({
   search,
   status,
   stock,
+  category,
   page,
   pageSize,
 }) {
@@ -140,6 +155,7 @@ function buildSapProductListQuery({
     search,
     status,
     stock,
+    category,
   });
   const safePage = Math.max(1, Number(page) || 1);
   const safePageSize = Math.max(1, Number(pageSize) || 50);
@@ -187,6 +203,7 @@ function buildSapProductListCountQuery({
   search,
   status,
   stock,
+  category,
 }) {
   const { whereClause, params } = buildSapProductListFilters({
     priceList,
@@ -194,6 +211,7 @@ function buildSapProductListCountQuery({
     search,
     status,
     stock,
+    category,
   });
 
   return {
@@ -404,7 +422,7 @@ function readSapOrdersSnapshot(log, options = {}) {
     'LEFT JOIN "' +
     config.query.schema +
     '"."RDR1" L ON L."DocEntry" = O."DocEntry" ' +
-    'GROUP BY ' +
+    "GROUP BY " +
     'O."DocEntry", O."DocNum", O."CardCode", O."CardName", ' +
     'O."DocDate", O."DocStatus", O."CANCELED", O."DocTotal", ' +
     'O."NumAtCard", O."Comments" ' +
@@ -587,6 +605,9 @@ function readSapProductsPage(log, options = {}) {
   const stock = String(options.stock || "all")
     .trim()
     .toLowerCase();
+  const category = String(options.category || "all")
+    .trim()
+    .toLowerCase();
   const listQuery = buildSapProductListQuery({
     schema: config.query.schema,
     priceList: config.query.priceList,
@@ -594,6 +615,7 @@ function readSapProductsPage(log, options = {}) {
     search,
     status,
     stock,
+    category,
     page,
     pageSize,
   });
@@ -604,6 +626,7 @@ function readSapProductsPage(log, options = {}) {
     search,
     status,
     stock,
+    category,
   });
 
   try {
@@ -616,6 +639,7 @@ function readSapProductsPage(log, options = {}) {
         pageSize,
         search,
         status,
+        category,
       });
     }
 
@@ -648,6 +672,7 @@ function readSapProductsPage(log, options = {}) {
       filters: {
         search,
         status,
+        category,
       },
       pagination: {
         page,
@@ -867,13 +892,27 @@ function readSapCategoryTree(log) {
     'COALESCE(SC2."Name", I."U_SubCategoria2") AS "Sub2Name", ' +
     'COALESCE(SC3."Name", I."U_SubCategoria3") AS "Sub3Name", ' +
     'COUNT(*) AS "Total" ' +
-    'FROM "' + schema + '"."OITM" I ' +
-    'INNER JOIN "' + schema + '"."ITM1" P ON P."ItemCode" = I."ItemCode" ' +
-    'INNER JOIN "' + schema + '"."OITW" C ON C."ItemCode" = I."ItemCode" ' +
-    'LEFT JOIN "' + schema + '"."@CATEGORIA" CAT ON CAT."Code" = I."U_Categoria" ' +
-    'LEFT JOIN "' + schema + '"."@SUBCAT_1" SC1 ON SC1."Code" = I."U_SubCategoria1" ' +
-    'LEFT JOIN "' + schema + '"."@SUBCAT_2" SC2 ON SC2."Code" = I."U_SubCategoria2" ' +
-    'LEFT JOIN "' + schema + '"."@SUBCAT_3" SC3 ON SC3."Code" = I."U_SubCategoria3" ' +
+    'FROM "' +
+    schema +
+    '"."OITM" I ' +
+    'INNER JOIN "' +
+    schema +
+    '"."ITM1" P ON P."ItemCode" = I."ItemCode" ' +
+    'INNER JOIN "' +
+    schema +
+    '"."OITW" C ON C."ItemCode" = I."ItemCode" ' +
+    'LEFT JOIN "' +
+    schema +
+    '"."@CATEGORIA" CAT ON CAT."Code" = I."U_Categoria" ' +
+    'LEFT JOIN "' +
+    schema +
+    '"."@SUBCAT_1" SC1 ON SC1."Code" = I."U_SubCategoria1" ' +
+    'LEFT JOIN "' +
+    schema +
+    '"."@SUBCAT_2" SC2 ON SC2."Code" = I."U_SubCategoria2" ' +
+    'LEFT JOIN "' +
+    schema +
+    '"."@SUBCAT_3" SC3 ON SC3."Code" = I."U_SubCategoria3" ' +
     "WHERE I.\"frozenFor\" = 'N' " +
     'AND P."PriceList" = ? AND C."WhsCode" = ? ' +
     'GROUP BY CAT."Name", I."U_Categoria", SC1."Name", I."U_SubCategoria1", SC2."Name", I."U_SubCategoria2", SC3."Name", I."U_SubCategoria3" ' +
@@ -889,7 +928,10 @@ function readSapCategoryTree(log) {
     }
 
     conn.connect(config.connection);
-    const rows = conn.exec(sql, [config.query.priceList, config.query.warehouse]);
+    const rows = conn.exec(sql, [
+      config.query.priceList,
+      config.query.warehouse,
+    ]);
 
     const totalProducts = rows.reduce((s, r) => s + Number(r.Total), 0);
     const uncategorized = rows
@@ -905,22 +947,38 @@ function readSapCategoryTree(log) {
       const sub3 = String(r.Sub3Name || "").trim() || null;
       const count = Number(r.Total);
 
-      if (!catMap.has(cat)) catMap.set(cat, { name: cat, total: 0, children: new Map() });
+      if (!catMap.has(cat))
+        catMap.set(cat, { name: cat, total: 0, children: new Map() });
       const catNode = catMap.get(cat);
       catNode.total += count;
 
       if (sub1) {
-        if (!catNode.children.has(sub1)) catNode.children.set(sub1, { name: sub1, total: 0, children: new Map() });
+        if (!catNode.children.has(sub1))
+          catNode.children.set(sub1, {
+            name: sub1,
+            total: 0,
+            children: new Map(),
+          });
         const sub1Node = catNode.children.get(sub1);
         sub1Node.total += count;
 
         if (sub2) {
-          if (!sub1Node.children.has(sub2)) sub1Node.children.set(sub2, { name: sub2, total: 0, children: new Map() });
+          if (!sub1Node.children.has(sub2))
+            sub1Node.children.set(sub2, {
+              name: sub2,
+              total: 0,
+              children: new Map(),
+            });
           const sub2Node = sub1Node.children.get(sub2);
           sub2Node.total += count;
 
           if (sub3) {
-            if (!sub2Node.children.has(sub3)) sub2Node.children.set(sub3, { name: sub3, total: 0, children: new Map() });
+            if (!sub2Node.children.has(sub3))
+              sub2Node.children.set(sub3, {
+                name: sub3,
+                total: 0,
+                children: new Map(),
+              });
             sub2Node.children.get(sub3).total += count;
           }
         }
@@ -942,7 +1000,9 @@ function readSapCategoryTree(log) {
       categories: Array.from(catMap.values()).map(serializeNode),
     };
   } finally {
-    try { conn.disconnect(); } catch {}
+    try {
+      conn.disconnect();
+    } catch {}
   }
 }
 
@@ -952,43 +1012,83 @@ async function readSapProductsPageAsync(log, options = {}) {
   const page = Math.max(1, Number(options.page) || 1);
   const pageSize = Math.min(250, Math.max(1, Number(options.pageSize) || 50));
   const search = String(options.search || "").trim();
-  const status = String(options.status || "all").trim().toLowerCase();
-  const stock = String(options.stock || "all").trim().toLowerCase();
+  const status = String(options.status || "all")
+    .trim()
+    .toLowerCase();
+  const stock = String(options.stock || "all")
+    .trim()
+    .toLowerCase();
+  const category = String(options.category || "all")
+    .trim()
+    .toLowerCase();
 
   const listQuery = buildSapProductListQuery({
     schema: config.query.schema,
     priceList: config.query.priceList,
     warehouse: config.query.warehouse,
-    search, status, stock, page, pageSize,
+    search,
+    status,
+    stock,
+    category,
+    page,
+    pageSize,
   });
   const countQuery = buildSapProductListCountQuery({
     schema: config.query.schema,
     priceList: config.query.priceList,
     warehouse: config.query.warehouse,
-    search, status, stock,
+    search,
+    status,
+    stock,
+    category,
   });
 
   try {
-    if (log) log("info", "Consultando pagina de productos SAP (async)", { schema: config.query.schema, page, pageSize, search, status });
+    if (log)
+      log("info", "Consultando pagina de productos SAP (async)", {
+        schema: config.query.schema,
+        page,
+        pageSize,
+        search,
+        status,
+        category,
+      });
     await hanaConnect(conn, config.connection);
     const startedAt = Date.now();
     const rows = await hanaExec(conn, listQuery.sql, listQuery.params);
     const totalRows = await hanaExec(conn, countQuery.sql, countQuery.params);
     const total = Number(totalRows[0]?.Total || 0);
     const items = rows.map(mapSapProductListRow);
-    const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
-    if (log) log("info", "Pagina de productos SAP cargada", { page, pageSize, returned: items.length, total, elapsedMs: Date.now() - startedAt });
+    const totalPages =
+      pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
+    if (log)
+      log("info", "Pagina de productos SAP cargada", {
+        page,
+        pageSize,
+        returned: items.length,
+        total,
+        elapsedMs: Date.now() - startedAt,
+      });
     return {
       source: "sap",
       schema: config.query.schema,
       warehouse: config.query.warehouse,
       priceList: config.query.priceList,
-      filters: { search, status },
-      pagination: { page, pageSize, total, totalPages, hasNextPage: page < totalPages, hasPreviousPage: page > 1 },
+      filters: { search, status, category },
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
       items,
     };
   } finally {
-    try { conn.disconnect(); } catch {}
+    try {
+      conn.disconnect();
+    } catch {}
   }
 }
 
@@ -1004,13 +1104,27 @@ async function readSapCategoryTreeAsync(log) {
     'COALESCE(SC2."Name", I."U_SubCategoria2") AS "Sub2Name", ' +
     'COALESCE(SC3."Name", I."U_SubCategoria3") AS "Sub3Name", ' +
     'COUNT(*) AS "Total" ' +
-    'FROM "' + schema + '"."OITM" I ' +
-    'INNER JOIN "' + schema + '"."ITM1" P ON P."ItemCode" = I."ItemCode" ' +
-    'INNER JOIN "' + schema + '"."OITW" C ON C."ItemCode" = I."ItemCode" ' +
-    'LEFT JOIN "' + schema + '"."@CATEGORIA" CAT ON CAT."Code" = I."U_Categoria" ' +
-    'LEFT JOIN "' + schema + '"."@SUBCAT_1" SC1 ON SC1."Code" = I."U_SubCategoria1" ' +
-    'LEFT JOIN "' + schema + '"."@SUBCAT_2" SC2 ON SC2."Code" = I."U_SubCategoria2" ' +
-    'LEFT JOIN "' + schema + '"."@SUBCAT_3" SC3 ON SC3."Code" = I."U_SubCategoria3" ' +
+    'FROM "' +
+    schema +
+    '"."OITM" I ' +
+    'INNER JOIN "' +
+    schema +
+    '"."ITM1" P ON P."ItemCode" = I."ItemCode" ' +
+    'INNER JOIN "' +
+    schema +
+    '"."OITW" C ON C."ItemCode" = I."ItemCode" ' +
+    'LEFT JOIN "' +
+    schema +
+    '"."@CATEGORIA" CAT ON CAT."Code" = I."U_Categoria" ' +
+    'LEFT JOIN "' +
+    schema +
+    '"."@SUBCAT_1" SC1 ON SC1."Code" = I."U_SubCategoria1" ' +
+    'LEFT JOIN "' +
+    schema +
+    '"."@SUBCAT_2" SC2 ON SC2."Code" = I."U_SubCategoria2" ' +
+    'LEFT JOIN "' +
+    schema +
+    '"."@SUBCAT_3" SC3 ON SC3."Code" = I."U_SubCategoria3" ' +
     "WHERE I.\"frozenFor\" = 'N' " +
     'AND P."PriceList" = ? AND C."WhsCode" = ? ' +
     'GROUP BY CAT."Name", I."U_Categoria", SC1."Name", I."U_SubCategoria1", SC2."Name", I."U_SubCategoria2", SC3."Name", I."U_SubCategoria3" ' +
@@ -1019,7 +1133,10 @@ async function readSapCategoryTreeAsync(log) {
   try {
     if (log) log("info", "Consultando arbol de categorias SAP (async)");
     await hanaConnect(conn, config.connection);
-    const rows = await hanaExec(conn, sql, [config.query.priceList, config.query.warehouse]);
+    const rows = await hanaExec(conn, sql, [
+      config.query.priceList,
+      config.query.warehouse,
+    ]);
 
     const totalProducts = rows.reduce((s, r) => s + Number(r.Total), 0);
     const uncategorized = rows
@@ -1035,20 +1152,36 @@ async function readSapCategoryTreeAsync(log) {
       const sub3 = String(r.Sub3Name || "").trim() || null;
       const count = Number(r.Total);
 
-      if (!catMap.has(cat)) catMap.set(cat, { name: cat, total: 0, children: new Map() });
+      if (!catMap.has(cat))
+        catMap.set(cat, { name: cat, total: 0, children: new Map() });
       const catNode = catMap.get(cat);
       catNode.total += count;
 
       if (sub1) {
-        if (!catNode.children.has(sub1)) catNode.children.set(sub1, { name: sub1, total: 0, children: new Map() });
+        if (!catNode.children.has(sub1))
+          catNode.children.set(sub1, {
+            name: sub1,
+            total: 0,
+            children: new Map(),
+          });
         const sub1Node = catNode.children.get(sub1);
         sub1Node.total += count;
         if (sub2) {
-          if (!sub1Node.children.has(sub2)) sub1Node.children.set(sub2, { name: sub2, total: 0, children: new Map() });
+          if (!sub1Node.children.has(sub2))
+            sub1Node.children.set(sub2, {
+              name: sub2,
+              total: 0,
+              children: new Map(),
+            });
           const sub2Node = sub1Node.children.get(sub2);
           sub2Node.total += count;
           if (sub3) {
-            if (!sub2Node.children.has(sub3)) sub2Node.children.set(sub3, { name: sub3, total: 0, children: new Map() });
+            if (!sub2Node.children.has(sub3))
+              sub2Node.children.set(sub3, {
+                name: sub3,
+                total: 0,
+                children: new Map(),
+              });
             sub2Node.children.get(sub3).total += count;
           }
         }
@@ -1056,7 +1189,11 @@ async function readSapCategoryTreeAsync(log) {
     }
 
     function serializeNode(node) {
-      return { name: node.name, total: node.total, children: Array.from(node.children.values()).map(serializeNode) };
+      return {
+        name: node.name,
+        total: node.total,
+        children: Array.from(node.children.values()).map(serializeNode),
+      };
     }
 
     return {
@@ -1066,7 +1203,9 @@ async function readSapCategoryTreeAsync(log) {
       categories: Array.from(catMap.values()).map(serializeNode),
     };
   } finally {
-    try { conn.disconnect(); } catch {}
+    try {
+      conn.disconnect();
+    } catch {}
   }
 }
 

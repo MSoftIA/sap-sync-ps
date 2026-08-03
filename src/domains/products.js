@@ -49,7 +49,9 @@ function roundDiff(value) {
 }
 
 function normalizeName(str) {
-  return String(str || "").trim().toLowerCase();
+  return String(str || "")
+    .trim()
+    .toLowerCase();
 }
 
 function hasMetadataValue(value) {
@@ -73,6 +75,10 @@ function hasWritableMetadata(article) {
   return Object.values(getWritableMetadata(article)).some((value) =>
     hasMetadataValue(value),
   );
+}
+
+function hasImageCandidate(article) {
+  return hasMetadataValue(article.metadata && article.metadata.pictureName);
 }
 
 function buildMetrics(article, inspection) {
@@ -107,6 +113,7 @@ function buildMetrics(article, inspection) {
     isStockEqual,
     isNameEqual,
     hasWritableMetadata: hasWritableMetadata(article),
+    hasImageCandidate: hasImageCandidate(article),
   };
 }
 
@@ -118,6 +125,7 @@ function buildSyncPlan(status, metrics, isCombination) {
       syncStock: true,
       syncName: true,
       syncMetadata: true,
+      syncImage: metrics.hasImageCandidate,
       reason: "missing_in_prestashop",
     };
   }
@@ -129,6 +137,7 @@ function buildSyncPlan(status, metrics, isCombination) {
       syncStock: metrics.isStockEqual === false,
       syncName: false,
       syncMetadata: false,
+      syncImage: false,
       reason: "combination_requires_review",
     };
   }
@@ -141,6 +150,7 @@ function buildSyncPlan(status, metrics, isCombination) {
         syncStock: false,
         syncName: true,
         syncMetadata: metrics.hasWritableMetadata,
+        syncImage: metrics.hasImageCandidate,
         reason: "name_mismatch",
       };
     }
@@ -151,7 +161,19 @@ function buildSyncPlan(status, metrics, isCombination) {
         syncStock: false,
         syncName: false,
         syncMetadata: true,
+        syncImage: metrics.hasImageCandidate,
         reason: "metadata_from_sap",
+      };
+    }
+    if (metrics.hasImageCandidate) {
+      return {
+        action: "update_product_image",
+        syncPrice: false,
+        syncStock: false,
+        syncName: false,
+        syncMetadata: false,
+        syncImage: true,
+        reason: "image_from_sap",
       };
     }
     return {
@@ -160,6 +182,7 @@ function buildSyncPlan(status, metrics, isCombination) {
       syncStock: false,
       syncName: false,
       syncMetadata: false,
+      syncImage: false,
       reason: "already_in_sync",
     };
   }
@@ -168,6 +191,7 @@ function buildSyncPlan(status, metrics, isCombination) {
   const syncStock = metrics.isStockEqual === false;
   const syncName = !metrics.isNameEqual;
   const syncMetadata = metrics.hasWritableMetadata;
+  const syncImage = metrics.hasImageCandidate;
 
   let action = "update_product";
   if (syncPrice && syncStock) {
@@ -184,6 +208,7 @@ function buildSyncPlan(status, metrics, isCombination) {
     syncStock,
     syncName,
     syncMetadata,
+    syncImage,
     reason: "existing_product_diff",
   };
 }
@@ -226,6 +251,7 @@ function buildResultRow(article, inspection) {
     syncStock: syncPlan.syncStock,
     syncName: syncPlan.syncName,
     syncMetadata: syncPlan.syncMetadata,
+    syncImage: syncPlan.syncImage,
     blockedReason: "",
     payloadSummary: "",
     actionPayload: {},
@@ -457,6 +483,7 @@ async function runProductDomain(log) {
             syncStock: true,
             syncName: true,
             syncMetadata: true,
+            syncImage: hasImageCandidate(article),
             blockedReason: "",
             payloadSummary: "",
             actionPayload: {},
@@ -536,7 +563,8 @@ async function runProductDomain(log) {
           itemCode: article.itemCode,
           sapName: article.itemName,
           psName: inspection.name,
-          isEqual: normalizeName(article.itemName) === normalizeName(inspection.name),
+          isEqual:
+            normalizeName(article.itemName) === normalizeName(inspection.name),
         });
 
         const planningStartedAt = Date.now();
@@ -551,6 +579,7 @@ async function runProductDomain(log) {
           syncStock: row.syncStock,
           syncName: row.syncName,
           syncMetadata: row.syncMetadata,
+          syncImage: row.syncImage,
           metadataFromSap: {
             longDescription: hasMetadataValue(row.sapLongDescription),
             shortDescription: hasMetadataValue(row.sapShortDescription),
@@ -603,6 +632,7 @@ async function runProductDomain(log) {
           syncStock: false,
           syncName: false,
           syncMetadata: false,
+          syncImage: false,
           blockedReason: "",
           payloadSummary: "",
           actionPayload: {},
