@@ -17,6 +17,7 @@
     "test:hana": "node scripts/test-hana.js",
     "sap:categories": "node scripts/sap-categories.js",
     "sap:udf": "node scripts/sap-udf-inspect.js",
+    "sap:images": "node scripts/sap-image-locator.js",
     "sap:tree": "node scripts/sap-category-tree.js",
     "sap:utables": "node scripts/sap-user-tables.js",
     "lint": "prettier --check \"*.js\" \"src/**/*.js\" \"scripts/**/*.js\"",
