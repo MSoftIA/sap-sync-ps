@@ -1025,6 +1025,61 @@ summary {
   font-weight: 800;
 }
 
+.sap-detail-row td {
+  background: #f8fafc;
+  border-top: 0;
+  padding: 0 16px 16px;
+}
+
+.sap-detail-panel {
+  border: 1px solid #d8e1ec;
+  border-radius: 8px;
+  background: white;
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.sap-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.sap-detail-grid div,
+.sap-detail-text {
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #fbfdff;
+  min-width: 0;
+}
+
+.sap-detail-grid span,
+.sap-detail-text span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.sap-detail-grid strong {
+  display: block;
+  color: var(--text);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.sap-detail-text p {
+  color: var(--text);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
 .pagination {
   display: flex;
   align-items: center;

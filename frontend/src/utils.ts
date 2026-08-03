@@ -59,7 +59,8 @@ export function fmtDateShort(iso: string | null | undefined): string {
 
 const PREFERRED_LOG_KEYS = [
   'itemCode', 'reference', 'productId', 'action', 'status',
-  'details', 'payloadSummary', 'sapPrice', 'prestashopProductPrice',
+  'syncMetadata', 'details', 'payloadSummary', 'fields', 'metadataFromSap',
+  'sapPrice', 'prestashopProductPrice',
   'sapStock', 'childSapLimit', 'effectiveSapLimit',
 ]
 

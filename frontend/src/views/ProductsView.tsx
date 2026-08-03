@@ -7,6 +7,7 @@ import { LogBox } from '../components/LogBox'
 import type { LogEntry } from '../components/LogBox'
 import { Tag } from '../components/Tag'
 import { startSyncStream, stopSync } from '../api/sync'
+import { parseLogLine } from '../utils'
 
 export function ProductsView() {
   const { writeMode, setWriteMode, syncRunning, setSyncRunning } = useAppContext()
@@ -33,14 +34,8 @@ export function ProductsView() {
       try {
         const msg = JSON.parse(String(event.data))
         if (msg.type === 'log' && msg.line) {
-          try {
-            const d = JSON.parse(msg.line)
-            const level = String(d.level ?? 'info')
-            const cls: LogEntry['cls'] = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'info'
-            setLog(prev => [...prev.slice(-499), { text: `[${level.toUpperCase()}] ${d.message}`, cls }])
-          } catch {
-            setLog(prev => [...prev.slice(-499), { text: msg.line, cls: 'info' }])
-          }
+          const parsed = parseLogLine(String(msg.line))
+          setLog(prev => [...prev.slice(-499), { text: parsed.text, cls: parsed.cls }])
         }
         if (msg.type === 'done') {
           es.close()

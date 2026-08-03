@@ -151,7 +151,9 @@ function buildSapProductListQuery({
       'I."ItemCode", I."ItemName", P."AddPrice1" AS "Price", ' +
       'C."WhsCode", C."OnHand" AS "Existencia", I."CodeBars", ' +
       'I."validFor" AS "Status", I."ItmsGrpCod" AS "ItemGroupCode", ' +
-      'COALESCE(CAT."Name", I."U_Categoria") AS "CatName" ' +
+      'COALESCE(CAT."Name", I."U_Categoria") AS "CatName", ' +
+      'I."UserText", I."U_Desc_Logistica", I."FirmCode", I."SuppCatNum", ' +
+      'I."SalUnitMsr", I."SalPackUn", I."SWeight1", I."PicturName" ' +
       'FROM "' +
       schema +
       '"."OITM" I ' +
@@ -258,14 +260,10 @@ function mapSapRow(row) {
 }
 
 function mapSapProductListRow(row) {
+  const { raw, ...article } = mapSapRow(row);
+
   return {
-    itemCode: row.ItemCode,
-    itemName: row.ItemName,
-    price: Number(row.Price),
-    warehouse: row.WhsCode,
-    stock: Number(row.Existencia),
-    barcode: row.CodeBars || null,
-    status: row.Status,
+    ...article,
     itemGroupCode:
       row.ItemGroupCode === null || row.ItemGroupCode === undefined
         ? null

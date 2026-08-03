@@ -27,9 +27,23 @@ export interface SapArticle {
   itemCode?: string;
   itemName?: string;
   price?: number;
+  warehouse?: string;
   stock?: number;
+  barcode?: string | null;
   status?: string;
+  itemGroupCode?: number | null;
   category?: string | null;
+  metadata?: {
+    longDescription?: string;
+    shortDescription?: string;
+    manufacturerCode?: number | null;
+    manufacturerCatalogNumber?: string;
+    salesUnit?: string;
+    unitsPerPackage?: number | null;
+    weight?: number | null;
+    barcode?: string;
+    pictureName?: string;
+  };
   error?: string;
 }
 

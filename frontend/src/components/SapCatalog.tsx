@@ -7,7 +7,7 @@ import { Tag } from './Tag'
 import { money, fmt } from '../utils'
 
 type StatusFilter = 'all' | 'active' | 'inactive'
-type StockFilter  = 'all' | 'with'   | 'without'
+type StockFilter = 'all' | 'with' | 'without'
 
 const PAGE_SIZE = 50
 
@@ -28,6 +28,7 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [stockFilter, setStockFilter] = useState<StockFilter>('all')
   const [page, setPage] = useState(1)
+  const [expandedItemCode, setExpandedItemCode] = useState<string | null>(null)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -69,8 +70,15 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
     }, 350)
   }
 
-  function onStatus(v: StatusFilter) { setStatusFilter(v); setPage(1) }
-  function onStock(v: StockFilter)   { setStockFilter(v);  setPage(1) }
+  function onStatus(v: StatusFilter) {
+    setStatusFilter(v)
+    setPage(1)
+  }
+
+  function onStock(v: StockFilter) {
+    setStockFilter(v)
+    setPage(1)
+  }
 
   function clearFilters() {
     setSearchInput('')
@@ -84,10 +92,10 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
     return (
       <div className="card">
         <EmptyState
-          icon="○"
-          title="Catálogo no cargado"
-          description="Cargá la lista de artículos para poder explorar, filtrar y buscar en el catálogo SAP."
-          action={{ label: 'Cargar catálogo', onClick: startLoad }}
+          icon="o"
+          title="Catalogo no cargado"
+          description="Carga la lista de articulos para explorar, filtrar y buscar en el catalogo SAP."
+          action={{ label: 'Cargar catalogo', onClick: startLoad }}
         />
       </div>
     )
@@ -98,7 +106,7 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
       <div className="card">
         <div className="catalog-loading-overlay">
           <span className="spinner-dark" />
-          Cargando artículos...
+          Cargando articulos...
         </div>
         <div style={{ display: 'grid', gap: 10, marginTop: 8 }}>
           {Array.from({ length: 8 }).map((_, i) => (
@@ -114,7 +122,7 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
       <div className="card">
         <EmptyState
           icon="!"
-          title="Error al cargar el catálogo"
+          title="Error al cargar el catalogo"
           description={error}
           action={{ label: 'Reintentar', onClick: () => fetchPage({ page, search, status: statusFilter, stock: stockFilter }) }}
         />
@@ -127,6 +135,7 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
   const safePage = pagination?.page ?? page
   const pageStart = total === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1
   const pageEnd = Math.min(safePage * PAGE_SIZE, total)
+  const baseColSpan = onSyncItem ? 8 : 7
 
   return (
     <>
@@ -134,20 +143,20 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
         <input
           className="catalog-search"
           type="search"
-          placeholder="Buscar por código o nombre..."
+          placeholder="Buscar por codigo o nombre..."
           value={searchInput}
           onChange={e => onSearchInput(e.target.value)}
         />
 
         <div className="catalog-filter-group">
-          <button type="button" className={statusFilter === 'all'      ? 'active' : ''} onClick={() => onStatus('all')}>Todos</button>
-          <button type="button" className={statusFilter === 'active'   ? 'active' : ''} onClick={() => onStatus('active')}>Activos</button>
+          <button type="button" className={statusFilter === 'all' ? 'active' : ''} onClick={() => onStatus('all')}>Todos</button>
+          <button type="button" className={statusFilter === 'active' ? 'active' : ''} onClick={() => onStatus('active')}>Activos</button>
           <button type="button" className={statusFilter === 'inactive' ? 'active' : ''} onClick={() => onStatus('inactive')}>Inactivos</button>
         </div>
 
         <div className="catalog-filter-group">
-          <button type="button" className={stockFilter === 'all'     ? 'active' : ''} onClick={() => onStock('all')}>Todo stock</button>
-          <button type="button" className={stockFilter === 'with'    ? 'active' : ''} onClick={() => onStock('with')}>Con stock</button>
+          <button type="button" className={stockFilter === 'all' ? 'active' : ''} onClick={() => onStock('all')}>Todo stock</button>
+          <button type="button" className={stockFilter === 'with' ? 'active' : ''} onClick={() => onStock('with')}>Con stock</button>
           <button type="button" className={stockFilter === 'without' ? 'active' : ''} onClick={() => onStock('without')}>Sin stock</button>
         </div>
 
@@ -169,15 +178,15 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
           ? 'Cargando...'
           : total === 0
             ? 'Sin resultados para los filtros aplicados.'
-            : `Mostrando ${pageStart}–${pageEnd} de ${fmt(total)} artículo(s)`}
+            : `Mostrando ${pageStart}-${pageEnd} de ${fmt(total)} articulo(s)`}
       </div>
 
       {!loading && total === 0 ? (
         <div className="card">
           <EmptyState
-            icon="○"
+            icon="o"
             title="Sin resultados"
-            description="Probá ajustando la búsqueda o los filtros."
+            description="Proba ajustando la busqueda o los filtros."
             action={{ label: 'Limpiar filtros', onClick: clearFilters }}
           />
         </div>
@@ -187,13 +196,14 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
             <table>
               <thead>
                 <tr>
-                  <th scope="col">Código</th>
+                  <th scope="col">Codigo</th>
                   <th scope="col">Nombre</th>
-                  <th scope="col">Categoría</th>
+                  <th scope="col">Categoria</th>
                   <th scope="col" style={{ textAlign: 'right' }}>Precio</th>
                   <th scope="col" style={{ textAlign: 'right' }}>Stock</th>
                   <th scope="col">Estado</th>
                   {onSyncItem && <th scope="col" style={{ width: 80 }} />}
+                  <th scope="col" style={{ width: 96 }} />
                 </tr>
               </thead>
               <tbody>
@@ -201,41 +211,23 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
                   const inactive = a.status !== 'Y'
                   const zeroStock = (a.stock ?? 0) === 0
                   const isSyncing = syncingItemCode === a.itemCode
+                  const isExpanded = expandedItemCode === a.itemCode
+                  const metadata = a.metadata ?? {}
+
                   return (
-                    <tr key={a.itemCode} className={inactive ? 'row-inactive' : ''}>
-                      <td style={{ fontFamily: 'Consolas, monospace', fontSize: '0.88rem' }}>
-                        {a.itemCode ?? '—'}
-                      </td>
-                      <td>{a.itemName ?? '—'}</td>
-                      <td style={{ color: a.category ? undefined : 'var(--muted)', fontSize: '0.85rem' }}>
-                        {a.category ?? '—'}
-                      </td>
-                      <td style={{ textAlign: 'right', fontWeight: 700 }}>{money(a.price)}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        <span className={zeroStock && !inactive ? 'stock-zero' : ''}>
-                          {fmt(a.stock) ?? '0'}
-                        </span>
-                      </td>
-                      <td>
-                        <Tag tone={inactive ? 'gray' : 'green'}>
-                          {inactive ? 'Inactivo' : 'Activo'}
-                        </Tag>
-                      </td>
-                      {onSyncItem && (
-                        <td>
-                          <button
-                            type="button"
-                            className="btn-secondary"
-                            style={{ padding: '3px 10px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 5 }}
-                            disabled={!!syncingItemCode}
-                            onClick={() => a.itemCode && onSyncItem(a.itemCode)}
-                          >
-                            {isSyncing && <span className="spinner-dark" style={{ width: 10, height: 10 }} />}
-                            {isSyncing ? 'Sync...' : 'Sync'}
-                          </button>
-                        </td>
-                      )}
-                    </tr>
+                    <FragmentRow
+                      key={a.itemCode}
+                      article={a}
+                      inactive={inactive}
+                      zeroStock={zeroStock}
+                      isSyncing={isSyncing}
+                      isExpanded={isExpanded}
+                      metadata={metadata}
+                      onSyncItem={onSyncItem}
+                      syncingItemCode={syncingItemCode}
+                      baseColSpan={baseColSpan}
+                      onToggle={() => setExpandedItemCode(isExpanded ? null : a.itemCode ?? null)}
+                    />
                   )
                 })}
               </tbody>
@@ -244,7 +236,7 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
 
           <div className="pagination">
             <div className="section-note">
-              {fmt(total)} artículo(s) total
+              {fmt(total)} articulo(s) total
             </div>
             <div className="pagination-controls">
               <button
@@ -253,7 +245,7 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
                 disabled={!pagination?.hasPreviousPage || loading}
                 onClick={() => setPage(p => p - 1)}
               >
-                ← Anterior
+                Anterior
               </button>
               <span className="pagination-label">
                 {safePage} / {totalPages}
@@ -264,11 +256,113 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
                 disabled={!pagination?.hasNextPage || loading}
                 onClick={() => setPage(p => p + 1)}
               >
-                Siguiente →
+                Siguiente
               </button>
             </div>
           </div>
         </>
+      )}
+    </>
+  )
+}
+
+interface FragmentRowProps {
+  article: SapArticle
+  inactive: boolean
+  zeroStock: boolean
+  isSyncing: boolean
+  isExpanded: boolean
+  metadata: NonNullable<SapArticle['metadata']>
+  onSyncItem?: (itemCode: string) => void
+  syncingItemCode?: string | null
+  baseColSpan: number
+  onToggle: () => void
+}
+
+function FragmentRow({
+  article,
+  inactive,
+  zeroStock,
+  isSyncing,
+  isExpanded,
+  metadata,
+  onSyncItem,
+  syncingItemCode,
+  baseColSpan,
+  onToggle,
+}: FragmentRowProps) {
+  return (
+    <>
+      <tr className={inactive ? 'row-inactive' : ''}>
+        <td style={{ fontFamily: 'Consolas, monospace', fontSize: '0.88rem' }}>
+          {article.itemCode ?? '-'}
+        </td>
+        <td>{article.itemName ?? '-'}</td>
+        <td style={{ color: article.category ? undefined : 'var(--muted)', fontSize: '0.85rem' }}>
+          {article.category ?? '-'}
+        </td>
+        <td style={{ textAlign: 'right', fontWeight: 700 }}>{money(article.price)}</td>
+        <td style={{ textAlign: 'right' }}>
+          <span className={zeroStock && !inactive ? 'stock-zero' : ''}>
+            {fmt(article.stock) ?? '0'}
+          </span>
+        </td>
+        <td>
+          <Tag tone={inactive ? 'gray' : 'green'}>
+            {inactive ? 'Inactivo' : 'Activo'}
+          </Tag>
+        </td>
+        {onSyncItem && (
+          <td>
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ padding: '3px 10px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 5 }}
+              disabled={!!syncingItemCode}
+              onClick={() => article.itemCode && onSyncItem(article.itemCode)}
+            >
+              {isSyncing && <span className="spinner-dark" style={{ width: 10, height: 10 }} />}
+              {isSyncing ? 'Sync...' : 'Sync'}
+            </button>
+          </td>
+        )}
+        <td>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{ padding: '3px 10px', fontSize: '0.8rem' }}
+            onClick={onToggle}
+          >
+            {isExpanded ? 'Ocultar' : 'Detalle'}
+          </button>
+        </td>
+      </tr>
+      {isExpanded && (
+        <tr className="sap-detail-row">
+          <td colSpan={baseColSpan}>
+            <div className="sap-detail-panel">
+              <div className="sap-detail-grid">
+                <div><span>Almacen</span><strong>{fmt(article.warehouse)}</strong></div>
+                <div><span>Grupo SAP</span><strong>{fmt(article.itemGroupCode)}</strong></div>
+                <div><span>Codigo barras</span><strong>{fmt(article.barcode ?? metadata.barcode)}</strong></div>
+                <div><span>MPN suplidor</span><strong>{fmt(metadata.manufacturerCatalogNumber)}</strong></div>
+                <div><span>Marca SAP</span><strong>{fmt(metadata.manufacturerCode)}</strong></div>
+                <div><span>Unidad venta</span><strong>{fmt(metadata.salesUnit)}</strong></div>
+                <div><span>Unid. paquete</span><strong>{fmt(metadata.unitsPerPackage)}</strong></div>
+                <div><span>Peso</span><strong>{fmt(metadata.weight)}</strong></div>
+                <div><span>Imagen SAP</span><strong>{fmt(metadata.pictureName)}</strong></div>
+              </div>
+              <div className="sap-detail-text">
+                <span>Descripcion larga SAP</span>
+                <p>{fmt(metadata.longDescription)}</p>
+              </div>
+              <div className="sap-detail-text">
+                <span>Descripcion corta / logistica SAP</span>
+                <p>{fmt(metadata.shortDescription)}</p>
+              </div>
+            </div>
+          </td>
+        </tr>
       )}
     </>
   )
