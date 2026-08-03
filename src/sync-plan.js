@@ -134,6 +134,21 @@ function buildPayloadSummary(action, payload) {
     if (payload.product.defaultCategoryId !== undefined) {
       parts.push("defaultCategoryId=" + payload.product.defaultCategoryId);
     }
+    if (payload.product.description !== undefined) {
+      parts.push("description=SAP");
+    }
+    if (payload.product.descriptionShort !== undefined) {
+      parts.push("descriptionShort=SAP");
+    }
+    if (payload.product.mpn !== undefined) {
+      parts.push("mpn=" + payload.product.mpn);
+    }
+    if (payload.product.ean13 !== undefined) {
+      parts.push("ean13=" + payload.product.ean13);
+    }
+    if (payload.product.weight !== undefined) {
+      parts.push("weight=" + payload.product.weight);
+    }
   }
 
   if (payload.stockAvailable) {
