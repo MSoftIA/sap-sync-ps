@@ -23,6 +23,8 @@ test("incluye campos de metadata POC en la query principal de articulos", () => 
   assert.match(query.sql, /I\."SWeight1"/);
   assert.match(query.sql, /I\."PicturName"/);
   assert.match(query.sql, /D\."BitmapPath"/);
+  assert.doesNotMatch(query.sql, /MAX\(D\."BitmapPath"\)/);
+  assert.match(query.sql, /TO_NVARCHAR\(D\."BitmapPath"\)/);
 });
 
 test("permite filtrar articulos SAP con categoria asignada", () => {

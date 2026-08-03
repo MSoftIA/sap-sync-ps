@@ -59,9 +59,9 @@ function buildArticleQuery({ schema, priceList, warehouse, itemCode, limit }) {
       'C."WhsCode", C."OnHand" AS "Existencia", I."CodeBars", I."validFor" AS "Status", ' +
       'I."FrgnName", I."UserText", I."U_Desc_Logistica", I."FirmCode", I."SuppCatNum", ' +
       'I."SalUnitMsr", I."SalPackUn", I."SWeight1", I."PicturName", ' +
-      '(SELECT MAX(D."BitmapPath") FROM "' +
+      '(SELECT TO_NVARCHAR(D."BitmapPath") FROM "' +
       schema +
-      '"."OADP" D WHERE D."BitmapPath" IS NOT NULL AND TRIM(D."BitmapPath") <> \'\') AS "BitmapPath" ' +
+      '"."OADP" D WHERE D."BitmapPath" IS NOT NULL AND TRIM(TO_NVARCHAR(D."BitmapPath")) <> \'\' LIMIT 1) AS "BitmapPath" ' +
       'FROM "' +
       schema +
       '"."OITM" I ' +
@@ -173,9 +173,9 @@ function buildSapProductListQuery({
       'COALESCE(CAT."Name", I."U_Categoria") AS "CatName", ' +
       'I."FrgnName", I."UserText", I."U_Desc_Logistica", I."FirmCode", I."SuppCatNum", ' +
       'I."SalUnitMsr", I."SalPackUn", I."SWeight1", I."PicturName", ' +
-      '(SELECT MAX(D."BitmapPath") FROM "' +
+      '(SELECT TO_NVARCHAR(D."BitmapPath") FROM "' +
       schema +
-      '"."OADP" D WHERE D."BitmapPath" IS NOT NULL AND TRIM(D."BitmapPath") <> \'\') AS "BitmapPath" ' +
+      '"."OADP" D WHERE D."BitmapPath" IS NOT NULL AND TRIM(TO_NVARCHAR(D."BitmapPath")) <> \'\' LIMIT 1) AS "BitmapPath" ' +
       'FROM "' +
       schema +
       '"."OITM" I ' +
