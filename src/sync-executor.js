@@ -327,8 +327,8 @@ function getConfiguredImageExtensions() {
     .map((value) => (value.startsWith(".") ? value : "." + value));
 }
 
-function resolveSapImagePath(pictureName) {
-  const imageDir = String(env("SAP_IMAGE_DIR", "")).trim();
+function resolveSapImagePath(pictureName, fallbackImageDir = "") {
+  const imageDir = String(env("SAP_IMAGE_DIR", "") || fallbackImageDir).trim();
   const rawPictureName = String(pictureName || "").trim();
 
   if (!rawPictureName) {
@@ -410,7 +410,7 @@ async function syncProductImageFromSap(
     return { status: "already_has_image" };
   }
 
-  const resolved = resolveSapImagePath(row.sapPictureName);
+  const resolved = resolveSapImagePath(row.sapPictureName, row.sapImageDir);
   if (resolved.status !== "found") {
     log("warn", "Imagen SAP no subida", {
       itemCode: row.itemCode,

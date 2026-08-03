@@ -14,6 +14,7 @@ test("incluye campos de metadata POC en la query principal de articulos", () => 
   });
 
   assert.match(query.sql, /I\."UserText"/);
+  assert.match(query.sql, /I\."FrgnName"/);
   assert.match(query.sql, /I\."U_Desc_Logistica"/);
   assert.match(query.sql, /I\."FirmCode"/);
   assert.match(query.sql, /I\."SuppCatNum"/);
@@ -21,6 +22,7 @@ test("incluye campos de metadata POC en la query principal de articulos", () => 
   assert.match(query.sql, /I\."SalPackUn"/);
   assert.match(query.sql, /I\."SWeight1"/);
   assert.match(query.sql, /I\."PicturName"/);
+  assert.match(query.sql, /D\."BitmapPath"/);
 });
 
 test("permite filtrar articulos SAP con categoria asignada", () => {
@@ -63,17 +65,20 @@ test("mapea metadata SAP para nutrir la prueba de concepto de PrestaShop", () =>
     Status: "Y",
     UserText: "Descripcion larga",
     U_Desc_Logistica: "Caja de 12",
+    FrgnName: "Foreign demo name",
     FirmCode: "7",
     SuppCatNum: "MPN-1",
     SalUnitMsr: "Caja",
     SalPackUn: "12",
     SWeight1: "1.25",
     PicturName: "ABC.jpg",
+    BitmapPath: "\\\\hanab1\\B1_SHF\\Adjunto\\Imagenes\\FOTOS\\",
   });
 
   assert.deepEqual(article.metadata, {
     longDescription: "Descripcion larga",
     shortDescription: "Caja de 12",
+    foreignName: "Foreign demo name",
     manufacturerCode: 7,
     manufacturerCatalogNumber: "MPN-1",
     salesUnit: "Caja",
@@ -81,6 +86,7 @@ test("mapea metadata SAP para nutrir la prueba de concepto de PrestaShop", () =>
     weight: 1.25,
     barcode: "1234567890123",
     pictureName: "ABC.jpg",
+    imageDir: "\\\\hanab1\\B1_SHF\\Adjunto\\Imagenes\\FOTOS\\",
   });
 });
 
@@ -156,4 +162,36 @@ test("usa la descripcion logistica como fallback visible si SAP no trae UserText
 
   assert.equal(result.payload.product.description, "Caja de 12");
   assert.equal(result.payload.product.descriptionShort, "Caja de 12");
+});
+
+test("usa FrgnName como fallback de descripcion cuando SAP no trae textos dedicados", () => {
+  const article = mapSapRow({
+    ItemCode: "ABC",
+    ItemName: "Producto demo",
+    Price: "10.5",
+    WhsCode: "AC01",
+    Existencia: "4",
+    Status: "Y",
+    UserText: "",
+    U_Desc_Logistica: "",
+    FrgnName: "UNIVERSAL BORDEAUX GLASS 23oz",
+  });
+  const result = buildActionPayload(
+    {
+      action: "update_product_metadata",
+      productId: 10,
+      productReference: "ABC",
+      syncMetadata: true,
+    },
+    article,
+  );
+
+  assert.equal(
+    result.payload.product.description,
+    "UNIVERSAL BORDEAUX GLASS 23oz",
+  );
+  assert.equal(
+    result.payload.product.descriptionShort,
+    "UNIVERSAL BORDEAUX GLASS 23oz",
+  );
 });

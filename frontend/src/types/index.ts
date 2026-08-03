@@ -36,6 +36,7 @@ export interface SapArticle {
   metadata?: {
     longDescription?: string;
     shortDescription?: string;
+    foreignName?: string;
     manufacturerCode?: number | null;
     manufacturerCatalogNumber?: string;
     salesUnit?: string;
@@ -43,6 +44,7 @@ export interface SapArticle {
     weight?: number | null;
     barcode?: string;
     pictureName?: string;
+    imageDir?: string;
   };
   error?: string;
 }
@@ -92,24 +94,24 @@ export interface PaginationMeta {
 }
 
 export interface PsCategory {
-  id: number
-  parentId: number
-  active: string
-  name: string
+  id: number;
+  parentId: number;
+  active: string;
+  name: string;
 }
 
 export interface SapCategoryNode {
-  name: string
-  total: number
-  children: SapCategoryNode[]
+  name: string;
+  total: number;
+  children: SapCategoryNode[];
 }
 
 export interface SapCategoryTree {
-  totalProducts: number
-  categorized: number
-  uncategorized: number
-  categories: SapCategoryNode[]
-  error?: string
+  totalProducts: number;
+  categorized: number;
+  uncategorized: number;
+  categories: SapCategoryNode[];
+  error?: string;
 }
 
 export type View = "sync" | "products" | "categories" | "automation";

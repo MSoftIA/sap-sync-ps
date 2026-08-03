@@ -57,8 +57,11 @@ function buildArticleQuery({ schema, priceList, warehouse, itemCode, limit }) {
       "SELECT " +
       'I."ItemCode", I."ItemName", P."AddPrice1" AS "Price", ' +
       'C."WhsCode", C."OnHand" AS "Existencia", I."CodeBars", I."validFor" AS "Status", ' +
-      'I."UserText", I."U_Desc_Logistica", I."FirmCode", I."SuppCatNum", ' +
-      'I."SalUnitMsr", I."SalPackUn", I."SWeight1", I."PicturName" ' +
+      'I."FrgnName", I."UserText", I."U_Desc_Logistica", I."FirmCode", I."SuppCatNum", ' +
+      'I."SalUnitMsr", I."SalPackUn", I."SWeight1", I."PicturName", ' +
+      '(SELECT MAX(D."BitmapPath") FROM "' +
+      schema +
+      '"."OADP" D WHERE D."BitmapPath" IS NOT NULL AND TRIM(D."BitmapPath") <> \'\') AS "BitmapPath" ' +
       'FROM "' +
       schema +
       '"."OITM" I ' +
@@ -168,8 +171,11 @@ function buildSapProductListQuery({
       'C."WhsCode", C."OnHand" AS "Existencia", I."CodeBars", ' +
       'I."validFor" AS "Status", I."ItmsGrpCod" AS "ItemGroupCode", ' +
       'COALESCE(CAT."Name", I."U_Categoria") AS "CatName", ' +
-      'I."UserText", I."U_Desc_Logistica", I."FirmCode", I."SuppCatNum", ' +
-      'I."SalUnitMsr", I."SalPackUn", I."SWeight1", I."PicturName" ' +
+      'I."FrgnName", I."UserText", I."U_Desc_Logistica", I."FirmCode", I."SuppCatNum", ' +
+      'I."SalUnitMsr", I."SalPackUn", I."SWeight1", I."PicturName", ' +
+      '(SELECT MAX(D."BitmapPath") FROM "' +
+      schema +
+      '"."OADP" D WHERE D."BitmapPath" IS NOT NULL AND TRIM(D."BitmapPath") <> \'\') AS "BitmapPath" ' +
       'FROM "' +
       schema +
       '"."OITM" I ' +
@@ -243,9 +249,14 @@ function connectSap(conn, log, config) {
 }
 
 function mapSapRow(row) {
+  const userText = String(row.UserText || "").trim();
+  const logisticDescription = String(row.U_Desc_Logistica || "").trim();
+  const foreignName = String(row.FrgnName || "").trim();
+
   const metadata = {
-    longDescription: row.UserText || "",
-    shortDescription: row.U_Desc_Logistica || "",
+    longDescription: userText || foreignName,
+    shortDescription: logisticDescription || foreignName,
+    foreignName,
     manufacturerCode:
       row.FirmCode === null || row.FirmCode === undefined
         ? null
@@ -262,6 +273,7 @@ function mapSapRow(row) {
         : Number(row.SWeight1),
     barcode: row.CodeBars || "",
     pictureName: row.PicturName || "",
+    imageDir: row.BitmapPath || "",
   };
 
   return {

@@ -514,6 +514,14 @@ function FragmentRow({
                   <span>Imagen SAP</span>
                   <strong>{fmt(metadata.pictureName)}</strong>
                 </div>
+                <div>
+                  <span>Ruta imagen SAP</span>
+                  <strong>{fmt(metadata.imageDir)}</strong>
+                </div>
+                <div>
+                  <span>Nombre extranjero</span>
+                  <strong>{fmt(metadata.foreignName)}</strong>
+                </div>
               </div>
               <div className="sap-detail-text">
                 <span>Descripcion larga SAP</span>

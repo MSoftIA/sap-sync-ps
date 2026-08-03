@@ -219,6 +219,7 @@ function buildMetadataReportFields(article) {
   return {
     sapLongDescription: metadata.longDescription || "",
     sapShortDescription: metadata.shortDescription || "",
+    sapForeignName: metadata.foreignName || "",
     sapManufacturerCode: metadata.manufacturerCode ?? null,
     sapManufacturerCatalogNumber: metadata.manufacturerCatalogNumber || "",
     sapSalesUnit: metadata.salesUnit || "",
@@ -226,6 +227,7 @@ function buildMetadataReportFields(article) {
     sapWeight: metadata.weight ?? null,
     sapBarcode: metadata.barcode || article.barcode || "",
     sapPictureName: metadata.pictureName || "",
+    sapImageDir: metadata.imageDir || "",
   };
 }
 
@@ -589,6 +591,7 @@ async function runProductDomain(log) {
             barcode: hasMetadataValue(row.sapBarcode),
             weight: hasMetadataValue(row.sapWeight),
             pictureName: hasMetadataValue(row.sapPictureName),
+            imageDir: hasMetadataValue(row.sapImageDir),
           },
           blockedReason: row.blockedReason || null,
           payloadSummary: row.payloadSummary,
