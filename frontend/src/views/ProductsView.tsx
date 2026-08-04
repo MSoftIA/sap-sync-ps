@@ -18,9 +18,15 @@ export function ProductsView() {
   const [stopRequested, setStopRequested] = useState(false);
   const [syncingItemCode, setSyncingItemCode] = useState<string | null>(null);
   const [logOpen, setLogOpen] = useState(false);
+  const [syncTiming, setSyncTiming] = useState<{
+    label: string;
+    startedAt: number;
+    elapsedMs: number;
+    running: boolean;
+  } | null>(null);
+  const [timerNow, setTimerNow] = useState(Date.now());
   const esRef = useRef<EventSource | null>(null);
 
-  // Close EventSource and reset global syncRunning on unmount
   useEffect(() => {
     return () => {
       if (esRef.current) {
@@ -30,6 +36,56 @@ export function ProductsView() {
       }
     };
   }, [setSyncRunning]);
+
+  useEffect(() => {
+    if (!syncTiming?.running) return;
+
+    const id = window.setInterval(() => {
+      setTimerNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(id);
+  }, [syncTiming?.running]);
+
+  const activeElapsedMs =
+    syncTiming?.running && syncTiming.startedAt
+      ? timerNow - syncTiming.startedAt
+      : (syncTiming?.elapsedMs ?? 0);
+
+  function formatElapsed(ms: number) {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
+    }
+
+    return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+  }
+
+  function startTiming(label: string) {
+    const startedAt = Date.now();
+    setTimerNow(startedAt);
+    setSyncTiming({
+      label,
+      startedAt,
+      elapsedMs: 0,
+      running: true,
+    });
+  }
+
+  function finishTiming() {
+    setSyncTiming((current) => {
+      if (!current || !current.running) return current;
+      return {
+        ...current,
+        elapsedMs: Date.now() - current.startedAt,
+        running: false,
+      };
+    });
+  }
 
   function attachHandlers(es: EventSource, label: string, onDone: () => void) {
     es.onmessage = (event) => {
@@ -45,6 +101,7 @@ export function ProductsView() {
         if (msg.type === "done") {
           es.close();
           esRef.current = null;
+          finishTiming();
           onDone();
           addToast({ message: `${label} completado.`, kind: "success" });
         }
@@ -53,6 +110,7 @@ export function ProductsView() {
     es.onerror = () => {
       es.close();
       esRef.current = null;
+      finishTiming();
       onDone();
       addToast({ message: `Error en ${label}.`, kind: "error" });
     };
@@ -64,6 +122,7 @@ export function ProductsView() {
     setSyncRunning(true);
     setLog([]);
     setLogOpen(false);
+    startTiming("Sync masivo de productos");
 
     const es = startSyncStream({
       write: writeMode,
@@ -99,6 +158,7 @@ export function ProductsView() {
     setSyncRunning(true);
     setLog([]);
     setLogOpen(false);
+    startTiming(`Sync de ${itemCode}`);
 
     const es = startSyncStream({
       write: writeMode,
@@ -161,6 +221,19 @@ export function ProductsView() {
           </div>
         </div>
 
+        {syncTiming && (
+          <div className="sync-timing-card">
+            <div>
+              <span>{syncTiming.running ? "Midiendo" : "Ultima duracion"}</span>
+              <strong>{syncTiming.label}</strong>
+            </div>
+            <div className="sync-timing-value">
+              {syncTiming.running && <span className="spinner-dark" />}
+              {formatElapsed(activeElapsedMs)}
+            </div>
+          </div>
+        )}
+
         <div
           className="section-header"
           style={{
@@ -202,6 +275,12 @@ export function ProductsView() {
                 {syncing || syncingItemCode ? "Sync en curso" : "Ultimo log"}
               </strong>
               <span>{log.length} linea(s)</span>
+              {syncTiming && (
+                <span>
+                  {syncTiming.running ? "Tiempo" : "Duracion"}:{" "}
+                  {formatElapsed(activeElapsedMs)}
+                </span>
+              )}
             </div>
             <button
               className="btn-secondary"

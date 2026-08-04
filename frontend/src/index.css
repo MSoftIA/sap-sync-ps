@@ -569,6 +569,49 @@ a.btn-secondary {
   font-size: 0.82rem;
 }
 
+.sync-timing-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.sync-timing-card div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.sync-timing-card span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.sync-timing-card strong {
+  font-size: 0.95rem;
+}
+
+.sync-timing-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border: 1px solid #ccd6e3;
+  border-radius: 10px;
+  background: white;
+  color: var(--text);
+  font-family: Consolas, monospace;
+  font-size: 0.9rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .log-line {
   margin-bottom: 6px;
   white-space: pre-wrap;
