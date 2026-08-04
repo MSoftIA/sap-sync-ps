@@ -2,7 +2,12 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { env } = require("./env");
 const { findProductIdsByReference } = require("./prestashop");
-const { parseAnyIdList } = require("./xml");
+const {
+  parseAnyIdList,
+  parseXmlBlocks,
+  xmlLanguageText,
+  xmlText,
+} = require("./xml");
 
 function isWriteEnabled() {
   return String(env("SYNC_WRITE", "false")).toLowerCase() === "true";
@@ -73,6 +78,15 @@ function removeTag(xml, tagName) {
     "g",
   );
   return xml.replace(tagPattern, "");
+}
+
+function normalizeKey(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function setLanguageTagValue(xml, tagName, value, fallbackLanguageId = 1) {
@@ -258,7 +272,88 @@ async function findStockAvailableId(client, productId, productAttributeId = 0) {
   return ids[0] || null;
 }
 
-function buildPutProductXml(existingXml, payload = {}) {
+function buildProductFeatureAssociationsXml(featureRefs) {
+  return (
+    '      <product_features nodeType="product_feature" api="product_features">\n' +
+    featureRefs
+      .map(
+        (feature) =>
+          "        <product_feature>\n" +
+          "          <id>" +
+          cdata(feature.featureId) +
+          "</id>\n" +
+          "          <id_feature_value>" +
+          cdata(feature.featureValueId) +
+          "</id_feature_value>\n" +
+          "        </product_feature>",
+      )
+      .join("\n") +
+    "\n      </product_features>"
+  );
+}
+
+function upsertProductFeatureAssociations(xml, featureRefs = []) {
+  const validFeatureRefs = featureRefs.filter(
+    (feature) => feature.featureId && feature.featureValueId,
+  );
+
+  if (validFeatureRefs.length === 0) {
+    return xml;
+  }
+
+  const targetFeatureIds = new Set(
+    validFeatureRefs.map((feature) => Number(feature.featureId)),
+  );
+  const associationsMatch = xml.match(
+    /<associations(?:\s[^>]*)?>([\s\S]*?)<\/associations>/,
+  );
+  const nextFeatureBlocks = validFeatureRefs.map(
+    (feature) =>
+      "        <product_feature>\n" +
+      "          <id>" +
+      cdata(feature.featureId) +
+      "</id>\n" +
+      "          <id_feature_value>" +
+      cdata(feature.featureValueId) +
+      "</id_feature_value>\n" +
+      "        </product_feature>",
+  );
+
+  if (!associationsMatch) {
+    return xml.replace(
+      /<\/product>/,
+      "    <associations>\n" +
+        buildProductFeatureAssociationsXml(validFeatureRefs) +
+        "\n    </associations>\n  </product>",
+    );
+  }
+
+  const associationsInner = associationsMatch[1];
+  const productFeaturesPattern =
+    /<product_features(?:\s[^>]*)?>[\s\S]*?<\/product_features>/;
+  const productFeaturesMatch = associationsInner.match(productFeaturesPattern);
+
+  if (!productFeaturesMatch) {
+    const updatedAssociations = associationsInner.replace(
+      /\s*$/,
+      "\n" + buildProductFeatureAssociationsXml(validFeatureRefs) + "\n    ",
+    );
+    return xml.replace(associationsInner, updatedAssociations);
+  }
+
+  const existingFeatureBlocks = parseXmlBlocks(
+    productFeaturesMatch[0],
+    "product_feature",
+  ).filter((block) => !targetFeatureIds.has(Number(xmlText(block, "id"))));
+  const updatedProductFeatures =
+    '      <product_features nodeType="product_feature" api="product_features">\n' +
+    [...existingFeatureBlocks, ...nextFeatureBlocks].join("\n") +
+    "\n      </product_features>";
+
+  return xml.replace(productFeaturesMatch[0], updatedProductFeatures);
+}
+
+function buildPutProductXml(existingXml, payload = {}, featureRefs = []) {
   let xml = existingXml;
   xml = removeTag(xml, "manufacturer_name");
   xml = removeTag(xml, "quantity");
@@ -327,6 +422,8 @@ function buildPutProductXml(existingXml, payload = {}) {
     xml = setTagValue(xml, "active", payload.active);
   }
 
+  xml = upsertProductFeatureAssociations(xml, featureRefs);
+
   return xml;
 }
 
@@ -364,6 +461,10 @@ function getConfiguredImageExtensions() {
 }
 
 let suspendedImageUploads = null;
+const featureCache = {
+  byName: null,
+  valuesByFeatureId: new Map(),
+};
 
 function detectImageUploadError(error) {
   const body = String(error.responseBody || "");
@@ -380,6 +481,212 @@ function detectImageUploadError(error) {
     reason: "prestashop_upload_error",
     suspendUploads: false,
   };
+}
+
+function parsePrestaFeatureList(xml) {
+  return parseXmlBlocks(xml, "product_feature")
+    .map((block) => ({
+      id: Number(xmlText(block, "id") || 0),
+      name: xmlLanguageText(block, "name"),
+    }))
+    .filter((feature) => feature.id > 0 && feature.name);
+}
+
+function parsePrestaFeatureValueList(xml) {
+  return parseXmlBlocks(xml, "product_feature_value")
+    .map((block) => ({
+      id: Number(xmlText(block, "id") || 0),
+      featureId: Number(xmlText(block, "id_feature") || 0),
+      value: xmlLanguageText(block, "value"),
+    }))
+    .filter((featureValue) => featureValue.id > 0 && featureValue.value);
+}
+
+async function loadFeatureCache(client) {
+  if (featureCache.byName) {
+    return featureCache.byName;
+  }
+
+  const features = new Map();
+  let offset = 0;
+  const batchSize = 250;
+
+  while (true) {
+    const xml = await client.get("product_features", {
+      display: "full",
+      limit: `${offset},${batchSize}`,
+    });
+    const batch = parsePrestaFeatureList(xml);
+
+    for (const feature of batch) {
+      features.set(normalizeKey(feature.name), feature);
+    }
+
+    if (batch.length < batchSize) {
+      break;
+    }
+
+    offset += batchSize;
+  }
+
+  featureCache.byName = features;
+  return features;
+}
+
+async function ensureProductFeature(client, name, languageId, log) {
+  const features = await loadFeatureCache(client);
+  const key = normalizeKey(name);
+  const existing = features.get(key);
+
+  if (existing) {
+    return existing;
+  }
+
+  const xml =
+    '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<prestashop xmlns:xlink="http://www.w3.org/1999/xlink">\n' +
+    "  <product_feature>\n" +
+    "    <name>\n" +
+    `      <language id="${escapeXml(languageId)}">${cdata(name)}</language>\n` +
+    "    </name>\n" +
+    "  </product_feature>\n" +
+    "</prestashop>";
+  const responseXml = await client.post("product_features", xml, {
+    display: "[id]",
+  });
+  const id = parseAnyIdList(responseXml, "product_feature")[0] || null;
+
+  if (!id) {
+    throw new Error("No se pudo crear la caracteristica PrestaShop: " + name);
+  }
+
+  const created = { id, name };
+  features.set(key, created);
+  log("info", "Caracteristica PrestaShop creada", { featureId: id, name });
+  return created;
+}
+
+async function loadFeatureValueCache(client, featureId) {
+  if (featureCache.valuesByFeatureId.has(featureId)) {
+    return featureCache.valuesByFeatureId.get(featureId);
+  }
+
+  const values = new Map();
+  let offset = 0;
+  const batchSize = 250;
+
+  while (true) {
+    const xml = await client.get("product_feature_values", {
+      display: "full",
+      "filter[id_feature]": featureId,
+      limit: `${offset},${batchSize}`,
+    });
+    const batch = parsePrestaFeatureValueList(xml);
+
+    for (const featureValue of batch) {
+      values.set(normalizeKey(featureValue.value), featureValue);
+    }
+
+    if (batch.length < batchSize) {
+      break;
+    }
+
+    offset += batchSize;
+  }
+
+  featureCache.valuesByFeatureId.set(featureId, values);
+  return values;
+}
+
+async function ensureProductFeatureValue(
+  client,
+  featureId,
+  value,
+  languageId,
+  log,
+) {
+  const values = await loadFeatureValueCache(client, featureId);
+  const key = normalizeKey(value);
+  const existing = values.get(key);
+
+  if (existing) {
+    return existing;
+  }
+
+  const xml =
+    '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<prestashop xmlns:xlink="http://www.w3.org/1999/xlink">\n' +
+    "  <product_feature_value>\n" +
+    "    <id_feature>" +
+    cdata(featureId) +
+    "</id_feature>\n" +
+    "    <custom>" +
+    cdata(0) +
+    "</custom>\n" +
+    "    <value>\n" +
+    `      <language id="${escapeXml(languageId)}">${cdata(value)}</language>\n` +
+    "    </value>\n" +
+    "  </product_feature_value>\n" +
+    "</prestashop>";
+  const responseXml = await client.post("product_feature_values", xml, {
+    display: "[id]",
+  });
+  const id = parseAnyIdList(responseXml, "product_feature_value")[0] || null;
+
+  if (!id) {
+    throw new Error(
+      "No se pudo crear el valor de caracteristica PrestaShop: " + value,
+    );
+  }
+
+  const created = { id, featureId, value };
+  values.set(key, created);
+  log("info", "Valor de caracteristica PrestaShop creado", {
+    featureId,
+    featureValueId: id,
+    value,
+  });
+  return created;
+}
+
+async function resolveSapProductFeatureRefs(client, product, log) {
+  const sapFeatures = Array.isArray(product.sapFeatures)
+    ? product.sapFeatures
+    : [];
+  const languageId = product.languageId || 1;
+  const refs = [];
+
+  for (const feature of sapFeatures) {
+    const name = String(feature.name || "").trim();
+    const value = String(feature.value || "").trim();
+
+    if (!name || !value) {
+      continue;
+    }
+
+    const prestaFeature = await ensureProductFeature(
+      client,
+      name,
+      languageId,
+      log,
+    );
+    const prestaFeatureValue = await ensureProductFeatureValue(
+      client,
+      prestaFeature.id,
+      value,
+      languageId,
+      log,
+    );
+
+    refs.push({
+      featureId: prestaFeature.id,
+      featureValueId: prestaFeatureValue.id,
+      name,
+      value,
+    });
+  }
+
+  return refs;
 }
 
 function resolveSapImagePath(pictureName, fallbackImageDir = "") {
@@ -669,6 +976,35 @@ async function executeSyncAction(client, row, log) {
       stockId: stockId || null,
     });
 
+    if (
+      row.actionPayload &&
+      row.actionPayload.product &&
+      Array.isArray(row.actionPayload.product.sapFeatures) &&
+      row.actionPayload.product.sapFeatures.length > 0
+    ) {
+      const featureRefs = await resolveSapProductFeatureRefs(
+        client,
+        row.actionPayload.product,
+        log,
+      );
+      if (featureRefs.length > 0) {
+        const existingProductXml = await client.get("products/" + productId);
+        const productXml = buildPutProductXml(
+          existingProductXml,
+          {},
+          featureRefs,
+        );
+        await client.put("products/" + productId, productXml, {
+          display: "[id]",
+        });
+        log("info", "Caracteristicas SAP asociadas al producto", {
+          itemCode: row.itemCode,
+          productId,
+          features: featureRefs.length,
+        });
+      }
+    }
+
     await syncProductImageFromSap(client, row, productId, null, log);
 
     return {
@@ -701,9 +1037,19 @@ async function executeSyncAction(client, row, log) {
     existingProductXmlForImage = existingProductXml;
 
     if (row.action !== "update_product_image") {
+      const featureRefs =
+        Array.isArray(row.actionPayload.product.sapFeatures) &&
+        row.actionPayload.product.sapFeatures.length > 0
+          ? await resolveSapProductFeatureRefs(
+              client,
+              row.actionPayload.product,
+              log,
+            )
+          : [];
       const productXml = buildPutProductXml(
         existingProductXml,
         row.actionPayload.product,
+        featureRefs,
       );
       log("info", "Actualizando ficha de producto en PrestaShop", {
         itemCode: row.itemCode,
@@ -725,6 +1071,7 @@ async function executeSyncAction(client, row, log) {
             row.actionPayload.product.weight !== null,
           metaTitle: Boolean(row.actionPayload.product.metaTitle),
           metaDescription: Boolean(row.actionPayload.product.metaDescription),
+          sapFeatures: featureRefs.length,
         },
       });
       await client.put("products/" + row.productId, productXml, {

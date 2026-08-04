@@ -148,6 +148,17 @@ test("incluye metadata SAP en payload de actualizacion PrestaShop", () => {
       weight: 1.25,
       metaTitle: "Foreign demo name",
       metaDescription: "Descripcion larga",
+      sapFeatures: [
+        { name: "Codigo SAP", value: "ABC" },
+        { name: "Codigo de barras", value: "1234567890123" },
+        { name: "Referencia proveedor", value: "MPN-1" },
+        { name: "Nombre internacional", value: "Foreign demo name" },
+        { name: "Categoria SAP", value: "Copas" },
+        { name: "Grupo SAP", value: "Cristaleria" },
+        { name: "Unidad de venta", value: "Caja" },
+        { name: "Unidades por paquete", value: "12" },
+        { name: "Peso", value: "1.25" },
+      ],
     });
   } finally {
     if (previousLanguage === undefined) {

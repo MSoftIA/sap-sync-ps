@@ -77,6 +77,10 @@ function buildProductMetadata(article) {
     ["Unidades por paquete", metadata.unitsPerPackage],
     ["Peso", metadata.weight],
   ].filter(([, value]) => textValue(value));
+  const sapFeatures = technicalRows.map(([name, value]) => ({
+    name,
+    value: textValue(value),
+  }));
 
   const technicalHtml =
     technicalRows.length > 0
@@ -129,6 +133,7 @@ function buildProductMetadata(article) {
     longDescription || shortDescription || article.itemName,
     160,
   );
+  productMetadata.sapFeatures = sapFeatures;
 
   return productMetadata;
 }
@@ -225,6 +230,12 @@ function buildPayloadSummary(action, payload) {
     }
     if (payload.product.metaDescription !== undefined) {
       parts.push("metaDescription=SAP");
+    }
+    if (
+      Array.isArray(payload.product.sapFeatures) &&
+      payload.product.sapFeatures.length > 0
+    ) {
+      parts.push("featuresSAP=" + payload.product.sapFeatures.length);
     }
   }
 
