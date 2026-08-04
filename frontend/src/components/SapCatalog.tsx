@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import type { ReactNode } from "react";
 import type { SapArticle, PaginationMeta } from "../types";
 import { getSapProducts } from "../api/sap";
 import { Skeleton } from "./Skeleton";
@@ -170,7 +171,7 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
 
   return (
     <>
-      <div className="catalog-toolbar">
+      <div className="catalog-toolbar catalog-filter-panel">
         <input
           className="catalog-search"
           type="search"
@@ -179,76 +180,78 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
           onChange={(e) => onSearchInput(e.target.value)}
         />
 
-        <div className="catalog-filter-group">
-          <button
-            type="button"
-            className={statusFilter === "all" ? "active" : ""}
-            onClick={() => onStatus("all")}
-          >
-            Todos
-          </button>
-          <button
-            type="button"
-            className={statusFilter === "active" ? "active" : ""}
-            onClick={() => onStatus("active")}
-          >
-            Visibles PS
-          </button>
-          <button
-            type="button"
-            className={statusFilter === "inactive" ? "active" : ""}
-            onClick={() => onStatus("inactive")}
-          >
-            No visibles PS
-          </button>
-        </div>
+        <div className="catalog-filter-row">
+          <FilterSet label="Visibilidad">
+            <button
+              type="button"
+              className={statusFilter === "all" ? "active" : ""}
+              onClick={() => onStatus("all")}
+            >
+              Todos
+            </button>
+            <button
+              type="button"
+              className={statusFilter === "active" ? "active" : ""}
+              onClick={() => onStatus("active")}
+            >
+              Visibles PS
+            </button>
+            <button
+              type="button"
+              className={statusFilter === "inactive" ? "active" : ""}
+              onClick={() => onStatus("inactive")}
+            >
+              No visibles PS
+            </button>
+          </FilterSet>
 
-        <div className="catalog-filter-group">
-          <button
-            type="button"
-            className={stockFilter === "all" ? "active" : ""}
-            onClick={() => onStock("all")}
-          >
-            Todo stock
-          </button>
-          <button
-            type="button"
-            className={stockFilter === "with" ? "active" : ""}
-            onClick={() => onStock("with")}
-          >
-            Con stock
-          </button>
-          <button
-            type="button"
-            className={stockFilter === "without" ? "active" : ""}
-            onClick={() => onStock("without")}
-          >
-            Sin stock
-          </button>
-        </div>
+          <FilterSet label="Stock">
+            <button
+              type="button"
+              className={stockFilter === "all" ? "active" : ""}
+              onClick={() => onStock("all")}
+            >
+              Todo
+            </button>
+            <button
+              type="button"
+              className={stockFilter === "with" ? "active" : ""}
+              onClick={() => onStock("with")}
+            >
+              Con stock
+            </button>
+            <button
+              type="button"
+              className={stockFilter === "without" ? "active" : ""}
+              onClick={() => onStock("without")}
+            >
+              Sin stock
+            </button>
+          </FilterSet>
 
-        <div className="catalog-filter-group">
-          <button
-            type="button"
-            className={categoryFilter === "all" ? "active" : ""}
-            onClick={() => onCategory("all")}
-          >
-            Toda categoria
-          </button>
-          <button
-            type="button"
-            className={categoryFilter === "with" ? "active" : ""}
-            onClick={() => onCategory("with")}
-          >
-            Con categoria
-          </button>
-          <button
-            type="button"
-            className={categoryFilter === "without" ? "active" : ""}
-            onClick={() => onCategory("without")}
-          >
-            Sin categoria
-          </button>
+          <FilterSet label="Categoria">
+            <button
+              type="button"
+              className={categoryFilter === "all" ? "active" : ""}
+              onClick={() => onCategory("all")}
+            >
+              Todas
+            </button>
+            <button
+              type="button"
+              className={categoryFilter === "with" ? "active" : ""}
+              onClick={() => onCategory("with")}
+            >
+              Con categoria
+            </button>
+            <button
+              type="button"
+              className={categoryFilter === "without" ? "active" : ""}
+              onClick={() => onCategory("without")}
+            >
+              Sin categoria
+            </button>
+          </FilterSet>
         </div>
 
         <button
@@ -327,7 +330,7 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
               </thead>
               <tbody>
                 {items.map((a) => {
-                  const inactive = a.status !== "Y";
+                  const inactive = a.shouldShowInPrestashop !== true;
                   const zeroStock = (a.stock ?? 0) === 0;
                   const isSyncing = syncingItemCode === a.itemCode;
                   const isExpanded = expandedItemCode === a.itemCode;
@@ -384,6 +387,21 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
         </>
       )}
     </>
+  );
+}
+
+function FilterSet({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="catalog-filter-set">
+      <span className="catalog-filter-label">{label}</span>
+      <div className="catalog-filter-group">{children}</div>
+    </div>
   );
 }
 
@@ -444,11 +462,9 @@ function FragmentRow({
         <td>
           <div className="tag-stack">
             <Tag tone={inactive ? "gray" : "green"}>
-              {inactive ? "Inactivo" : "Activo"}
+              {inactive ? "Inactivo PS" : "Activo PS"}
             </Tag>
-            <Tag tone={article.shouldShowInPrestashop ? "green" : "gray"}>
-              PS {article.shouldShowInPrestashop ? "si" : "no"}
-            </Tag>
+            {article.status !== "Y" && <Tag tone="gray">SAP inactivo</Tag>}
           </div>
         </td>
         {onSyncItem && (

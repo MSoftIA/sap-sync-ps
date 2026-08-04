@@ -303,7 +303,10 @@ function mapSapRow(row) {
     barcode: row.CodeBars || null,
     status: row.Status,
     prestashopVisibility: row.QryGroup64 || "",
-    shouldShowInPrestashop: row.Status === "Y" && row.QryGroup64 !== "N",
+    shouldShowInPrestashop:
+      String(row.QryGroup64 || "")
+        .trim()
+        .toUpperCase() === "Y",
     metadata,
     raw: row,
   };

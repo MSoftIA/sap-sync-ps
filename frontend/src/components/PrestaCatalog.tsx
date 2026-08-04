@@ -155,7 +155,7 @@ export function PrestaCatalog() {
 
   return (
     <>
-      <div className="catalog-toolbar">
+      <div className="catalog-toolbar catalog-filter-panel">
         <input
           className="catalog-search"
           type="search"
@@ -164,28 +164,33 @@ export function PrestaCatalog() {
           onChange={(e) => onSearchInput(e.target.value)}
         />
 
-        <div className="catalog-filter-group">
-          <button
-            type="button"
-            className={statusFilter === "all" ? "active" : ""}
-            onClick={() => onStatus("all")}
-          >
-            Todos
-          </button>
-          <button
-            type="button"
-            className={statusFilter === "active" ? "active" : ""}
-            onClick={() => onStatus("active")}
-          >
-            Activos
-          </button>
-          <button
-            type="button"
-            className={statusFilter === "inactive" ? "active" : ""}
-            onClick={() => onStatus("inactive")}
-          >
-            Inactivos
-          </button>
+        <div className="catalog-filter-row">
+          <div className="catalog-filter-set">
+            <span className="catalog-filter-label">Estado PS</span>
+            <div className="catalog-filter-group">
+              <button
+                type="button"
+                className={statusFilter === "all" ? "active" : ""}
+                onClick={() => onStatus("all")}
+              >
+                Todos
+              </button>
+              <button
+                type="button"
+                className={statusFilter === "active" ? "active" : ""}
+                onClick={() => onStatus("active")}
+              >
+                Activos
+              </button>
+              <button
+                type="button"
+                className={statusFilter === "inactive" ? "active" : ""}
+                onClick={() => onStatus("inactive")}
+              >
+                Inactivos
+              </button>
+            </div>
+          </div>
         </div>
 
         <button

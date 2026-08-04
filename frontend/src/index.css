@@ -494,6 +494,81 @@ a.btn-secondary {
   box-shadow: var(--shadow);
 }
 
+.log-dock {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  width: min(520px, calc(100vw - 32px));
+  padding: 12px 14px 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.2);
+  transform: translateX(-50%);
+}
+
+.log-dock div {
+  display: grid;
+  gap: 2px;
+}
+
+.log-dock strong {
+  font-size: 0.9rem;
+}
+
+.log-dock span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.log-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.log-modal {
+  display: grid;
+  gap: 14px;
+  width: min(1080px, 100%);
+  max-height: min(820px, calc(100vh - 48px));
+  padding: 18px;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 26px 70px rgba(15, 23, 42, 0.28);
+}
+
+.log-modal .log-box {
+  min-height: 360px;
+  max-height: calc(100vh - 190px);
+}
+
+.log-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.log-modal-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.log-modal-header span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 .log-line {
   margin-bottom: 6px;
   white-space: pre-wrap;
@@ -1097,6 +1172,14 @@ summary {
   margin-bottom: 12px;
 }
 
+.catalog-filter-panel {
+  align-items: stretch;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
 .catalog-search {
   flex: 1;
   min-width: 200px;
@@ -1110,6 +1193,26 @@ summary {
 .catalog-search:focus {
   outline: none;
   border-color: var(--primary);
+}
+
+.catalog-filter-row {
+  display: flex;
+  flex: 999;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.catalog-filter-set {
+  display: grid;
+  gap: 5px;
+}
+
+.catalog-filter-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .catalog-filter-group {

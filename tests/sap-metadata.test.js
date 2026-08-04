@@ -216,7 +216,7 @@ test("usa QryGroup64 para determinar visibilidad PrestaShop", () => {
     Price: "10.5",
     WhsCode: "AC01",
     Existencia: "4",
-    Status: "Y",
+    Status: "N",
     QryGroup64: "Y",
   });
 

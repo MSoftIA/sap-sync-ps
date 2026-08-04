@@ -4,7 +4,7 @@ const {
   hasPrestaConfig,
   inspectProductByReferenceCached,
 } = require("../prestashop");
-const { numberEnv } = require("../env");
+const { env, numberEnv } = require("../env");
 const { readSapArticles } = require("../sap");
 const { executeSyncAction, isWriteEnabled } = require("../sync-executor");
 const { buildActionPayload, shouldShowInPrestashop } = require("../sync-plan");
@@ -86,7 +86,34 @@ function hasImageCandidate(article) {
   return hasMetadataValue(article.metadata && article.metadata.pictureName);
 }
 
-function buildMetrics(article, inspection) {
+function boolEnv(name, fallback) {
+  const raw = env(name, fallback ? "true" : "false");
+  return ["1", "true", "yes", "y", "si", "s"].includes(
+    String(raw).trim().toLowerCase(),
+  );
+}
+
+function shouldSyncMetadataInCurrentRun() {
+  if (!boolEnv("SYNC_METADATA", true)) {
+    return false;
+  }
+
+  if (String(env("SAP_ITEM_CODE", "")).trim()) {
+    return true;
+  }
+
+  return boolEnv("SYNC_METADATA_FULL_CATALOG", false);
+}
+
+function shouldVerifyExistingImagesInCurrentRun() {
+  if (String(env("SAP_ITEM_CODE", "")).trim()) {
+    return true;
+  }
+
+  return boolEnv("SYNC_IMAGES_VERIFY_FULL_CATALOG", false);
+}
+
+function buildMetrics(article, inspection, options = {}) {
   const selectedPrice =
     inspection.bestMatch.kind === "combination"
       ? inspection.bestMatch.combination.price
@@ -111,6 +138,8 @@ function buildMetrics(article, inspection) {
   const desiredActive = shouldShowInPrestashop(article) ? "1" : "0";
   const isActiveEqual = String(inspection.active) === desiredActive;
 
+  const hasExistingDefaultImage = Boolean(inspection.defaultImageId);
+
   return {
     selectedPrice,
     selectedStock,
@@ -121,8 +150,13 @@ function buildMetrics(article, inspection) {
     isNameEqual,
     isActiveEqual,
     desiredActive,
-    hasWritableMetadata: hasWritableMetadata(article),
-    hasImageCandidate: hasImageCandidate(article),
+    hasWritableMetadata:
+      options.syncMetadataEnabled === false
+        ? false
+        : hasWritableMetadata(article),
+    hasImageCandidate:
+      hasImageCandidate(article) &&
+      (options.verifyExistingImages !== false || !hasExistingDefaultImage),
   };
 }
 
@@ -265,9 +299,9 @@ function buildMetadataReportFields(article) {
   };
 }
 
-function buildResultRow(article, inspection) {
+function buildResultRow(article, inspection, options = {}) {
   const isCombination = inspection.bestMatch.kind === "combination";
-  const metrics = buildMetrics(article, inspection);
+  const metrics = buildMetrics(article, inspection, options);
   const needsReview =
     isCombination ||
     !metrics.isPriceEqual ||
@@ -354,7 +388,7 @@ function getSyncConcurrency() {
     return Math.max(1, Math.floor(configured));
   }
 
-  return isWriteEnabled() ? 2 : 6;
+  return isWriteEnabled() ? 4 : 8;
 }
 
 function createProductMetrics() {
@@ -449,11 +483,15 @@ async function runProductDomain(log) {
   const domainStartedAt = Date.now();
   const metrics = createProductMetrics();
   const syncConcurrency = getSyncConcurrency();
+  const syncMetadataEnabled = shouldSyncMetadataInCurrentRun();
+  const verifyExistingImages = shouldVerifyExistingImagesInCurrentRun();
 
   log("info", "Dominio products iniciado", {
     writeEnabled: isWriteEnabled(),
     sourceOfTruth: "sap",
     syncConcurrency,
+    syncMetadataEnabled,
+    verifyExistingImages,
   });
 
   const articles = readSapArticles(log);
@@ -464,6 +502,8 @@ async function runProductDomain(log) {
     mode: isWriteEnabled() ? "write" : "dry_run",
     total: totalArticles,
     syncConcurrency,
+    syncMetadataEnabled,
+    verifyExistingImages,
   });
 
   if (!hasPrestaConfig()) {
@@ -605,7 +645,10 @@ async function runProductDomain(log) {
         });
 
         const planningStartedAt = Date.now();
-        const row = buildResultRow(article, inspection);
+        const row = buildResultRow(article, inspection, {
+          syncMetadataEnabled,
+          verifyExistingImages,
+        });
         applyMetadataCoverage(metrics, article);
         metrics.phaseMs.planning += Date.now() - planningStartedAt;
 

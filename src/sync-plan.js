@@ -42,7 +42,11 @@ function shouldShowInPrestashop(article) {
     return article.shouldShowInPrestashop;
   }
 
-  return article.status === "Y" && article.prestashopVisibility !== "N";
+  return (
+    String(article.prestashopVisibility || "")
+      .trim()
+      .toUpperCase() === "Y"
+  );
 }
 
 function buildCreatePayload(article, defaults) {
