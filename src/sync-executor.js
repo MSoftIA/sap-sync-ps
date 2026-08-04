@@ -466,11 +466,30 @@ async function syncProductImageFromSap(
     imageFile: path.basename(resolved.imagePath),
   });
 
-  await client.postImage(
-    "images/products/" + productId,
-    resolved.imagePath,
-    resolved.mimeType,
-  );
+  try {
+    await client.postImage(
+      "images/products/" + productId,
+      resolved.imagePath,
+      resolved.mimeType,
+    );
+  } catch (error) {
+    const message = String(error.message || "");
+    const reason = message.includes("tempnam")
+      ? "prestashop_temp_file_error"
+      : "prestashop_upload_error";
+
+    log("warn", "Imagen SAP no subida por error de PrestaShop", {
+      itemCode: row.itemCode,
+      productId,
+      reason,
+      status: error.status || null,
+      sapPictureName: resolved.pictureName,
+      imageFile: path.basename(resolved.imagePath),
+      message: message.slice(0, 500),
+    });
+
+    return { status: reason, error: message };
+  }
 
   log("info", "Imagen subida a PrestaShop", {
     itemCode: row.itemCode,
@@ -677,16 +696,6 @@ async function executeSyncAction(client, row, log) {
     }
   }
 
-  if (row.syncImage && row.productId) {
-    await syncProductImageFromSap(
-      client,
-      row,
-      row.productId,
-      existingProductXmlForImage,
-      log,
-    );
-  }
-
   // Name update: always via minimal XML, never inside the price PUT
   if (
     row.syncName &&
@@ -790,6 +799,16 @@ async function executeSyncAction(client, row, log) {
       row.actionPayload.stockAvailable.quantity,
     );
     await client.put("stock_availables/" + stockId, stockXml);
+  }
+
+  if (row.syncImage && row.productId) {
+    await syncProductImageFromSap(
+      client,
+      row,
+      row.productId,
+      existingProductXmlForImage,
+      log,
+    );
   }
 
   log("info", "Accion aplicada en PrestaShop", {
