@@ -431,18 +431,82 @@ function buildPutStockXml(existingXml, quantity) {
   return setTagValue(existingXml, "quantity", quantity);
 }
 
-function hasProductImages(productXml) {
-  const defaultImageMatch = String(productXml || "").match(
-    /<id_default_image(?:\s[^>]*)?><!\[CDATA\[(.*?)\]\]><\/id_default_image>/,
-  );
-  const defaultImageId = defaultImageMatch ? Number(defaultImageMatch[1]) : 0;
+function getProductImageIds(productXml) {
+  const ids = new Set();
+  const defaultImageId = Number(xmlText(productXml || "", "id_default_image"));
 
-  return (
-    defaultImageId > 0 ||
-    /<images\b[\s\S]*?<image\b[\s\S]*?<\/image>[\s\S]*?<\/images>/i.test(
-      String(productXml || ""),
-    )
-  );
+  if (defaultImageId > 0) {
+    ids.add(defaultImageId);
+  }
+
+  for (const block of parseXmlBlocks(String(productXml || ""), "image")) {
+    const id = Number(xmlText(block, "id"));
+    if (id > 0) {
+      ids.add(id);
+    }
+  }
+
+  return [...ids];
+}
+
+function isMissingImageOnDiskError(error) {
+  const text =
+    String(error.message || "") + "\n" + String(error.responseBody || "");
+  return text.includes("This image does not exist on disk");
+}
+
+async function hasValidProductImages(client, productId, imageIds, row, log) {
+  let validImages = 0;
+  let removedBrokenImages = 0;
+
+  for (const imageId of imageIds) {
+    try {
+      await client.get("images/products/" + productId + "/" + imageId);
+      validImages += 1;
+    } catch (error) {
+      if (!isMissingImageOnDiskError(error)) {
+        log("warn", "No pude validar imagen existente en PrestaShop", {
+          itemCode: row.itemCode,
+          productId,
+          imageId,
+          status: error.status || null,
+          errorMessage: String(error.message || "").slice(0, 300),
+        });
+        validImages += 1;
+        continue;
+      }
+
+      log("warn", "Imagen PrestaShop rota detectada", {
+        itemCode: row.itemCode,
+        productId,
+        imageId,
+        reason: "prestashop_image_missing_on_disk",
+      });
+
+      try {
+        await client.delete("images/products/" + productId + "/" + imageId);
+        removedBrokenImages += 1;
+        log("info", "Imagen PrestaShop rota eliminada", {
+          itemCode: row.itemCode,
+          productId,
+          imageId,
+        });
+      } catch (deleteError) {
+        log("warn", "No pude eliminar imagen PrestaShop rota", {
+          itemCode: row.itemCode,
+          productId,
+          imageId,
+          status: deleteError.status || null,
+          errorMessage: String(deleteError.message || "").slice(0, 300),
+        });
+      }
+    }
+  }
+
+  return {
+    hasValidImages: validImages > 0,
+    removedBrokenImages,
+  };
 }
 
 function getImageMimeType(filePath) {
@@ -770,13 +834,31 @@ async function syncProductImageFromSap(
   const productXml =
     existingProductXml || (await client.get("products/" + productId));
 
-  if (hasProductImages(productXml)) {
-    log("info", "Imagen no subida: el producto ya tiene imagen", {
+  const imageIds = getProductImageIds(productXml);
+  if (imageIds.length > 0) {
+    const imageValidation = await hasValidProductImages(
+      client,
+      productId,
+      imageIds,
+      row,
+      log,
+    );
+
+    if (imageValidation.hasValidImages) {
+      log("info", "Imagen no subida: el producto ya tiene imagen", {
+        itemCode: row.itemCode,
+        productId,
+        sapPictureName: row.sapPictureName || "",
+        imageIds,
+      });
+      return { status: "already_has_image" };
+    }
+
+    log("info", "Reintentando imagen SAP por imagen PrestaShop rota", {
       itemCode: row.itemCode,
       productId,
-      sapPictureName: row.sapPictureName || "",
+      removedBrokenImages: imageValidation.removedBrokenImages,
     });
-    return { status: "already_has_image" };
   }
 
   const resolved = resolveSapImagePath(row.sapPictureName, row.sapImageDir);
