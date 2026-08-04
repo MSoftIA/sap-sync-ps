@@ -22,6 +22,7 @@ const {
 } = require("./src/sap");
 const { log } = require("./src/logger");
 const { listSyncDomains } = require("./src/sync-domains");
+const { resolveSapImagePath } = require("./src/sync-executor");
 const scheduler = require("./src/scheduler");
 
 const app = express();
@@ -285,11 +286,9 @@ app.get("/api/sap-products", async (req, res) => {
 
 app.get("/api/prestashop-categories", async (req, res) => {
   if (!hasPrestaConfig()) {
-    res
-      .status(400)
-      .json({
-        error: "PRESTASHOP_ENDPOINT o PRESTASHOP_API_KEY no configurados",
-      });
+    res.status(400).json({
+      error: "PRESTASHOP_ENDPOINT o PRESTASHOP_API_KEY no configurados",
+    });
     return;
   }
   try {
@@ -354,6 +353,82 @@ app.get("/api/prestashop-products", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+app.get("/api/sap-product-image", async (req, res) => {
+  const itemCode = String(req.query.itemCode || "").trim();
+
+  if (!itemCode) {
+    res.status(400).json({ error: "itemCode requerido" });
+    return;
+  }
+
+  try {
+    const article = await readSapArticleByCode(log, itemCode);
+    const metadata = article && article.metadata ? article.metadata : {};
+    const resolved = resolveSapImagePath(
+      metadata.pictureName,
+      metadata.imageDir,
+    );
+
+    if (!article || resolved.status !== "found") {
+      res.status(404).json({ error: "Imagen SAP no encontrada" });
+      return;
+    }
+
+    res.type(path.extname(resolved.imagePath));
+    res.sendFile(resolved.imagePath);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get(
+  "/api/prestashop-product-image/:productId/:imageId",
+  async (req, res) => {
+    const productId = Number(req.params.productId);
+    const imageId = Number(req.params.imageId);
+
+    if (!Number.isInteger(productId) || !Number.isInteger(imageId)) {
+      res.status(400).json({ error: "productId/imageId invalidos" });
+      return;
+    }
+
+    if (!hasPrestaConfig()) {
+      res.status(400).json({
+        error: "PRESTASHOP_ENDPOINT o PRESTASHOP_API_KEY no configurados",
+      });
+      return;
+    }
+
+    try {
+      const base = env("PRESTASHOP_ENDPOINT", "").replace(/\/+$/, "");
+      const url = new URL(
+        `${base}/api/images/products/${encodeURIComponent(
+          String(productId),
+        )}/${encodeURIComponent(String(imageId))}`,
+      );
+      url.searchParams.set("ws_key", env("PRESTASHOP_API_KEY", ""));
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        res
+          .status(response.status)
+          .json({ error: "Imagen PrestaShop no disponible" });
+        return;
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (contentType) {
+        res.type(contentType);
+      }
+
+      const body = Buffer.from(await response.arrayBuffer());
+      res.send(body);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
 
 app.get("/api/sync-domains", (req, res) => {
   res.json({

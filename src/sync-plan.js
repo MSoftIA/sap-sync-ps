@@ -37,6 +37,14 @@ function getSyncDefaults() {
   };
 }
 
+function shouldShowInPrestashop(article) {
+  if (typeof article.shouldShowInPrestashop === "boolean") {
+    return article.shouldShowInPrestashop;
+  }
+
+  return article.status === "Y" && article.prestashopVisibility !== "N";
+}
+
 function buildCreatePayload(article, defaults) {
   const metadata = buildProductMetadata(article);
 
@@ -45,7 +53,7 @@ function buildCreatePayload(article, defaults) {
       reference: article.itemCode,
       name: article.itemName,
       price: roundPrice(article.price),
-      active: article.status === "Y" ? 1 : 0,
+      active: shouldShowInPrestashop(article) ? 1 : 0,
       defaultCategoryId: defaults.defaultCategoryId,
       languageId: defaults.languageId,
       ...metadata,
@@ -143,11 +151,16 @@ function buildUpdatePayload(row, article, defaults) {
   const langId = defaults ? defaults.languageId : 1;
   const metadata = row.syncMetadata ? buildProductMetadata(article) : {};
 
-  if (row.syncPrice || row.syncMetadata) {
+  if (row.syncPrice || row.syncMetadata || row.syncActive) {
     payload.product = {
       id: row.productId,
       reference: row.productReference,
       price: row.syncPrice ? roundPrice(row.sapPrice) : undefined,
+      active: row.syncActive
+        ? shouldShowInPrestashop(article)
+          ? 1
+          : 0
+        : undefined,
       name: row.syncName && article ? article.itemName : undefined,
       languageId: langId,
       ...metadata,
@@ -203,6 +216,9 @@ function buildPayloadSummary(action, payload) {
     }
     if (payload.product.price !== undefined) {
       parts.push("price=" + payload.product.price);
+    }
+    if (payload.product.active !== undefined) {
+      parts.push("active=" + payload.product.active);
     }
     if (payload.product.defaultCategoryId !== undefined) {
       parts.push("defaultCategoryId=" + payload.product.defaultCategoryId);
@@ -267,7 +283,8 @@ function buildActionPayload(row, article) {
     row.action === "update_product_stock" ||
     row.action === "update_product_price_and_stock" ||
     row.action === "update_product_name" ||
-    row.action === "update_product_metadata"
+    row.action === "update_product_metadata" ||
+    row.action === "update_product_visibility"
   ) {
     payload = buildUpdatePayload(row, article, defaults);
   }
@@ -281,4 +298,5 @@ function buildActionPayload(row, article) {
 
 module.exports = {
   buildActionPayload,
+  shouldShowInPrestashop,
 };

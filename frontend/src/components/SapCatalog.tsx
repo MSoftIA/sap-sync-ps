@@ -166,7 +166,7 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
   const safePage = pagination?.page ?? page;
   const pageStart = total === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const pageEnd = Math.min(safePage * PAGE_SIZE, total);
-  const baseColSpan = onSyncItem ? 8 : 7;
+  const baseColSpan = onSyncItem ? 9 : 8;
 
   return (
     <>
@@ -309,6 +309,9 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
               <thead>
                 <tr>
                   <th scope="col">Codigo</th>
+                  <th scope="col" style={{ width: 64 }}>
+                    Imagen
+                  </th>
                   <th scope="col">Nombre</th>
                   <th scope="col">Categoria</th>
                   <th scope="col" style={{ textAlign: "right" }}>
@@ -415,6 +418,12 @@ function FragmentRow({
         <td style={{ fontFamily: "Consolas, monospace", fontSize: "0.88rem" }}>
           {article.itemCode ?? "-"}
         </td>
+        <td>
+          <ProductThumb
+            src={article.sapImageUrl}
+            alt={article.itemName || article.itemCode || "Imagen SAP"}
+          />
+        </td>
         <td>{article.itemName ?? "-"}</td>
         <td
           style={{
@@ -433,9 +442,14 @@ function FragmentRow({
           </span>
         </td>
         <td>
-          <Tag tone={inactive ? "gray" : "green"}>
-            {inactive ? "Inactivo" : "Activo"}
-          </Tag>
+          <div className="tag-stack">
+            <Tag tone={inactive ? "gray" : "green"}>
+              {inactive ? "Inactivo" : "Activo"}
+            </Tag>
+            <Tag tone={article.shouldShowInPrestashop ? "green" : "gray"}>
+              PS {article.shouldShowInPrestashop ? "si" : "no"}
+            </Tag>
+          </div>
         </td>
         {onSyncItem && (
           <td>
@@ -525,6 +539,16 @@ function FragmentRow({
                   <strong>{fmt(metadata.imageDir)}</strong>
                 </div>
                 <div>
+                  <span>QryGroup64</span>
+                  <strong>{fmt(article.prestashopVisibility)}</strong>
+                </div>
+                <div>
+                  <span>Visible en PrestaShop</span>
+                  <strong>
+                    {article.shouldShowInPrestashop ? "Si" : "No"}
+                  </strong>
+                </div>
+                <div>
                   <span>Nombre extranjero</span>
                   <strong>{fmt(metadata.foreignName)}</strong>
                 </div>
@@ -542,5 +566,23 @@ function FragmentRow({
         </tr>
       )}
     </>
+  );
+}
+
+function ProductThumb({ src, alt }: { src?: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed) {
+    return <div className="product-thumb product-thumb-empty">Sin foto</div>;
+  }
+
+  return (
+    <img
+      className="product-thumb"
+      src={src}
+      alt={alt}
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
   );
 }

@@ -1023,6 +1023,7 @@ async function executeSyncAction(client, row, log) {
     row.action === "update_product_price" ||
     row.action === "update_product_price_and_stock" ||
     row.action === "update_product_metadata" ||
+    row.action === "update_product_visibility" ||
     row.action === "update_product_image" ||
     (row.syncMetadata && row.actionPayload && row.actionPayload.product)
   ) {
@@ -1213,4 +1214,5 @@ async function executeSyncAction(client, row, log) {
 module.exports = {
   executeSyncAction,
   isWriteEnabled,
+  resolveSapImagePath,
 };

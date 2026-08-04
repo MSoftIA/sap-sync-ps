@@ -24,6 +24,7 @@ test("incluye campos de metadata POC en la query principal de articulos", () => 
   assert.match(query.sql, /I\."SalPackUn"/);
   assert.match(query.sql, /I\."SWeight1"/);
   assert.match(query.sql, /I\."PicturName"/);
+  assert.match(query.sql, /I\."QryGroup64"/);
   assert.match(query.sql, /D\."BitmapPath"/);
   assert.doesNotMatch(query.sql, /MAX\(D\."BitmapPath"\)/);
   assert.match(query.sql, /TO_NVARCHAR\(D\."BitmapPath"\)/);
@@ -67,6 +68,7 @@ test("mapea metadata SAP para nutrir la prueba de concepto de PrestaShop", () =>
     Existencia: "4",
     CodeBars: "1234567890123",
     Status: "Y",
+    QryGroup64: "Y",
     ItemGroupCode: "159",
     ItemGroupName: "Cristaleria",
     CatName: "Copas",
@@ -98,6 +100,8 @@ test("mapea metadata SAP para nutrir la prueba de concepto de PrestaShop", () =>
     pictureName: "ABC.jpg",
     imageDir: "\\\\hanab1\\B1_SHF\\Adjunto\\Imagenes\\FOTOS\\",
   });
+  assert.equal(article.prestashopVisibility, "Y");
+  assert.equal(article.shouldShowInPrestashop, true);
 });
 
 test("incluye metadata SAP en payload de actualizacion PrestaShop", () => {
@@ -113,6 +117,7 @@ test("incluye metadata SAP en payload de actualizacion PrestaShop", () => {
       Existencia: "4",
       CodeBars: "1234567890123",
       Status: "Y",
+      QryGroup64: "Y",
       UserText: "Descripcion larga",
       U_Desc_Logistica: "Caja de 12",
       FrgnName: "Foreign demo name",
@@ -137,6 +142,7 @@ test("incluye metadata SAP en payload de actualizacion PrestaShop", () => {
       id: 10,
       reference: "ABC",
       price: undefined,
+      active: undefined,
       name: undefined,
       languageId: 1,
       description:
@@ -167,6 +173,36 @@ test("incluye metadata SAP en payload de actualizacion PrestaShop", () => {
       process.env.PRESTASHOP_LANGUAGE_ID = previousLanguage;
     }
   }
+});
+
+test("usa QryGroup64 para determinar visibilidad PrestaShop", () => {
+  const hiddenArticle = mapSapRow({
+    ItemCode: "HIDDEN",
+    ItemName: "Producto oculto",
+    Price: "10.5",
+    WhsCode: "AC01",
+    Existencia: "4",
+    Status: "Y",
+    QryGroup64: "N",
+  });
+  const visibleArticle = mapSapRow({
+    ItemCode: "VISIBLE",
+    ItemName: "Producto visible",
+    Price: "10.5",
+    WhsCode: "AC01",
+    Existencia: "4",
+    Status: "Y",
+    QryGroup64: "Y",
+  });
+
+  assert.equal(hiddenArticle.shouldShowInPrestashop, false);
+  assert.equal(visibleArticle.shouldShowInPrestashop, true);
+
+  const createPayload = buildActionPayload(
+    { action: "create_product" },
+    hiddenArticle,
+  );
+  assert.equal(createPayload.payload.product.active, 0);
 });
 
 test("usa la descripcion logistica como fallback visible si SAP no trae UserText", () => {

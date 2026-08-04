@@ -31,6 +31,9 @@ export interface SapArticle {
   stock?: number;
   barcode?: string | null;
   status?: string;
+  prestashopVisibility?: string;
+  shouldShowInPrestashop?: boolean;
+  sapImageUrl?: string;
   itemGroupCode?: number | null;
   category?: string | null;
   metadata?: {
@@ -77,6 +80,7 @@ export interface PrestaControlResult {
 export interface PrestaProductSummary {
   productId: number;
   publicUrl?: string;
+  imageUrl?: string;
   reference: string;
   name: string;
   active: "1" | "0";

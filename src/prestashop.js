@@ -150,6 +150,7 @@ async function findProductIdsByReference(client, reference) {
 }
 
 function parseProductSummary(productXml) {
+  const defaultImageId = Number(xmlText(productXml, "id_default_image") || 0);
   return {
     id: Number(xmlText(productXml, "id") || 0),
     reference: xmlText(productXml, "reference"),
@@ -158,6 +159,7 @@ function parseProductSummary(productXml) {
     productPrice: Number(xmlText(productXml, "price") || 0),
     name: xmlLanguageText(productXml, "name"),
     linkRewrite: xmlLanguageText(productXml, "link_rewrite"),
+    defaultImageId: defaultImageId > 0 ? defaultImageId : null,
   };
 }
 
@@ -399,6 +401,11 @@ function mapPrestaProductListItem(product, stockRows) {
   return {
     productId: product.id,
     publicUrl: buildPrestaPublicProductUrl(product),
+    imageUrl: product.defaultImageId
+      ? `/api/prestashop-product-image/${encodeURIComponent(
+          String(product.id),
+        )}/${encodeURIComponent(String(product.defaultImageId))}`
+      : "",
     reference: product.reference || "",
     name: sanitizePrestaText(product.name || ""),
     active: product.active,
@@ -536,7 +543,7 @@ async function listPrestaProducts(client, params = {}, batchSize = 250) {
   while (true) {
     const xml = await client.get("products", {
       display:
-        "[id,reference,active,id_category_default,price,name,link_rewrite]",
+        "[id,reference,active,id_category_default,id_default_image,price,name,link_rewrite]",
       limit: `${offset},${batchSize}`,
       ...params,
     });

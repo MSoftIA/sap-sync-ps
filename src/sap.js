@@ -57,6 +57,7 @@ function buildArticleQuery({ schema, priceList, warehouse, itemCode, limit }) {
       "SELECT " +
       'I."ItemCode", I."ItemName", P."AddPrice1" AS "Price", ' +
       'C."WhsCode", C."OnHand" AS "Existencia", I."CodeBars", I."validFor" AS "Status", ' +
+      'I."QryGroup64" AS "QryGroup64", ' +
       'I."ItmsGrpCod" AS "ItemGroupCode", B."ItmsGrpNam" AS "ItemGroupName", ' +
       'COALESCE(CAT."Name", I."U_Categoria") AS "CatName", ' +
       'I."FrgnName", I."UserText", I."U_Desc_Logistica", I."FirmCode", I."SuppCatNum", ' +
@@ -177,7 +178,7 @@ function buildSapProductListQuery({
       "SELECT " +
       'I."ItemCode", I."ItemName", P."AddPrice1" AS "Price", ' +
       'C."WhsCode", C."OnHand" AS "Existencia", I."CodeBars", ' +
-      'I."validFor" AS "Status", I."ItmsGrpCod" AS "ItemGroupCode", ' +
+      'I."validFor" AS "Status", I."QryGroup64" AS "QryGroup64", I."ItmsGrpCod" AS "ItemGroupCode", ' +
       'B."ItmsGrpNam" AS "ItemGroupName", COALESCE(CAT."Name", I."U_Categoria") AS "CatName", ' +
       'I."FrgnName", I."UserText", I."U_Desc_Logistica", I."FirmCode", I."SuppCatNum", ' +
       'I."SalUnitMsr", I."SalPackUn", I."SWeight1", I."PicturName", ' +
@@ -301,6 +302,8 @@ function mapSapRow(row) {
     stock: Number(row.Existencia),
     barcode: row.CodeBars || null,
     status: row.Status,
+    prestashopVisibility: row.QryGroup64 || "",
+    shouldShowInPrestashop: row.Status === "Y" && row.QryGroup64 !== "N",
     metadata,
     raw: row,
   };
@@ -311,6 +314,9 @@ function mapSapProductListRow(row) {
 
   return {
     ...article,
+    sapImageUrl: article.metadata.pictureName
+      ? `/api/sap-product-image?itemCode=${encodeURIComponent(article.itemCode)}`
+      : "",
     itemGroupCode:
       row.ItemGroupCode === null || row.ItemGroupCode === undefined
         ? null

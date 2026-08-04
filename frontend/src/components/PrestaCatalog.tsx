@@ -1,103 +1,105 @@
-import { useState, useEffect, useRef } from 'react'
-import type { PrestaProductSummary, PaginationMeta } from '../types'
-import { getPrestaProducts } from '../api/prestashop'
-import { getPsCategories, clearPsCategoriesCache } from '../api/sap'
-import { Skeleton } from './Skeleton'
-import { EmptyState } from './EmptyState'
-import { Tag } from './Tag'
-import { money, fmt } from '../utils'
+import { useState, useEffect, useRef } from "react";
+import type { PrestaProductSummary, PaginationMeta } from "../types";
+import { getPrestaProducts } from "../api/prestashop";
+import { getPsCategories, clearPsCategoriesCache } from "../api/sap";
+import { Skeleton } from "./Skeleton";
+import { EmptyState } from "./EmptyState";
+import { Tag } from "./Tag";
+import { money, fmt } from "../utils";
 
-type StatusFilter = 'all' | 'active' | 'inactive'
+type StatusFilter = "all" | "active" | "inactive";
 
-const PAGE_SIZE = 50
+const PAGE_SIZE = 50;
 
 export function PrestaCatalog() {
-  const [loaded, setLoaded] = useState(false)
-  const [items, setItems] = useState<PrestaProductSummary[]>([])
-  const [pagination, setPagination] = useState<PaginationMeta | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [categoryMap, setCategoryMap] = useState<Map<number, string>>(new Map())
-  const [categoryMapLoading, setCategoryMapLoading] = useState(false)
-  const [categoryMapError, setCategoryMapError] = useState(false)
+  const [loaded, setLoaded] = useState(false);
+  const [items, setItems] = useState<PrestaProductSummary[]>([]);
+  const [pagination, setPagination] = useState<PaginationMeta | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [categoryMap, setCategoryMap] = useState<Map<number, string>>(
+    new Map(),
+  );
+  const [categoryMapLoading, setCategoryMapLoading] = useState(false);
+  const [categoryMapError, setCategoryMapError] = useState(false);
 
-  const [search, setSearch] = useState('')
-  const [searchInput, setSearchInput] = useState('')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [page, setPage] = useState(1)
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [page, setPage] = useState(1);
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function fetchPage(params: {
-    page: number
-    search: string
-    status: StatusFilter
+    page: number;
+    search: string;
+    status: StatusFilter;
   }) {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
       const data = await getPrestaProducts({
         page: params.page,
         pageSize: PAGE_SIZE,
         search: params.search || undefined,
         status: params.status,
-      })
-      setItems(data.items)
-      setPagination(data.pagination)
+      });
+      setItems(data.items);
+      setPagination(data.pagination);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    if (!loaded) return
-    fetchPage({ page, search, status: statusFilter })
-  }, [loaded, page, search, statusFilter])
+    if (!loaded) return;
+    fetchPage({ page, search, status: statusFilter });
+  }, [loaded, page, search, statusFilter]);
 
   function loadCategoryMap() {
-    setCategoryMapLoading(true)
-    setCategoryMapError(false)
+    setCategoryMapLoading(true);
+    setCategoryMapError(false);
     getPsCategories()
-      .then(cats => {
-        setCategoryMap(new Map(cats.map(c => [c.id, c.name])))
-        setCategoryMapLoading(false)
+      .then((cats) => {
+        setCategoryMap(new Map(cats.map((c) => [c.id, c.name])));
+        setCategoryMapLoading(false);
       })
       .catch(() => {
-        setCategoryMapLoading(false)
-        setCategoryMapError(true)
-      })
+        setCategoryMapLoading(false);
+        setCategoryMapError(true);
+      });
   }
 
   useEffect(() => {
-    if (!loaded) return
-    loadCategoryMap()
-  }, [loaded])
+    if (!loaded) return;
+    loadCategoryMap();
+  }, [loaded]);
 
   function startLoad() {
-    setLoaded(true)
+    setLoaded(true);
   }
 
   function onSearchInput(v: string) {
-    setSearchInput(v)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
+    setSearchInput(v);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      setSearch(v)
-      setPage(1)
-    }, 350)
+      setSearch(v);
+      setPage(1);
+    }, 350);
   }
 
   function onStatus(v: StatusFilter) {
-    setStatusFilter(v)
-    setPage(1)
+    setStatusFilter(v);
+    setPage(1);
   }
 
   function clearFilters() {
-    setSearchInput('')
-    setSearch('')
-    setStatusFilter('all')
-    setPage(1)
+    setSearchInput("");
+    setSearch("");
+    setStatusFilter("all");
+    setPage(1);
   }
 
   if (!loaded) {
@@ -107,10 +109,10 @@ export function PrestaCatalog() {
           icon="○"
           title="Catalogo no cargado"
           description="Carga la lista de productos para explorar, filtrar y buscar en PrestaShop."
-          action={{ label: 'Cargar catalogo', onClick: startLoad }}
+          action={{ label: "Cargar catalogo", onClick: startLoad }}
         />
       </div>
-    )
+    );
   }
 
   if (loading && items.length === 0) {
@@ -120,13 +122,13 @@ export function PrestaCatalog() {
           <span className="spinner-dark" />
           Cargando productos...
         </div>
-        <div style={{ display: 'grid', gap: 10, marginTop: 8 }}>
+        <div style={{ display: "grid", gap: 10, marginTop: 8 }}>
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} width="100%" height={20} />
           ))}
         </div>
       </div>
-    )
+    );
   }
 
   if (error && items.length === 0) {
@@ -137,19 +139,19 @@ export function PrestaCatalog() {
           title="Error al cargar el catalogo"
           description={error}
           action={{
-            label: 'Reintentar',
+            label: "Reintentar",
             onClick: () => fetchPage({ page, search, status: statusFilter }),
           }}
         />
       </div>
-    )
+    );
   }
 
-  const total = pagination?.total ?? 0
-  const totalPages = pagination?.totalPages ?? 1
-  const safePage = pagination?.page ?? page
-  const pageStart = total === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1
-  const pageEnd = Math.min(safePage * PAGE_SIZE, total)
+  const total = pagination?.total ?? 0;
+  const totalPages = pagination?.totalPages ?? 1;
+  const safePage = pagination?.page ?? page;
+  const pageStart = total === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const pageEnd = Math.min(safePage * PAGE_SIZE, total);
 
   return (
     <>
@@ -165,22 +167,22 @@ export function PrestaCatalog() {
         <div className="catalog-filter-group">
           <button
             type="button"
-            className={statusFilter === 'all' ? 'active' : ''}
-            onClick={() => onStatus('all')}
+            className={statusFilter === "all" ? "active" : ""}
+            onClick={() => onStatus("all")}
           >
             Todos
           </button>
           <button
             type="button"
-            className={statusFilter === 'active' ? 'active' : ''}
-            onClick={() => onStatus('active')}
+            className={statusFilter === "active" ? "active" : ""}
+            onClick={() => onStatus("active")}
           >
             Activos
           </button>
           <button
             type="button"
-            className={statusFilter === 'inactive' ? 'active' : ''}
-            onClick={() => onStatus('inactive')}
+            className={statusFilter === "inactive" ? "active" : ""}
+            onClick={() => onStatus("inactive")}
           >
             Inactivos
           </button>
@@ -191,26 +193,35 @@ export function PrestaCatalog() {
           type="button"
           disabled={loading}
           onClick={() => {
-            fetchPage({ page, search, status: statusFilter })
-            if (categoryMapError) { clearPsCategoriesCache(); loadCategoryMap() }
+            fetchPage({ page, search, status: statusFilter });
+            if (categoryMapError) {
+              clearPsCategoriesCache();
+              loadCategoryMap();
+            }
           }}
-          style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 7 }}
+          style={{
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+          }}
         >
           {loading && <span className="spinner-dark" />}
-          {loading ? 'Cargando' : 'Recargar'}
+          {loading ? "Cargando" : "Recargar"}
         </button>
       </div>
 
-
       <div
         className="catalog-info"
-        style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+        style={{ display: "flex", alignItems: "center", gap: 8 }}
       >
-        {loading && <span className="spinner-dark" style={{ width: 11, height: 11 }} />}
+        {loading && (
+          <span className="spinner-dark" style={{ width: 11, height: 11 }} />
+        )}
         {loading
-          ? 'Cargando...'
+          ? "Cargando..."
           : total === 0
-            ? 'Sin resultados para los filtros aplicados.'
+            ? "Sin resultados para los filtros aplicados."
             : `Mostrando ${pageStart}-${pageEnd} de ${fmt(total)} producto(s)`}
       </div>
 
@@ -220,60 +231,112 @@ export function PrestaCatalog() {
             icon="○"
             title="Sin resultados"
             description="Prueba ajustando la busqueda o los filtros."
-            action={{ label: 'Limpiar filtros', onClick: clearFilters }}
+            action={{ label: "Limpiar filtros", onClick: clearFilters }}
           />
         </div>
       ) : (
         <>
-          <div className="catalog-table-wrap" style={{ opacity: loading ? 0.5 : 1 }}>
+          <div
+            className="catalog-table-wrap"
+            style={{ opacity: loading ? 0.5 : 1 }}
+          >
             <table>
               <thead>
                 <tr>
                   <th scope="col">ID</th>
+                  <th scope="col" style={{ width: 64 }}>
+                    Imagen
+                  </th>
                   <th scope="col">Referencia</th>
                   <th scope="col">Nombre</th>
                   <th scope="col">Categoría</th>
-                  <th scope="col" style={{ textAlign: 'right' }}>Precio</th>
-                  <th scope="col" style={{ textAlign: 'right' }}>Stock</th>
+                  <th scope="col" style={{ textAlign: "right" }}>
+                    Precio
+                  </th>
+                  <th scope="col" style={{ textAlign: "right" }}>
+                    Stock
+                  </th>
                   <th scope="col">Estado</th>
                   <th scope="col">Web</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((p) => {
-                  const inactive = p.active !== '1'
-                  const zeroStock = p.stockTotal === 0
+                  const inactive = p.active !== "1";
+                  const zeroStock = p.stockTotal === 0;
                   const catName = p.defaultCategory
-                    ? (categoryMap.get(Number(p.defaultCategory)) ?? (categoryMapLoading ? null : `#${p.defaultCategory}`))
-                    : null
+                    ? (categoryMap.get(Number(p.defaultCategory)) ??
+                      (categoryMapLoading ? null : `#${p.defaultCategory}`))
+                    : null;
 
                   return (
-                    <tr key={p.productId} className={inactive ? 'row-inactive' : ''}>
-                      <td style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
+                    <tr
+                      key={p.productId}
+                      className={inactive ? "row-inactive" : ""}
+                    >
+                      <td
+                        style={{ color: "var(--muted)", fontSize: "0.85rem" }}
+                      >
                         {p.productId}
                       </td>
-                      <td style={{ fontFamily: 'Consolas, monospace', fontSize: '0.88rem' }}>
-                        {p.reference || <span style={{ color: 'var(--muted)' }}>-</span>}
+                      <td>
+                        <ProductThumb
+                          src={p.imageUrl}
+                          alt={
+                            p.name || p.reference || `Producto ${p.productId}`
+                          }
+                        />
                       </td>
-                      <td>{p.name || <span style={{ color: 'var(--muted)' }}>-</span>}</td>
-                      <td style={{ fontSize: '0.85rem', color: catName ? undefined : 'var(--muted)' }}>
-                        {categoryMapLoading && !catName
-                          ? <span style={{ opacity: 0.35 }}>···</span>
-                          : categoryMapError && !catName
-                            ? <span title="Error al cargar categorías" style={{ color: 'var(--danger)', fontSize: '0.8rem' }}>{p.defaultCategory ? `#${p.defaultCategory}` : '-'}</span>
-                            : catName ?? '-'}
+                      <td
+                        style={{
+                          fontFamily: "Consolas, monospace",
+                          fontSize: "0.88rem",
+                        }}
+                      >
+                        {p.reference || (
+                          <span style={{ color: "var(--muted)" }}>-</span>
+                        )}
                       </td>
-                      <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                      <td>
+                        {p.name || (
+                          <span style={{ color: "var(--muted)" }}>-</span>
+                        )}
+                      </td>
+                      <td
+                        style={{
+                          fontSize: "0.85rem",
+                          color: catName ? undefined : "var(--muted)",
+                        }}
+                      >
+                        {categoryMapLoading && !catName ? (
+                          <span style={{ opacity: 0.35 }}>···</span>
+                        ) : categoryMapError && !catName ? (
+                          <span
+                            title="Error al cargar categorías"
+                            style={{
+                              color: "var(--danger)",
+                              fontSize: "0.8rem",
+                            }}
+                          >
+                            {p.defaultCategory ? `#${p.defaultCategory}` : "-"}
+                          </span>
+                        ) : (
+                          (catName ?? "-")
+                        )}
+                      </td>
+                      <td style={{ textAlign: "right", fontWeight: 700 }}>
                         {money(p.productPrice)}
                       </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <span className={zeroStock && !inactive ? 'stock-zero' : ''}>
+                      <td style={{ textAlign: "right" }}>
+                        <span
+                          className={zeroStock && !inactive ? "stock-zero" : ""}
+                        >
                           {fmt(p.stockTotal)}
                         </span>
                       </td>
                       <td>
-                        <Tag tone={inactive ? 'gray' : 'green'}>
-                          {inactive ? 'Inactivo' : 'Activo'}
+                        <Tag tone={inactive ? "gray" : "green"}>
+                          {inactive ? "Inactivo" : "Activo"}
                         </Tag>
                       </td>
                       <td>
@@ -287,11 +350,11 @@ export function PrestaCatalog() {
                             Ver web
                           </a>
                         ) : (
-                          <span style={{ color: 'var(--muted)' }}>-</span>
+                          <span style={{ color: "var(--muted)" }}>-</span>
                         )}
                       </td>
                     </tr>
-                  )
+                  );
                 })}
               </tbody>
             </table>
@@ -324,5 +387,23 @@ export function PrestaCatalog() {
         </>
       )}
     </>
-  )
+  );
+}
+
+function ProductThumb({ src, alt }: { src?: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed) {
+    return <div className="product-thumb product-thumb-empty">Sin foto</div>;
+  }
+
+  return (
+    <img
+      className="product-thumb"
+      src={src}
+      alt={alt}
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
+  );
 }

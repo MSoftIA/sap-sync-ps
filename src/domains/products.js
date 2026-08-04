@@ -7,7 +7,7 @@ const {
 const { numberEnv } = require("../env");
 const { readSapArticles } = require("../sap");
 const { executeSyncAction, isWriteEnabled } = require("../sync-executor");
-const { buildActionPayload } = require("../sync-plan");
+const { buildActionPayload, shouldShowInPrestashop } = require("../sync-plan");
 
 function logComparison(log, article, inspection) {
   const modeNote = isWriteEnabled()
@@ -108,6 +108,8 @@ function buildMetrics(article, inspection) {
     inspection.bestMatch.kind === "combination"
       ? true
       : normalizeName(article.itemName) === normalizeName(inspection.name);
+  const desiredActive = shouldShowInPrestashop(article) ? "1" : "0";
+  const isActiveEqual = String(inspection.active) === desiredActive;
 
   return {
     selectedPrice,
@@ -117,6 +119,8 @@ function buildMetrics(article, inspection) {
     isPriceEqual,
     isStockEqual,
     isNameEqual,
+    isActiveEqual,
+    desiredActive,
     hasWritableMetadata: hasWritableMetadata(article),
     hasImageCandidate: hasImageCandidate(article),
   };
@@ -128,6 +132,7 @@ function buildSyncPlan(status, metrics, isCombination) {
       action: "create_product",
       syncPrice: true,
       syncStock: true,
+      syncActive: true,
       syncName: true,
       syncMetadata: true,
       syncImage: metrics.hasImageCandidate,
@@ -140,6 +145,7 @@ function buildSyncPlan(status, metrics, isCombination) {
       action: "review_combination_mapping",
       syncPrice: metrics.isPriceEqual === false,
       syncStock: metrics.isStockEqual === false,
+      syncActive: metrics.isActiveEqual === false,
       syncName: false,
       syncMetadata: false,
       syncImage: false,
@@ -153,6 +159,7 @@ function buildSyncPlan(status, metrics, isCombination) {
         action: "update_product_name",
         syncPrice: false,
         syncStock: false,
+        syncActive: !metrics.isActiveEqual,
         syncName: true,
         syncMetadata: metrics.hasWritableMetadata,
         syncImage: metrics.hasImageCandidate,
@@ -164,6 +171,7 @@ function buildSyncPlan(status, metrics, isCombination) {
         action: "update_product_metadata",
         syncPrice: false,
         syncStock: false,
+        syncActive: !metrics.isActiveEqual,
         syncName: false,
         syncMetadata: true,
         syncImage: metrics.hasImageCandidate,
@@ -175,16 +183,30 @@ function buildSyncPlan(status, metrics, isCombination) {
         action: "update_product_image",
         syncPrice: false,
         syncStock: false,
+        syncActive: !metrics.isActiveEqual,
         syncName: false,
         syncMetadata: false,
         syncImage: true,
         reason: "image_from_sap",
       };
     }
+    if (!metrics.isActiveEqual) {
+      return {
+        action: "update_product_visibility",
+        syncPrice: false,
+        syncStock: false,
+        syncActive: true,
+        syncName: false,
+        syncMetadata: false,
+        syncImage: false,
+        reason: "visibility_from_sap",
+      };
+    }
     return {
       action: "skip_no_change",
       syncPrice: false,
       syncStock: false,
+      syncActive: false,
       syncName: false,
       syncMetadata: false,
       syncImage: false,
@@ -194,6 +216,7 @@ function buildSyncPlan(status, metrics, isCombination) {
 
   const syncPrice = metrics.isPriceEqual === false;
   const syncStock = metrics.isStockEqual === false;
+  const syncActive = metrics.isActiveEqual === false;
   const syncName = !metrics.isNameEqual;
   const syncMetadata = metrics.hasWritableMetadata;
   const syncImage = metrics.hasImageCandidate;
@@ -205,12 +228,15 @@ function buildSyncPlan(status, metrics, isCombination) {
     action = "update_product_price";
   } else if (syncStock) {
     action = "update_product_stock";
+  } else if (syncActive) {
+    action = "update_product_visibility";
   }
 
   return {
     action,
     syncPrice,
     syncStock,
+    syncActive,
     syncName,
     syncMetadata,
     syncImage,
@@ -259,6 +285,7 @@ function buildResultRow(article, inspection) {
     actionReason: syncPlan.reason,
     syncPrice: syncPlan.syncPrice,
     syncStock: syncPlan.syncStock,
+    syncActive: syncPlan.syncActive,
     syncName: syncPlan.syncName,
     syncMetadata: syncPlan.syncMetadata,
     syncImage: syncPlan.syncImage,
