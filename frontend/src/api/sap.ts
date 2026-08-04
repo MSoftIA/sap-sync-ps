@@ -19,9 +19,6 @@ export interface SapProductsResponse {
   items: SapArticle[];
 }
 
-// Module-level cache: deduplicates concurrent calls and avoids re-fetching
-// across PrestaCatalog and CategoriesView within the same session.
-// Cleared on error so the next call retries.
 let psCategoriesCache: Promise<PsCategory[]> | null = null;
 
 export function clearPsCategoriesCache() {
@@ -34,7 +31,7 @@ export function getPsCategories(): Promise<PsCategory[]> {
       .then((res) => {
         if (!res.ok)
           throw new Error(
-            "Error al cargar categorías PrestaShop: " + res.status,
+            "Error al cargar categorias PrestaShop: " + res.status,
           );
         return res.json() as Promise<{ categories?: PsCategory[] }>;
       })
@@ -49,7 +46,7 @@ export function getPsCategories(): Promise<PsCategory[]> {
 
 export async function getSapCategories(): Promise<SapCategoryTree> {
   const res = await fetch("/api/sap-categories");
-  if (!res.ok) throw new Error("Error al cargar categorías SAP: " + res.status);
+  if (!res.ok) throw new Error("Error al cargar categorias SAP: " + res.status);
   return res.json();
 }
 
@@ -63,7 +60,23 @@ export async function getSapProducts(
   if (params.status) q.set("status", params.status);
   if (params.stock) q.set("stock", params.stock);
   if (params.category) q.set("category", params.category);
-  const res = await fetch("/api/sap-products?" + q);
-  if (!res.ok) throw new Error("Error al cargar artículos SAP: " + res.status);
-  return res.json();
+
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 60000);
+
+  try {
+    const res = await fetch("/api/sap-products?" + q, {
+      signal: controller.signal,
+    });
+    if (!res.ok)
+      throw new Error("Error al cargar articulos SAP: " + res.status);
+    return res.json();
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("SAP tardo demasiado en responder el catalogo.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 }

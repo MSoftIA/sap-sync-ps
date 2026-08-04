@@ -20,6 +20,17 @@ function hanaExec(conn, sql, params) {
   });
 }
 
+function withTimeout(promise, timeoutMs, message) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+
+  return Promise.race([promise, timeout]).finally(() =>
+    clearTimeout(timeoutId),
+  );
+}
+
 function getSapConfig() {
   const schema = env("HANA_SCHEMA", "BD_CARBALLO");
 
@@ -1094,9 +1105,36 @@ async function readSapProductsPageAsync(log, options = {}) {
     await hanaConnect(conn, config.connection);
     const startedAt = Date.now();
     const rows = await hanaExec(conn, listQuery.sql, listQuery.params);
-    const totalRows = await hanaExec(conn, countQuery.sql, countQuery.params);
-    const total = Number(totalRows[0]?.Total || 0);
     const items = rows.map(mapSapProductListRow);
+    let total = listQuery.offset + items.length;
+    let totalIsEstimated = false;
+
+    try {
+      const totalRows = await withTimeout(
+        hanaExec(conn, countQuery.sql, countQuery.params),
+        numberEnv("SAP_PRODUCT_COUNT_TIMEOUT_MS", 5000),
+        "Timeout calculando total de productos SAP",
+      );
+      total = Number(totalRows[0]?.Total || 0);
+    } catch (error) {
+      totalIsEstimated = true;
+      if (log) {
+        log("warn", "Total de productos SAP estimado por timeout", {
+          page,
+          pageSize,
+          returned: items.length,
+          estimatedTotal: total,
+          message: error.message,
+        });
+      }
+    }
+
+    const hasNextPage = totalIsEstimated
+      ? items.length === pageSize
+      : page * pageSize < total;
+    if (totalIsEstimated && hasNextPage) {
+      total += 1;
+    }
     const totalPages =
       pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
     if (log)
@@ -1105,6 +1143,7 @@ async function readSapProductsPageAsync(log, options = {}) {
         pageSize,
         returned: items.length,
         total,
+        totalIsEstimated,
         elapsedMs: Date.now() - startedAt,
       });
     return {
@@ -1112,13 +1151,13 @@ async function readSapProductsPageAsync(log, options = {}) {
       schema: config.query.schema,
       warehouse: config.query.warehouse,
       priceList: config.query.priceList,
-      filters: { search, status, category },
+      filters: { search, status, stock, category },
       pagination: {
         page,
         pageSize,
         total,
         totalPages,
-        hasNextPage: page < totalPages,
+        hasNextPage,
         hasPreviousPage: page > 1,
       },
       items,
