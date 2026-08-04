@@ -192,14 +192,14 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
             className={statusFilter === "active" ? "active" : ""}
             onClick={() => onStatus("active")}
           >
-            Activos
+            Visibles PS
           </button>
           <button
             type="button"
             className={statusFilter === "inactive" ? "active" : ""}
             onClick={() => onStatus("inactive")}
           >
-            Inactivos
+            No visibles PS
           </button>
         </div>
 

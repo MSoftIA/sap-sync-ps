@@ -59,6 +59,31 @@ test("permite filtrar articulos SAP con categoria asignada", () => {
   );
 });
 
+test("filtra estado del catalogo SAP usando QryGroup64", () => {
+  const { buildSapProductListQuery } = require("../src/sap");
+  const active = buildSapProductListQuery({
+    schema: "BD_CARBALLO",
+    priceList: 14,
+    warehouse: "AC01",
+    status: "active",
+    page: 1,
+    pageSize: 10,
+  });
+  const inactive = buildSapProductListQuery({
+    schema: "BD_CARBALLO",
+    priceList: 14,
+    warehouse: "AC01",
+    status: "inactive",
+    page: 1,
+    pageSize: 10,
+  });
+
+  assert.match(active.sql, /I\."QryGroup64" = 'Y'/);
+  assert.match(inactive.sql, /COALESCE\(I\."QryGroup64", 'N'\) <> 'Y'/);
+  assert.doesNotMatch(active.sql, /I\."validFor" = 'Y'/);
+  assert.doesNotMatch(inactive.sql, /I\."validFor" <> 'Y'/);
+});
+
 test("mapea metadata SAP para nutrir la prueba de concepto de PrestaShop", () => {
   const article = mapSapRow({
     ItemCode: "ABC",

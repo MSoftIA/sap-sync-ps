@@ -121,9 +121,9 @@ function buildSapProductListFilters({
     .trim()
     .toLowerCase();
   if (normalizedStatus === "active") {
-    filters.push(`I."validFor" = 'Y'`);
+    filters.push(`I."QryGroup64" = 'Y'`);
   } else if (normalizedStatus === "inactive") {
-    filters.push(`I."validFor" <> 'Y'`);
+    filters.push(`COALESCE(I."QryGroup64", 'N') <> 'Y'`);
   }
 
   const normalizedStock = String(stock || "all")
