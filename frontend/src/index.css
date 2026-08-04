@@ -460,6 +460,27 @@ a.btn-secondary {
   box-shadow: 0 0 0 3px rgba(54, 89, 227, 0.12);
 }
 
+.log-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.log-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.log-copy-btn {
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
 .log-box {
   background: #04111f;
   color: #e5eefc;

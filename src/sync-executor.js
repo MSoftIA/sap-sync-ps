@@ -808,6 +808,9 @@ async function syncProductImageFromSap(
   } catch (error) {
     const uploadError = detectImageUploadError(error);
     const errorMessage = String(error.message || "");
+    const hint = uploadError.suspendUploads
+      ? "PrestaShop devolvio un PHP Notice tempnam al crear el temporal de imagen; revisar permisos/configuracion de temp/upload en el servidor."
+      : "Revisar respuesta del webservice de imagenes PrestaShop.";
 
     if (uploadError.suspendUploads) {
       suspendedImageUploads = {
@@ -829,6 +832,7 @@ async function syncProductImageFromSap(
         sapPictureName: resolved.pictureName,
         imageFile: path.basename(resolved.imagePath),
         errorMessage: errorMessage.slice(0, 500),
+        hint,
       },
     );
 

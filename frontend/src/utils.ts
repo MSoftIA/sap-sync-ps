@@ -75,6 +75,7 @@ const PREFERRED_LOG_KEYS = [
   "productId",
   "action",
   "status",
+  "reason",
   "syncMetadata",
   "syncImage",
   "details",
@@ -84,6 +85,10 @@ const PREFERRED_LOG_KEYS = [
   "sapPrice",
   "prestashopProductPrice",
   "sapStock",
+  "imageFile",
+  "sapPictureName",
+  "errorMessage",
+  "hint",
   "childSapLimit",
   "effectiveSapLimit",
 ];
