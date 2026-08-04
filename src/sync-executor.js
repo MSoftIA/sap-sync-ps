@@ -363,6 +363,25 @@ function getConfiguredImageExtensions() {
     .map((value) => (value.startsWith(".") ? value : "." + value));
 }
 
+let suspendedImageUploads = null;
+
+function detectImageUploadError(error) {
+  const body = String(error.responseBody || "");
+  const text = String(error.message || "") + "\n" + body;
+
+  if (text.includes("tempnam")) {
+    return {
+      reason: "prestashop_temp_file_error",
+      suspendUploads: true,
+    };
+  }
+
+  return {
+    reason: "prestashop_upload_error",
+    suspendUploads: false,
+  };
+}
+
 function resolveSapImagePath(pictureName, fallbackImageDir = "") {
   const imageDir = String(env("SAP_IMAGE_DIR", "") || fallbackImageDir).trim();
   const rawPictureName = String(pictureName || "").trim();
@@ -434,6 +453,13 @@ async function syncProductImageFromSap(
     return { status: "disabled" };
   }
 
+  if (suspendedImageUploads) {
+    return {
+      status: "suspended",
+      reason: suspendedImageUploads.reason,
+    };
+  }
+
   const productXml =
     existingProductXml || (await client.get("products/" + productId));
 
@@ -473,22 +499,33 @@ async function syncProductImageFromSap(
       resolved.mimeType,
     );
   } catch (error) {
-    const message = String(error.message || "");
-    const reason = message.includes("tempnam")
-      ? "prestashop_temp_file_error"
-      : "prestashop_upload_error";
+    const uploadError = detectImageUploadError(error);
+    const errorMessage = String(error.message || "");
 
-    log("warn", "Imagen SAP no subida por error de PrestaShop", {
-      itemCode: row.itemCode,
-      productId,
-      reason,
-      status: error.status || null,
-      sapPictureName: resolved.pictureName,
-      imageFile: path.basename(resolved.imagePath),
-      message: message.slice(0, 500),
-    });
+    if (uploadError.suspendUploads) {
+      suspendedImageUploads = {
+        reason: uploadError.reason,
+        status: error.status || null,
+      };
+    }
 
-    return { status: reason, error: message };
+    log(
+      "warn",
+      uploadError.suspendUploads
+        ? "Imagenes SAP pausadas por error de PrestaShop"
+        : "Imagen SAP no subida por error de PrestaShop",
+      {
+        itemCode: row.itemCode,
+        productId,
+        reason: uploadError.reason,
+        status: error.status || null,
+        sapPictureName: resolved.pictureName,
+        imageFile: path.basename(resolved.imagePath),
+        errorMessage: errorMessage.slice(0, 500),
+      },
+    );
+
+    return { status: uploadError.reason, error: errorMessage };
   }
 
   log("info", "Imagen subida a PrestaShop", {
