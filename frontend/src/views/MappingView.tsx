@@ -38,6 +38,35 @@ function findSource(
   return sources.find((source) => source.key === key);
 }
 
+function sourceItems(source: string) {
+  return source
+    .split("/")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function SourceInfo({ source }: { source: string }) {
+  const items = sourceItems(source);
+
+  return (
+    <span
+      className="sap-source-info"
+      tabIndex={0}
+      aria-label={`Columnas SAP: ${items.join(", ")}`}
+    >
+      <span className="sap-source-dot">i</span>
+      <span className="sap-source-tooltip" role="tooltip">
+        <span className="sap-source-title">Columnas SAP</span>
+        <ul>
+          {items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </span>
+    </span>
+  );
+}
+
 export function MappingView() {
   const { addToast } = useToast();
   const [payload, setPayload] = useState<ProductAttributeMappingPayload | null>(
@@ -292,25 +321,26 @@ export function MappingView() {
 
                       return (
                         <>
-                          <select
-                            className="mapping-select"
-                            value={entry.sapField}
-                            onChange={(event) =>
-                              updateEntry(entry.id, {
-                                sapField: event.target.value,
-                              })
-                            }
-                          >
-                            {payload.sources.map((source) => (
-                              <option key={source.key} value={source.key}>
-                                {source.label}
-                                {source.column ? ` - ${source.column}` : ""}
-                              </option>
-                            ))}
-                          </select>
-                          <span className="sap-source-note">
-                            {source?.column || entry.sapField}
-                          </span>
+                          <div className="mapping-source-control">
+                            <select
+                              className="mapping-select"
+                              value={entry.sapField}
+                              onChange={(event) =>
+                                updateEntry(entry.id, {
+                                  sapField: event.target.value,
+                                })
+                              }
+                            >
+                              {payload.sources.map((source) => (
+                                <option key={source.key} value={source.key}>
+                                  {source.label}
+                                </option>
+                              ))}
+                            </select>
+                            <SourceInfo
+                              source={source?.column || entry.sapField}
+                            />
+                          </div>
                         </>
                       );
                     })()}

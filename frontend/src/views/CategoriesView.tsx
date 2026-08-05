@@ -1,51 +1,101 @@
-import { useState, useEffect, useRef } from 'react'
-import type { SapCategoryNode, SapCategoryTree, PsCategory } from '../types'
-import { useAppContext } from '../context/AppContext'
-import { useToast } from '../context/ToastContext'
-import { getSapCategories, getPsCategories } from '../api/sap'
-import { startSyncStream, stopSync } from '../api/sync'
-import { Tag } from '../components/Tag'
-import { Skeleton } from '../components/Skeleton'
-import { LogBox } from '../components/LogBox'
-import type { LogEntry } from '../components/LogBox'
-import { fmt } from '../utils'
+import { useState, useEffect, useRef } from "react";
+import type { SapCategoryNode, SapCategoryTree, PsCategory } from "../types";
+import { useAppContext } from "../context/AppContext";
+import { useToast } from "../context/ToastContext";
+import { getSapCategories, getPsCategories } from "../api/sap";
+import { startSyncStream, stopSync } from "../api/sync";
+import { Tag } from "../components/Tag";
+import { Skeleton } from "../components/Skeleton";
+import { LogBox } from "../components/LogBox";
+import type { LogEntry } from "../components/LogBox";
+import { fmt } from "../utils";
 
 const SAP_CATEGORY_COLUMNS = {
-  product: 'OITM.ItemCode',
-  category: '@CATEGORIA.Name / OITM.U_Categoria',
-  subCategory1: '@SUBCATEGORIA1.Name / OITM.U_SubCategoria1',
-  subCategory2: '@SUBCATEGORIA2.Name / OITM.U_SubCategoria2',
-  subCategory3: '@SUBCATEGORIA3.Name / OITM.U_SubCategoria3',
-}
+  product: "OITM.ItemCode",
+  category: "@CATEGORIA.Name / OITM.U_Categoria",
+  subCategory1: "@SUBCATEGORIA1.Name / OITM.U_SubCategoria1",
+  subCategory2: "@SUBCATEGORIA2.Name / OITM.U_SubCategoria2",
+  subCategory3: "@SUBCATEGORIA3.Name / OITM.U_SubCategoria3",
+};
 
 function categorySource(depth: number) {
-  if (depth === 0) return SAP_CATEGORY_COLUMNS.category
-  if (depth === 1) return SAP_CATEGORY_COLUMNS.subCategory1
-  if (depth === 2) return SAP_CATEGORY_COLUMNS.subCategory2
-  return SAP_CATEGORY_COLUMNS.subCategory3
+  if (depth === 0) return SAP_CATEGORY_COLUMNS.category;
+  if (depth === 1) return SAP_CATEGORY_COLUMNS.subCategory1;
+  if (depth === 2) return SAP_CATEGORY_COLUMNS.subCategory2;
+  return SAP_CATEGORY_COLUMNS.subCategory3;
 }
 
 function SapSourceNote({ source }: { source: string }) {
-  return <small className="sap-source-note">{source}</small>
+  const items = source
+    .split("/")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return (
+    <span
+      className="sap-source-info"
+      tabIndex={0}
+      aria-label={`Columnas SAP: ${items.join(", ")}`}
+    >
+      <span className="sap-source-dot">i</span>
+      <span className="sap-source-tooltip" role="tooltip">
+        <span className="sap-source-title">Columnas SAP</span>
+        <ul>
+          {items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </span>
+    </span>
+  );
 }
 
-function CategoryNode({ node, depth = 0 }: { node: SapCategoryNode; depth?: number }) {
-  const [open, setOpen] = useState(depth < 1)
-  const hasChildren = node.children.length > 0
+function CategoryNode({
+  node,
+  depth = 0,
+}: {
+  node: SapCategoryNode;
+  depth?: number;
+}) {
+  const [open, setOpen] = useState(depth < 1);
+  const hasChildren = node.children.length > 0;
 
   return (
     <div style={{ marginLeft: depth * 20 }}>
       <div
-        role={hasChildren ? 'button' : undefined}
+        role={hasChildren ? "button" : undefined}
         tabIndex={hasChildren ? 0 : undefined}
-        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', borderRadius: 5, cursor: hasChildren ? 'pointer' : 'default' }}
-        onClick={() => hasChildren && setOpen(o => !o)}
-        onKeyDown={hasChildren ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(o => !o) } } : undefined}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "4px 6px",
+          borderRadius: 5,
+          cursor: hasChildren ? "pointer" : "default",
+        }}
+        onClick={() => hasChildren && setOpen((o) => !o)}
+        onKeyDown={
+          hasChildren
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setOpen((o) => !o);
+                }
+              }
+            : undefined
+        }
       >
-        <span style={{ width: 14, color: 'var(--muted)', fontSize: '0.78rem', flexShrink: 0 }}>
-          {hasChildren ? (open ? '▾' : '▸') : '·'}
+        <span
+          style={{
+            width: 14,
+            color: "var(--muted)",
+            fontSize: "0.78rem",
+            flexShrink: 0,
+          }}
+        >
+          {hasChildren ? (open ? "▾" : "▸") : "·"}
         </span>
-        <span style={{ flex: 1, fontSize: '0.91rem' }}>
+        <span style={{ flex: 1, fontSize: "0.91rem" }}>
           {node.name}
           <SapSourceNote source={categorySource(depth)} />
         </span>
@@ -53,153 +103,226 @@ function CategoryNode({ node, depth = 0 }: { node: SapCategoryNode; depth?: numb
       </div>
       {open && hasChildren && (
         <div>
-          {node.children.map(child => (
+          {node.children.map((child) => (
             <CategoryNode key={child.name} node={child} depth={depth + 1} />
           ))}
         </div>
       )}
     </div>
-  )
+  );
 }
 
 function countSapNodes(nodes: SapCategoryNode[]): number {
-  return nodes.reduce((acc, n) => acc + 1 + countSapNodes(n.children), 0)
+  return nodes.reduce((acc, n) => acc + 1 + countSapNodes(n.children), 0);
 }
 
 function PsCategoryTree({ categories }: { categories: PsCategory[] }) {
   // Root categories: only parentId === 0 (PS internal root, id=1)
   // parentId=1 (Home category) must NOT be treated as root — it causes the tree to appear twice
-  const rootIds = new Set(categories.filter(c => c.parentId === 0).map(c => c.id))
-  const childrenOf = new Map<number, PsCategory[]>()
+  const rootIds = new Set(
+    categories.filter((c) => c.parentId === 0).map((c) => c.id),
+  );
+  const childrenOf = new Map<number, PsCategory[]>();
   for (const c of categories) {
-    if (!childrenOf.has(c.parentId)) childrenOf.set(c.parentId, [])
-    childrenOf.get(c.parentId)!.push(c)
+    if (!childrenOf.has(c.parentId)) childrenOf.set(c.parentId, []);
+    childrenOf.get(c.parentId)!.push(c);
   }
 
   function Node({ cat, depth }: { cat: PsCategory; depth: number }) {
-    const [open, setOpen] = useState(depth < 1)
-    const children = childrenOf.get(cat.id) ?? []
-    const active = cat.active === '1'
+    const [open, setOpen] = useState(depth < 1);
+    const children = childrenOf.get(cat.id) ?? [];
+    const active = cat.active === "1";
     return (
       <div style={{ marginLeft: depth * 20 }}>
         <div
-          role={children.length > 0 ? 'button' : undefined}
+          role={children.length > 0 ? "button" : undefined}
           tabIndex={children.length > 0 ? 0 : undefined}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', borderRadius: 5, cursor: children.length > 0 ? 'pointer' : 'default' }}
-          onClick={() => children.length > 0 && setOpen(o => !o)}
-          onKeyDown={children.length > 0 ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(o => !o) } } : undefined}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "4px 6px",
+            borderRadius: 5,
+            cursor: children.length > 0 ? "pointer" : "default",
+          }}
+          onClick={() => children.length > 0 && setOpen((o) => !o)}
+          onKeyDown={
+            children.length > 0
+              ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setOpen((o) => !o);
+                  }
+                }
+              : undefined
+          }
         >
-          <span style={{ width: 14, color: 'var(--muted)', fontSize: '0.78rem', flexShrink: 0 }}>
-            {children.length > 0 ? (open ? '▾' : '▸') : '·'}
+          <span
+            style={{
+              width: 14,
+              color: "var(--muted)",
+              fontSize: "0.78rem",
+              flexShrink: 0,
+            }}
+          >
+            {children.length > 0 ? (open ? "▾" : "▸") : "·"}
           </span>
-          <span style={{ flex: 1, fontSize: '0.91rem', color: active ? undefined : 'var(--muted)' }}>{cat.name || '(sin nombre)'}</span>
-          <span className="section-note" style={{ fontSize: '0.78rem' }}>#{cat.id}</span>
-          <Tag tone={active ? 'green' : 'gray'}>{active ? 'Activa' : 'Inactiva'}</Tag>
+          <span
+            style={{
+              flex: 1,
+              fontSize: "0.91rem",
+              color: active ? undefined : "var(--muted)",
+            }}
+          >
+            {cat.name || "(sin nombre)"}
+          </span>
+          <span className="section-note" style={{ fontSize: "0.78rem" }}>
+            #{cat.id}
+          </span>
+          <Tag tone={active ? "green" : "gray"}>
+            {active ? "Activa" : "Inactiva"}
+          </Tag>
         </div>
         {open && children.length > 0 && (
           <div>
-            {children.map(child => <Node key={child.id} cat={child} depth={depth + 1} />)}
+            {children.map((child) => (
+              <Node key={child.id} cat={child} depth={depth + 1} />
+            ))}
           </div>
         )}
       </div>
-    )
+    );
   }
 
-  const roots = categories.filter(c => rootIds.has(c.id))
+  const roots = categories.filter((c) => rootIds.has(c.id));
   if (roots.length === 0) {
-    return <div className="section-note">Sin categorías raíz encontradas.</div>
+    return <div className="section-note">Sin categorías raíz encontradas.</div>;
   }
   return (
     <div>
-      {roots.map(cat => <Node key={cat.id} cat={cat} depth={0} />)}
+      {roots.map((cat) => (
+        <Node key={cat.id} cat={cat} depth={0} />
+      ))}
     </div>
-  )
+  );
 }
 
 export function CategoriesView() {
-  const { writeMode, setWriteMode, syncRunning, setSyncRunning } = useAppContext()
-  const esRef = useRef<EventSource | null>(null)
+  const { writeMode, setWriteMode, syncRunning, setSyncRunning } =
+    useAppContext();
+  const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
     return () => {
       if (esRef.current) {
-        esRef.current.close()
-        esRef.current = null
-        setSyncRunning(false)
+        esRef.current.close();
+        esRef.current = null;
+        setSyncRunning(false);
       }
-    }
-  }, [setSyncRunning])
+    };
+  }, [setSyncRunning]);
 
-  const [sapTree, setSapTree] = useState<SapCategoryTree | null>(null)
-  const [loadingSap, setLoadingSap] = useState(false)
-  const [sapError, setSapError] = useState<string | null>(null)
+  const [sapTree, setSapTree] = useState<SapCategoryTree | null>(null);
+  const [loadingSap, setLoadingSap] = useState(false);
+  const [sapError, setSapError] = useState<string | null>(null);
 
-  const [psCategories, setPsCategories] = useState<PsCategory[] | null>(null)
-  const [loadingPs, setLoadingPs] = useState(false)
-  const [psError, setPsError] = useState<string | null>(null)
+  const [psCategories, setPsCategories] = useState<PsCategory[] | null>(null);
+  const [loadingPs, setLoadingPs] = useState(false);
+  const [psError, setPsError] = useState<string | null>(null);
 
-  const { addToast } = useToast()
-  const [log, setLog] = useState<LogEntry[]>([])
-  const [syncing, setSyncing] = useState(false)
-  const [stopRequested, setStopRequested] = useState(false)
+  const { addToast } = useToast();
+  const [log, setLog] = useState<LogEntry[]>([]);
+  const [syncing, setSyncing] = useState(false);
+  const [stopRequested, setStopRequested] = useState(false);
 
   async function loadSapTree() {
-    setLoadingSap(true)
-    setSapError(null)
-    try { setSapTree(await getSapCategories()) }
-    catch (err) { setSapError(err instanceof Error ? err.message : String(err)) }
-    finally { setLoadingSap(false) }
+    setLoadingSap(true);
+    setSapError(null);
+    try {
+      setSapTree(await getSapCategories());
+    } catch (err) {
+      setSapError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoadingSap(false);
+    }
   }
 
   async function loadPsCategories() {
-    setLoadingPs(true)
-    setPsError(null)
-    try { setPsCategories(await getPsCategories()) }
-    catch (err) { setPsError(err instanceof Error ? err.message : String(err)) }
-    finally { setLoadingPs(false) }
+    setLoadingPs(true);
+    setPsError(null);
+    try {
+      setPsCategories(await getPsCategories());
+    } catch (err) {
+      setPsError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoadingPs(false);
+    }
   }
 
   function runSync() {
-    if (syncing || syncRunning) return
-    setSyncing(true)
-    setSyncRunning(true)
-    setLog([])
+    if (syncing || syncRunning) return;
+    setSyncing(true);
+    setSyncRunning(true);
+    setLog([]);
 
-    const es = startSyncStream({ write: writeMode, domains: ['categories'], fullCatalog: true })
-    esRef.current = es
+    const es = startSyncStream({
+      write: writeMode,
+      domains: ["categories"],
+      fullCatalog: true,
+    });
+    esRef.current = es;
 
     const done = (ok: boolean) => {
-      es.close(); esRef.current = null; setSyncing(false); setSyncRunning(false); setStopRequested(false)
-      addToast({ message: ok ? 'Sync de categorías completado.' : 'Error en sync de categorías.', kind: ok ? 'success' : 'error' })
-    }
+      es.close();
+      esRef.current = null;
+      setSyncing(false);
+      setSyncRunning(false);
+      setStopRequested(false);
+      addToast({
+        message: ok
+          ? "Sync de categorías completado."
+          : "Error en sync de categorías.",
+        kind: ok ? "success" : "error",
+      });
+    };
     es.onmessage = (event) => {
       try {
-        const msg = JSON.parse(String(event.data))
-        if (msg.type === 'log' && msg.line) {
+        const msg = JSON.parse(String(event.data));
+        if (msg.type === "log" && msg.line) {
           try {
-            const d = JSON.parse(msg.line)
-            const level = String(d.level ?? 'info')
-            const cls: LogEntry['cls'] = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'info'
-            setLog(prev => [...prev.slice(-499), { text: `[${level.toUpperCase()}] ${d.message}`, cls }])
+            const d = JSON.parse(msg.line);
+            const level = String(d.level ?? "info");
+            const cls: LogEntry["cls"] =
+              level === "error" ? "error" : level === "warn" ? "warn" : "info";
+            setLog((prev) => [
+              ...prev.slice(-499),
+              { text: `[${level.toUpperCase()}] ${d.message}`, cls },
+            ]);
           } catch {
-            setLog(prev => [...prev.slice(-499), { text: msg.line, cls: 'info' }])
+            setLog((prev) => [
+              ...prev.slice(-499),
+              { text: msg.line, cls: "info" },
+            ]);
           }
         }
-        if (msg.type === 'done') done(true)
+        if (msg.type === "done") done(true);
       } catch {}
-    }
-    es.onerror = () => done(false)
+    };
+    es.onerror = () => done(false);
   }
 
   async function handleStop() {
-    if (stopRequested) return
-    setStopRequested(true)
+    if (stopRequested) return;
+    setStopRequested(true);
     try {
-      await stopSync()
-      addToast({ message: 'Se envió la solicitud para detener la sync.', kind: 'info' })
+      await stopSync();
+      addToast({
+        message: "Se envió la solicitud para detener la sync.",
+        kind: "info",
+      });
     } catch {
-      setStopRequested(false)
-      addToast({ message: 'No se pudo detener la sync.', kind: 'error' })
+      setStopRequested(false);
+      addToast({ message: "No se pudo detener la sync.", kind: "error" });
     }
   }
 
@@ -210,51 +333,113 @@ export function CategoriesView() {
         <div className="section-header">
           <div>
             <h2 className="section-title">Categorías</h2>
-            <div className="section-note">{writeMode ? 'Modo escritura activo' : 'Modo análisis — sin cambios en PrestaShop'}</div>
+            <div className="section-note">
+              {writeMode
+                ? "Modo escritura activo"
+                : "Modo análisis — sin cambios en PrestaShop"}
+            </div>
           </div>
         </div>
 
         {/* SAP tree */}
         <div className="card" style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div className="section-title" style={{ margin: 0 }}>Árbol SAP</div>
-            <button className="btn-secondary" type="button" onClick={loadSapTree} disabled={loadingSap}
-              style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 12,
+            }}
+          >
+            <div className="section-title" style={{ margin: 0 }}>
+              Árbol SAP
+            </div>
+            <button
+              className="btn-secondary"
+              type="button"
+              onClick={loadSapTree}
+              disabled={loadingSap}
+              style={{ display: "flex", alignItems: "center", gap: 7 }}
+            >
               {loadingSap && <span className="spinner-dark" />}
-              {loadingSap ? 'Cargando...' : sapTree ? 'Recargar' : 'Cargar'}
+              {loadingSap ? "Cargando..." : sapTree ? "Recargar" : "Cargar"}
             </button>
           </div>
 
-          {sapError && <div style={{ color: 'var(--danger)', fontSize: '0.9rem', padding: '4px 0' }}>{sapError}</div>}
+          {sapError && (
+            <div
+              style={{
+                color: "var(--danger)",
+                fontSize: "0.9rem",
+                padding: "4px 0",
+              }}
+            >
+              {sapError}
+            </div>
+          )}
 
           {loadingSap && !sapTree && (
-            <div style={{ display: 'grid', gap: 8 }}>
-              {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} width="100%" height={28} />)}
+            <div style={{ display: "grid", gap: 8 }}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} width="100%" height={28} />
+              ))}
             </div>
           )}
 
           {sapTree && !loadingSap && (
             <>
-              <div style={{ display: 'flex', gap: 20, marginBottom: 12, flexWrap: 'wrap' }}>
-                <span className="section-note">Total artículos: <strong>{fmt(sapTree.totalProducts)}</strong></span>
-                <span className="section-note">Con categoría: <strong>{fmt(sapTree.categorized)}</strong></span>
-                <span className="section-note" style={{ color: sapTree.uncategorized > 0 ? 'var(--warning)' : undefined }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 20,
+                  marginBottom: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <span className="section-note">
+                  Total artículos: <strong>{fmt(sapTree.totalProducts)}</strong>
+                </span>
+                <span className="section-note">
+                  Con categoría: <strong>{fmt(sapTree.categorized)}</strong>
+                </span>
+                <span
+                  className="section-note"
+                  style={{
+                    color:
+                      sapTree.uncategorized > 0 ? "var(--warning)" : undefined,
+                  }}
+                >
                   Sin categoría: <strong>{fmt(sapTree.uncategorized)}</strong>
                 </span>
-                <span className="section-note">Categorías: <strong>{fmt(countSapNodes(sapTree.categories))}</strong></span>
+                <span className="section-note">
+                  Categorías:{" "}
+                  <strong>{fmt(countSapNodes(sapTree.categories))}</strong>
+                </span>
               </div>
-              {sapTree.categories.length === 0
-                ? <div className="section-note">No se encontraron categorías con U_Categoria definido.</div>
-                : (
-                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
-                    {sapTree.categories.map(cat => <CategoryNode key={cat.name} node={cat} depth={0} />)}
-                  </div>
-                )}
+              {sapTree.categories.length === 0 ? (
+                <div className="section-note">
+                  No se encontraron categorías con U_Categoria definido.
+                </div>
+              ) : (
+                <div
+                  style={{
+                    borderTop: "1px solid var(--border)",
+                    paddingTop: 8,
+                  }}
+                >
+                  {sapTree.categories.map((cat) => (
+                    <CategoryNode key={cat.name} node={cat} depth={0} />
+                  ))}
+                </div>
+              )}
             </>
           )}
 
           {!sapTree && !loadingSap && !sapError && (
-            <div className="section-note" style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div
+              className="section-note"
+              style={{ textAlign: "center", padding: "20px 0" }}
+            >
               Cargá el árbol para ver las categorías definidas en SAP.
             </div>
           )}
@@ -262,66 +447,154 @@ export function CategoriesView() {
 
         {/* PrestaShop categories */}
         <div className="card" style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div className="section-title" style={{ margin: 0 }}>Categorías PrestaShop</div>
-            <button className="btn-secondary" type="button" onClick={loadPsCategories} disabled={loadingPs}
-              style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 12,
+            }}
+          >
+            <div className="section-title" style={{ margin: 0 }}>
+              Categorías PrestaShop
+            </div>
+            <button
+              className="btn-secondary"
+              type="button"
+              onClick={loadPsCategories}
+              disabled={loadingPs}
+              style={{ display: "flex", alignItems: "center", gap: 7 }}
+            >
               {loadingPs && <span className="spinner-dark" />}
-              {loadingPs ? 'Cargando...' : psCategories ? `Recargar (${psCategories.length})` : 'Cargar'}
+              {loadingPs
+                ? "Cargando..."
+                : psCategories
+                  ? `Recargar (${psCategories.length})`
+                  : "Cargar"}
             </button>
           </div>
 
-          {psError && <div style={{ color: 'var(--danger)', fontSize: '0.9rem', padding: '4px 0' }}>{psError}</div>}
+          {psError && (
+            <div
+              style={{
+                color: "var(--danger)",
+                fontSize: "0.9rem",
+                padding: "4px 0",
+              }}
+            >
+              {psError}
+            </div>
+          )}
 
           {loadingPs && !psCategories && (
-            <div style={{ display: 'grid', gap: 8 }}>
-              {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} width="100%" height={28} />)}
+            <div style={{ display: "grid", gap: 8 }}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} width="100%" height={28} />
+              ))}
             </div>
           )}
 
           {psCategories && !loadingPs && (
             <>
               <div style={{ marginBottom: 12 }}>
-                <span className="section-note">Total: <strong>{psCategories.length}</strong></span>
-                <span className="section-note" style={{ marginLeft: 16 }}>
-                  Activas: <strong>{psCategories.filter(c => c.active === '1').length}</strong>
+                <span className="section-note">
+                  Total: <strong>{psCategories.length}</strong>
                 </span>
                 <span className="section-note" style={{ marginLeft: 16 }}>
-                  Inactivas: <strong>{psCategories.filter(c => c.active !== '1').length}</strong>
+                  Activas:{" "}
+                  <strong>
+                    {psCategories.filter((c) => c.active === "1").length}
+                  </strong>
+                </span>
+                <span className="section-note" style={{ marginLeft: 16 }}>
+                  Inactivas:{" "}
+                  <strong>
+                    {psCategories.filter((c) => c.active !== "1").length}
+                  </strong>
                 </span>
               </div>
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+              <div
+                style={{ borderTop: "1px solid var(--border)", paddingTop: 8 }}
+              >
                 <PsCategoryTree categories={psCategories} />
               </div>
             </>
           )}
 
           {!psCategories && !loadingPs && !psError && (
-            <div className="section-note" style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div
+              className="section-note"
+              style={{ textAlign: "center", padding: "20px 0" }}
+            >
               Cargá las categorías de PrestaShop para comparar con SAP.
             </div>
           )}
         </div>
 
         {/* Sync action */}
-        <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div
+          className="card"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
           <div>
-            <div style={{ fontWeight: 700, marginBottom: 2 }}>Sincronizar categorías SAP → PrestaShop</div>
-            <div className="section-note">{writeMode ? 'Aplicará cambios reales en la tienda.' : 'Modo análisis — solo reporta, no modifica nada.'}</div>
+            <div style={{ fontWeight: 700, marginBottom: 2 }}>
+              Sincronizar categorías SAP → PrestaShop
+            </div>
+            <div className="section-note">
+              {writeMode
+                ? "Aplicará cambios reales en la tienda."
+                : "Modo análisis — solo reporta, no modifica nada."}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexShrink: 0,
+              alignItems: "center",
+            }}
+          >
             <div className="toggle-group">
-              <button type="button" className={!writeMode ? 'active' : ''} onClick={() => setWriteMode(false)}>Analizar</button>
-              <button type="button" className={writeMode ? 'active danger' : ''} onClick={() => setWriteMode(true)}>Aplicar cambios</button>
+              <button
+                type="button"
+                className={!writeMode ? "active" : ""}
+                onClick={() => setWriteMode(false)}
+              >
+                Analizar
+              </button>
+              <button
+                type="button"
+                className={writeMode ? "active danger" : ""}
+                onClick={() => setWriteMode(true)}
+              >
+                Aplicar cambios
+              </button>
             </div>
             {syncing ? (
-              <button className="btn-secondary" type="button" onClick={handleStop} disabled={stopRequested} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <button
+                className="btn-secondary"
+                type="button"
+                onClick={handleStop}
+                disabled={stopRequested}
+                style={{ display: "flex", alignItems: "center", gap: 7 }}
+              >
                 {stopRequested && <span className="spinner-dark" />}
-                {stopRequested ? 'Deteniendo...' : 'Detener'}
+                {stopRequested ? "Deteniendo..." : "Detener"}
               </button>
             ) : (
-              <button className="btn-dark" type="button" onClick={runSync} disabled={syncRunning}>
-                {writeMode ? 'Sincronizar' : 'Analizar'}
+              <button
+                className="btn-dark"
+                type="button"
+                onClick={runSync}
+                disabled={syncRunning}
+              >
+                {writeMode ? "Sincronizar" : "Analizar"}
               </button>
             )}
           </div>
@@ -330,11 +603,13 @@ export function CategoriesView() {
         {/* Log */}
         {log.length > 0 && (
           <div className="card" style={{ marginTop: 16 }}>
-            <div className="section-title" style={{ marginBottom: 8 }}>Log sync</div>
+            <div className="section-title" style={{ marginBottom: 8 }}>
+              Log sync
+            </div>
             <LogBox entries={log} />
           </div>
         )}
       </section>
     </main>
-  )
+  );
 }

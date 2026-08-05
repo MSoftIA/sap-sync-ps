@@ -467,7 +467,36 @@ function HeaderWithSource({
   return (
     <span className="sap-header-source">
       <span>{label}</span>
-      <small>{source}</small>
+      <SourceInfo source={source} />
+    </span>
+  );
+}
+
+function sourceItems(source: string) {
+  return source
+    .split("/")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function SourceInfo({ source }: { source: string }) {
+  const items = sourceItems(source);
+
+  return (
+    <span
+      className="sap-source-info"
+      tabIndex={0}
+      aria-label={`Columnas SAP: ${items.join(", ")}`}
+    >
+      <span className="sap-source-dot">i</span>
+      <span className="sap-source-tooltip" role="tooltip">
+        <span className="sap-source-title">Columnas SAP</span>
+        <ul>
+          {items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </span>
     </span>
   );
 }
@@ -483,8 +512,10 @@ function FieldWithSource({
 }) {
   return (
     <>
-      <span>{label}</span>
-      <small className="sap-source-note">{source}</small>
+      <span className="sap-field-label">
+        {label}
+        <SourceInfo source={source} />
+      </span>
       <strong>{children}</strong>
     </>
   );
@@ -704,17 +735,17 @@ function FragmentRow({
                 </div>
               </div>
               <div className="sap-detail-text">
-                <span>Descripcion larga SAP</span>
-                <small className="sap-source-note">
-                  {SAP_COLUMNS.longDescription}
-                </small>
+                <span className="sap-field-label">
+                  Descripcion larga SAP
+                  <SourceInfo source={SAP_COLUMNS.longDescription} />
+                </span>
                 <p>{fmt(metadata.longDescription)}</p>
               </div>
               <div className="sap-detail-text">
-                <span>Descripcion corta / logistica SAP</span>
-                <small className="sap-source-note">
-                  {SAP_COLUMNS.shortDescription}
-                </small>
+                <span className="sap-field-label">
+                  Descripcion corta / logistica SAP
+                  <SourceInfo source={SAP_COLUMNS.shortDescription} />
+                </span>
                 <p>{fmt(metadata.shortDescription)}</p>
               </div>
             </div>
