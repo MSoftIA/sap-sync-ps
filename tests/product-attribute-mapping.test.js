@@ -4,6 +4,8 @@ const assert = require("node:assert/strict");
 const {
   applyProductAttributeMapping,
   defaultConfig,
+  mappingCatalog,
+  shouldSyncProductImage,
 } = require("../src/product-attribute-mapping");
 
 function article(overrides = {}) {
@@ -22,6 +24,7 @@ function article(overrides = {}) {
       salesUnit: "CTN6",
       unitsPerPackage: 1,
       weight: 1.6,
+      pictureName: "72101020.jpg",
     },
     ...overrides,
   };
@@ -71,4 +74,29 @@ test("permite mapear un campo SAP como caracteristica custom", () => {
   assert.deepEqual(payload.sapFeatures, [
     { name: "Unidad comercial", value: "CTN6" },
   ]);
+});
+
+test("expone y controla la subida de imagen desde el mapeo", () => {
+  const catalog = mappingCatalog();
+  assert.ok(catalog.targets.some((target) => target.key === "image"));
+  assert.ok(
+    catalog.defaults.entries.some((entry) => entry.prestaTarget === "image"),
+  );
+  assert.equal(shouldSyncProductImage(article(), defaultConfig()), true);
+  assert.equal(
+    shouldSyncProductImage(article(), {
+      version: 1,
+      entries: [
+        {
+          id: "image-off",
+          enabled: false,
+          sapField: "metadata.pictureName",
+          prestaTarget: "image",
+          label: "Imagen SAP",
+          featureName: "",
+        },
+      ],
+    }),
+    false,
+  );
 });

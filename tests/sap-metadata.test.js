@@ -290,3 +290,29 @@ test("usa FrgnName como fallback de descripcion cuando SAP no trae textos dedica
     "UNIVERSAL BORDEAUX GLASS 23oz",
   );
 });
+
+test("redondea hacia abajo los numericos que se suben a PrestaShop", () => {
+  const { buildActionPayload } = require("../src/sync-plan");
+  const article = {
+    itemCode: "FLOATS",
+    itemName: "Producto con decimales",
+    price: 10.9999999,
+    stock: 8.9999,
+    shouldShowInPrestashop: true,
+    metadata: {
+      weight: 1.6789,
+      pictureName: "FLOATS.jpg",
+    },
+  };
+
+  const result = buildActionPayload(
+    {
+      action: "create_product",
+    },
+    article,
+  );
+
+  assert.equal(result.payload.product.price, 10.999999);
+  assert.equal(result.payload.product.weight, 1.678);
+  assert.equal(result.payload.stockAvailable.quantity, 8);
+});

@@ -1,12 +1,18 @@
 const { env, numberEnv } = require("./env");
 const { applyProductAttributeMapping } = require("./product-attribute-mapping");
 
+function floorNumber(value, decimals = 0) {
+  const number = Number(value || 0);
+  const factor = 10 ** decimals;
+  return Math.floor(number * factor) / factor;
+}
+
 function roundPrice(value) {
-  return Math.round(Number(value || 0) * 1000000) / 1000000;
+  return floorNumber(value, 6);
 }
 
 function normalizeStock(value) {
-  return Math.max(0, Math.round(Number(value || 0)));
+  return Math.max(0, Math.floor(Number(value || 0)));
 }
 
 function getSyncDefaults() {

@@ -41,6 +41,7 @@ const PRESTASHOP_TARGETS = [
   { key: "metaTitle", label: "Meta title", kind: "field" },
   { key: "metaDescription", label: "Meta description", kind: "field" },
   { key: "feature", label: "Caracteristica PrestaShop", kind: "feature" },
+  { key: "image", label: "Imagen de producto", kind: "image" },
 ];
 
 const DEFAULT_ENTRIES = [
@@ -77,6 +78,7 @@ const DEFAULT_ENTRIES = [
   map("feature", "metadata.salesUnit", "Unidad de venta"),
   map("feature", "metadata.unitsPerPackage", "Unidades por paquete"),
   map("feature", "metadata.weight", "Peso"),
+  map("image", "metadata.pictureName", "Imagen SAP"),
 ];
 
 function map(prestaTarget, sapField, label, enabled = true) {
@@ -157,12 +159,21 @@ function normalizeEntry(entry, index) {
 function normalizeConfig(raw) {
   const entries = Array.isArray(raw && raw.entries) ? raw.entries : [];
   const normalizedEntries = entries.map(normalizeEntry).filter(Boolean);
+  const seen = new Set(
+    normalizedEntries.map((entry) => `${entry.prestaTarget}:${entry.sapField}`),
+  );
+  const mergedEntries = [
+    ...normalizedEntries,
+    ...defaultConfig().entries.filter(
+      (entry) =>
+        entry.prestaTarget === "image" &&
+        !seen.has(`${entry.prestaTarget}:${entry.sapField}`),
+    ),
+  ];
 
   return {
     version: 1,
-    entries: normalizedEntries.length
-      ? normalizedEntries
-      : defaultConfig().entries,
+    entries: normalizedEntries.length ? mergedEntries : defaultConfig().entries,
   };
 }
 
@@ -195,7 +206,7 @@ function targetValue(target, value) {
 
   if (target === "weight") {
     const number = Number(String(value).replace(",", "."));
-    return Number.isFinite(number) ? number : "";
+    return Number.isFinite(number) ? Math.floor(number * 1000) / 1000 : "";
   }
 
   if (target === "metaTitle") return compactText(value, 70);
@@ -223,6 +234,10 @@ function applyProductAttributeMapping(
         name: entry.featureName || entry.label,
         value: textValue(value),
       });
+      continue;
+    }
+
+    if (entry.prestaTarget === "image") {
       continue;
     }
 
@@ -257,6 +272,16 @@ function applyProductAttributeMapping(
   return productMetadata;
 }
 
+function shouldSyncProductImage(
+  article,
+  config = readProductAttributeMapping(),
+) {
+  return normalizeConfig(config).entries.some((entry) => {
+    if (!entry.enabled || entry.prestaTarget !== "image") return false;
+    return hasValue(getByPath(article, entry.sapField));
+  });
+}
+
 function mappingCatalog() {
   return {
     sources: SAP_ATTRIBUTE_SOURCES,
@@ -272,4 +297,5 @@ module.exports = {
   mappingCatalog,
   readProductAttributeMapping,
   saveProductAttributeMapping,
+  shouldSyncProductImage,
 };

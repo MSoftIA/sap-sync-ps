@@ -72,6 +72,13 @@ export function MappingView() {
       ).length ?? 0,
     [config],
   );
+  const imageCount = useMemo(
+    () =>
+      config?.entries.filter(
+        (entry) => entry.enabled && entry.prestaTarget === "image",
+      ).length ?? 0,
+    [config],
+  );
 
   function updateEntry(
     id: string,
@@ -233,7 +240,13 @@ export function MappingView() {
           </div>
           <div>
             <span>Campos directos</span>
-            <strong>{Math.max(0, enabledCount - featureCount)}</strong>
+            <strong>
+              {Math.max(0, enabledCount - featureCount - imageCount)}
+            </strong>
+          </div>
+          <div>
+            <span>Imagenes</span>
+            <strong>{imageCount}</strong>
           </div>
         </div>
 
@@ -307,6 +320,11 @@ export function MappingView() {
                           })
                         }
                       />
+                    ) : entry.prestaTarget === "image" ? (
+                      <div className="mapping-target-label">
+                        <Tag tone="green">Imagen</Tag>
+                        <span>Subida desde SAP</span>
+                      </div>
                     ) : (
                       <div className="mapping-target-label">
                         <Tag tone="gray">Campo PS</Tag>

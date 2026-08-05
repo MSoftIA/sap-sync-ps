@@ -7,6 +7,7 @@ const {
 const { env, numberEnv } = require("../env");
 const {
   applyProductAttributeMapping,
+  shouldSyncProductImage,
 } = require("../product-attribute-mapping");
 const { readSapArticles } = require("../sap");
 const { executeSyncAction, isWriteEnabled } = require("../sync-executor");
@@ -72,7 +73,7 @@ function hasWritableMetadata(article) {
 }
 
 function hasImageCandidate(article) {
-  return hasMetadataValue(article.metadata && article.metadata.pictureName);
+  return shouldSyncProductImage(article);
 }
 
 function boolEnv(name, fallback) {
