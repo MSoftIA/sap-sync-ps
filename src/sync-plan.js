@@ -1,4 +1,5 @@
 const { env, numberEnv } = require("./env");
+const { applyProductAttributeMapping } = require("./product-attribute-mapping");
 
 function roundPrice(value) {
   return Math.round(Number(value || 0) * 1000000) / 1000000;
@@ -6,25 +7,6 @@ function roundPrice(value) {
 
 function normalizeStock(value) {
   return Math.max(0, Math.round(Number(value || 0)));
-}
-
-function htmlEscape(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function textValue(value) {
-  return String(value ?? "").trim();
-}
-
-function compactText(value, maxLength) {
-  const compacted = textValue(value).replace(/\s+/g, " ");
-  return compacted.length > maxLength
-    ? compacted.slice(0, maxLength - 1).trim() + "..."
-    : compacted;
 }
 
 function getSyncDefaults() {
@@ -69,85 +51,7 @@ function buildCreatePayload(article, defaults) {
 }
 
 function buildProductMetadata(article) {
-  const metadata = article && article.metadata ? article.metadata : {};
-  const barcode = String(metadata.barcode || "").trim();
-  const longDescription = textValue(metadata.longDescription);
-  const shortDescription = textValue(metadata.shortDescription);
-  const manufacturerCatalogNumber = textValue(
-    metadata.manufacturerCatalogNumber,
-  );
-  const productMetadata = {};
-  const technicalRows = [
-    ["Codigo SAP", article.itemCode],
-    ["Codigo de barras", barcode],
-    ["Referencia proveedor", manufacturerCatalogNumber],
-    ["Nombre internacional", metadata.foreignName],
-    ["Categoria SAP", metadata.category],
-    ["Grupo SAP", metadata.itemGroupName || metadata.itemGroupCode],
-    ["Marca SAP", metadata.manufacturerCode],
-    ["Unidad de venta", metadata.salesUnit],
-    ["Unidades por paquete", metadata.unitsPerPackage],
-    ["Peso", metadata.weight],
-  ].filter(([, value]) => textValue(value));
-  const sapFeatures = technicalRows.map(([name, value]) => ({
-    name,
-    value: textValue(value),
-  }));
-
-  const technicalHtml =
-    technicalRows.length > 0
-      ? '<section class="sap-product-specs"><h3>Ficha tecnica</h3><table><tbody>' +
-        technicalRows
-          .map(
-            ([label, value]) =>
-              "<tr><th>" +
-              htmlEscape(label) +
-              "</th><td>" +
-              htmlEscape(value) +
-              "</td></tr>",
-          )
-          .join("") +
-        "</tbody></table></section>"
-      : "";
-
-  if (longDescription || shortDescription) {
-    productMetadata.description = [
-      longDescription || shortDescription,
-      technicalHtml,
-    ]
-      .filter(Boolean)
-      .join("\n\n");
-  }
-
-  if (shortDescription || longDescription) {
-    productMetadata.descriptionShort =
-      shortDescription || longDescription.slice(0, 800);
-  }
-
-  if (manufacturerCatalogNumber) {
-    productMetadata.mpn = manufacturerCatalogNumber;
-    productMetadata.supplierReference = manufacturerCatalogNumber;
-  }
-
-  if (/^\d{13}$/.test(barcode)) {
-    productMetadata.ean13 = barcode;
-  }
-
-  if (metadata.weight !== null && metadata.weight !== undefined) {
-    productMetadata.weight = metadata.weight;
-  }
-
-  productMetadata.metaTitle = compactText(
-    metadata.foreignName || article.itemName,
-    70,
-  );
-  productMetadata.metaDescription = compactText(
-    longDescription || shortDescription || article.itemName,
-    160,
-  );
-  productMetadata.sapFeatures = sapFeatures;
-
-  return productMetadata;
+  return applyProductAttributeMapping(article);
 }
 
 function buildUpdatePayload(row, article, defaults) {

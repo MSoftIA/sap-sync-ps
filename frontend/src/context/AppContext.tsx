@@ -33,7 +33,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [syncRunning, setSyncRunning] = useState(false)
   const [currentView, setCurrentView] = useState<View>(() => {
     const hash = window.location.hash.slice(1) as View
-    return (['sync', 'products', 'categories'] as View[]).includes(hash) ? hash : 'sync'
+    return (['sync', 'products', 'categories', 'mapping', 'automation'] as View[]).includes(hash) ? hash : 'sync'
   })
   const [selectedDomains, setSelectedDomains] = useState<string[]>(['products'])
   const [availableDomains, setAvailableDomains] = useState<SyncDomain[]>([])

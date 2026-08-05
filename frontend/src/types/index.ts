@@ -121,7 +121,39 @@ export interface SapCategoryTree {
   error?: string;
 }
 
-export type View = "sync" | "products" | "categories" | "automation";
+export type View =
+  | "sync"
+  | "products"
+  | "categories"
+  | "mapping"
+  | "automation";
+
+export interface AttributeOption {
+  key: string;
+  label: string;
+  kind?: string;
+}
+
+export interface ProductAttributeMappingEntry {
+  id: string;
+  enabled: boolean;
+  sapField: string;
+  prestaTarget: string;
+  label: string;
+  featureName?: string;
+}
+
+export interface ProductAttributeMappingConfig {
+  version: number;
+  entries: ProductAttributeMappingEntry[];
+}
+
+export interface ProductAttributeMappingPayload {
+  sources: AttributeOption[];
+  targets: AttributeOption[];
+  defaults: ProductAttributeMappingConfig;
+  config: ProductAttributeMappingConfig;
+}
 
 export interface ScheduleConfig {
   enabled: boolean;

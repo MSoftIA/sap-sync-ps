@@ -20,6 +20,11 @@ const {
   readSapCategoryTreeAsync,
   readSapProductsPageAsync,
 } = require("./src/sap");
+const {
+  mappingCatalog,
+  readProductAttributeMapping,
+  saveProductAttributeMapping,
+} = require("./src/product-attribute-mapping");
 const { log } = require("./src/logger");
 const { listSyncDomains } = require("./src/sync-domains");
 const { resolveSapImagePath } = require("./src/sync-executor");
@@ -306,6 +311,25 @@ app.get("/api/sap-categories", async (req, res) => {
     res.json(tree);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/product-attribute-mapping", (req, res) => {
+  res.json({
+    ...mappingCatalog(),
+    config: readProductAttributeMapping(),
+  });
+});
+
+app.post("/api/product-attribute-mapping", (req, res) => {
+  try {
+    const saved = saveProductAttributeMapping(req.body || {});
+    res.json({
+      ...mappingCatalog(),
+      config: saved,
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
 });
 

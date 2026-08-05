@@ -5,6 +5,9 @@ const {
   inspectProductByReferenceCached,
 } = require("../prestashop");
 const { env, numberEnv } = require("../env");
+const {
+  applyProductAttributeMapping,
+} = require("../product-attribute-mapping");
 const { readSapArticles } = require("../sap");
 const { executeSyncAction, isWriteEnabled } = require("../sync-executor");
 const { buildActionPayload, shouldShowInPrestashop } = require("../sync-plan");
@@ -59,21 +62,7 @@ function hasMetadataValue(value) {
 }
 
 function getWritableMetadata(article) {
-  const metadata = article.metadata || {};
-  const barcode = String(metadata.barcode || "").trim();
-
-  return {
-    description: metadata.longDescription || "",
-    descriptionShort: metadata.shortDescription || "",
-    mpn: metadata.manufacturerCatalogNumber || "",
-    ean13: /^\d{13}$/.test(barcode) ? barcode : "",
-    weight: metadata.weight ?? null,
-    foreignName: metadata.foreignName || "",
-    category: metadata.category || "",
-    itemGroupName: metadata.itemGroupName || "",
-    salesUnit: metadata.salesUnit || "",
-    unitsPerPackage: metadata.unitsPerPackage ?? null,
-  };
+  return applyProductAttributeMapping(article);
 }
 
 function hasWritableMetadata(article) {
