@@ -31,6 +31,13 @@ function newEntry(
   };
 }
 
+function findSource(
+  sources: AttributeOption[],
+  key: string,
+): AttributeOption | undefined {
+  return sources.find((source) => source.key === key);
+}
+
 export function MappingView() {
   const { addToast } = useToast();
   const [payload, setPayload] = useState<ProductAttributeMappingPayload | null>(
@@ -277,19 +284,36 @@ export function MappingView() {
                     />
                   </td>
                   <td>
-                    <select
-                      className="mapping-select"
-                      value={entry.sapField}
-                      onChange={(event) =>
-                        updateEntry(entry.id, { sapField: event.target.value })
-                      }
-                    >
-                      {payload.sources.map((source) => (
-                        <option key={source.key} value={source.key}>
-                          {source.label}
-                        </option>
-                      ))}
-                    </select>
+                    {(() => {
+                      const source = findSource(
+                        payload.sources,
+                        entry.sapField,
+                      );
+
+                      return (
+                        <>
+                          <select
+                            className="mapping-select"
+                            value={entry.sapField}
+                            onChange={(event) =>
+                              updateEntry(entry.id, {
+                                sapField: event.target.value,
+                              })
+                            }
+                          >
+                            {payload.sources.map((source) => (
+                              <option key={source.key} value={source.key}>
+                                {source.label}
+                                {source.column ? ` - ${source.column}` : ""}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="sap-source-note">
+                            {source?.column || entry.sapField}
+                          </span>
+                        </>
+                      );
+                    })()}
                   </td>
                   <td>
                     <select

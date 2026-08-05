@@ -10,6 +10,25 @@ import { LogBox } from '../components/LogBox'
 import type { LogEntry } from '../components/LogBox'
 import { fmt } from '../utils'
 
+const SAP_CATEGORY_COLUMNS = {
+  product: 'OITM.ItemCode',
+  category: '@CATEGORIA.Name / OITM.U_Categoria',
+  subCategory1: '@SUBCATEGORIA1.Name / OITM.U_SubCategoria1',
+  subCategory2: '@SUBCATEGORIA2.Name / OITM.U_SubCategoria2',
+  subCategory3: '@SUBCATEGORIA3.Name / OITM.U_SubCategoria3',
+}
+
+function categorySource(depth: number) {
+  if (depth === 0) return SAP_CATEGORY_COLUMNS.category
+  if (depth === 1) return SAP_CATEGORY_COLUMNS.subCategory1
+  if (depth === 2) return SAP_CATEGORY_COLUMNS.subCategory2
+  return SAP_CATEGORY_COLUMNS.subCategory3
+}
+
+function SapSourceNote({ source }: { source: string }) {
+  return <small className="sap-source-note">{source}</small>
+}
+
 function CategoryNode({ node, depth = 0 }: { node: SapCategoryNode; depth?: number }) {
   const [open, setOpen] = useState(depth < 1)
   const hasChildren = node.children.length > 0
@@ -26,7 +45,10 @@ function CategoryNode({ node, depth = 0 }: { node: SapCategoryNode; depth?: numb
         <span style={{ width: 14, color: 'var(--muted)', fontSize: '0.78rem', flexShrink: 0 }}>
           {hasChildren ? (open ? '▾' : '▸') : '·'}
         </span>
-        <span style={{ flex: 1, fontSize: '0.91rem' }}>{node.name}</span>
+        <span style={{ flex: 1, fontSize: '0.91rem' }}>
+          {node.name}
+          <SapSourceNote source={categorySource(depth)} />
+        </span>
         <Tag tone="gray">{fmt(node.total)}</Tag>
       </div>
       {open && hasChildren && (

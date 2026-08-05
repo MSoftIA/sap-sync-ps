@@ -5,30 +5,79 @@ const CONFIG_DIR = path.join(process.cwd(), "config");
 const CONFIG_FILE = path.join(CONFIG_DIR, "product-attribute-mapping.json");
 
 const SAP_ATTRIBUTE_SOURCES = [
-  { key: "itemCode", label: "Codigo SAP" },
-  { key: "itemName", label: "Nombre SAP" },
-  { key: "price", label: "Precio" },
-  { key: "warehouse", label: "Almacen" },
-  { key: "stock", label: "Stock" },
-  { key: "barcode", label: "Codigo de barras" },
-  { key: "status", label: "Estado SAP" },
-  { key: "prestashopVisibility", label: "Visible PrestaShop (QryGroup64)" },
-  { key: "metadata.longDescription", label: "Descripcion larga SAP" },
+  { key: "itemCode", label: "Codigo SAP", column: "OITM.ItemCode" },
+  { key: "itemName", label: "Nombre SAP", column: "OITM.ItemName" },
+  { key: "price", label: "Precio", column: "ITM1.AddPrice1" },
+  { key: "warehouse", label: "Almacen", column: "OITW.WhsCode" },
+  { key: "stock", label: "Stock", column: "OITW.OnHand" },
+  { key: "barcode", label: "Codigo de barras", column: "OITM.CodeBars" },
+  { key: "status", label: "Estado SAP", column: "OITM.validFor" },
+  {
+    key: "prestashopVisibility",
+    label: "Visible PrestaShop (QryGroup64)",
+    column: "OITM.QryGroup64",
+  },
+  {
+    key: "metadata.longDescription",
+    label: "Descripcion larga SAP",
+    column: "OITM.UserText / OITM.FrgnName",
+  },
   {
     key: "metadata.shortDescription",
     label: "Descripcion corta / logistica SAP",
+    column: "OITM.U_Desc_Logistica / OITM.FrgnName",
   },
-  { key: "metadata.foreignName", label: "Nombre extranjero" },
-  { key: "metadata.category", label: "Categoria SAP" },
-  { key: "metadata.itemGroupCode", label: "Codigo grupo SAP" },
-  { key: "metadata.itemGroupName", label: "Grupo SAP" },
-  { key: "metadata.manufacturerCode", label: "Marca SAP" },
-  { key: "metadata.manufacturerCatalogNumber", label: "MPN suplidor" },
-  { key: "metadata.salesUnit", label: "Unidad venta" },
-  { key: "metadata.unitsPerPackage", label: "Unid. paquete" },
-  { key: "metadata.weight", label: "Peso" },
-  { key: "metadata.pictureName", label: "Imagen SAP" },
-  { key: "metadata.imageDir", label: "Directorio imagen SAP" },
+  {
+    key: "metadata.foreignName",
+    label: "Nombre extranjero",
+    column: "OITM.FrgnName",
+  },
+  {
+    key: "metadata.category",
+    label: "Categoria SAP",
+    column: "@CAR_CATEGORIA.Name / OITM.U_Categoria",
+  },
+  {
+    key: "metadata.itemGroupCode",
+    label: "Codigo grupo SAP",
+    column: "OITM.ItmsGrpCod",
+  },
+  {
+    key: "metadata.itemGroupName",
+    label: "Grupo SAP",
+    column: "OITB.ItmsGrpNam",
+  },
+  {
+    key: "metadata.manufacturerCode",
+    label: "Marca SAP",
+    column: "OITM.FirmCode",
+  },
+  {
+    key: "metadata.manufacturerCatalogNumber",
+    label: "MPN suplidor",
+    column: "OITM.SuppCatNum",
+  },
+  {
+    key: "metadata.salesUnit",
+    label: "Unidad venta",
+    column: "OITM.SalUnitMsr",
+  },
+  {
+    key: "metadata.unitsPerPackage",
+    label: "Unid. paquete",
+    column: "OITM.SalPackUn",
+  },
+  { key: "metadata.weight", label: "Peso", column: "OITM.SWeight1" },
+  {
+    key: "metadata.pictureName",
+    label: "Imagen SAP",
+    column: "OITM.PicturName",
+  },
+  {
+    key: "metadata.imageDir",
+    label: "Directorio imagen SAP",
+    column: "OADP.BitmapPath",
+  },
 ];
 
 const PRESTASHOP_TARGETS = [

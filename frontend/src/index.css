@@ -1333,6 +1333,10 @@ summary {
   box-shadow: 0 0 0 3px rgba(54, 89, 227, 0.12);
 }
 
+.mapping-select + .sap-source-note {
+  margin-top: 5px;
+}
+
 .mapping-target-label {
   display: flex;
   align-items: center;
@@ -1352,6 +1356,23 @@ summary {
   border-radius: var(--radius);
   overflow-x: auto;
   box-shadow: var(--shadow);
+}
+
+.sap-header-source {
+  display: grid;
+  gap: 2px;
+}
+
+.sap-header-source small,
+.sap-source-note {
+  display: block;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.25;
+  margin-top: 2px;
+  text-transform: none;
 }
 
 .row-inactive td {
@@ -1401,6 +1422,16 @@ summary {
   font-weight: 800;
   text-transform: uppercase;
   margin-bottom: 4px;
+}
+
+.sap-detail-grid .sap-source-note,
+.sap-detail-text .sap-source-note {
+  color: #8a95a6;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin-bottom: 5px;
+  text-transform: none;
 }
 
 .sap-detail-grid strong {

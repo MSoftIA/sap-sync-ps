@@ -131,6 +131,7 @@ export type View =
 export interface AttributeOption {
   key: string;
   label: string;
+  column?: string;
   kind?: string;
 }
 

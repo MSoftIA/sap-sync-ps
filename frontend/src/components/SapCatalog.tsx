@@ -13,6 +13,29 @@ type CategoryFilter = "all" | "with" | "without";
 
 const PAGE_SIZE = 50;
 
+const SAP_COLUMNS = {
+  itemCode: "OITM.ItemCode",
+  itemName: "OITM.ItemName",
+  price: "ITM1.AddPrice1",
+  warehouse: "OITW.WhsCode",
+  stock: "OITW.OnHand",
+  barcode: "OITM.CodeBars",
+  category: "@CAR_CATEGORIA.Name / OITM.U_Categoria",
+  itemGroup: "OITB.ItmsGrpNam / OITM.ItmsGrpCod",
+  manufacturerCode: "OITM.FirmCode",
+  manufacturerCatalogNumber: "OITM.SuppCatNum",
+  salesUnit: "OITM.SalUnitMsr",
+  unitsPerPackage: "OITM.SalPackUn",
+  weight: "OITM.SWeight1",
+  pictureName: "OITM.PicturName",
+  imageDir: "OADP.BitmapPath",
+  prestashopVisibility: "OITM.QryGroup64",
+  status: "OITM.validFor",
+  foreignName: "OITM.FrgnName",
+  longDescription: "OITM.UserText / OITM.FrgnName",
+  shortDescription: "OITM.U_Desc_Logistica / OITM.FrgnName",
+};
+
 interface Props {
   onSyncItem?: (itemCode: string) => void;
   syncingItemCode?: string | null;
@@ -311,19 +334,48 @@ export function SapCatalog({ onSyncItem, syncingItemCode }: Props = {}) {
             <table>
               <thead>
                 <tr>
-                  <th scope="col">Codigo</th>
+                  <th scope="col">
+                    <HeaderWithSource
+                      label="Codigo"
+                      source={SAP_COLUMNS.itemCode}
+                    />
+                  </th>
                   <th scope="col" style={{ width: 64 }}>
-                    Imagen
+                    <HeaderWithSource
+                      label="Imagen"
+                      source={SAP_COLUMNS.pictureName}
+                    />
                   </th>
-                  <th scope="col">Nombre</th>
-                  <th scope="col">Categoria</th>
+                  <th scope="col">
+                    <HeaderWithSource
+                      label="Nombre"
+                      source={SAP_COLUMNS.itemName}
+                    />
+                  </th>
+                  <th scope="col">
+                    <HeaderWithSource
+                      label="Categoria"
+                      source={SAP_COLUMNS.category}
+                    />
+                  </th>
                   <th scope="col" style={{ textAlign: "right" }}>
-                    Precio
+                    <HeaderWithSource
+                      label="Precio"
+                      source={SAP_COLUMNS.price}
+                    />
                   </th>
                   <th scope="col" style={{ textAlign: "right" }}>
-                    Stock
+                    <HeaderWithSource
+                      label="Stock"
+                      source={SAP_COLUMNS.stock}
+                    />
                   </th>
-                  <th scope="col">Estado</th>
+                  <th scope="col">
+                    <HeaderWithSource
+                      label="Estado"
+                      source={SAP_COLUMNS.prestashopVisibility}
+                    />
+                  </th>
                   {onSyncItem && <th scope="col" style={{ width: 80 }} />}
                   <th scope="col" style={{ width: 96 }} />
                 </tr>
@@ -402,6 +454,39 @@ function FilterSet({
       <span className="catalog-filter-label">{label}</span>
       <div className="catalog-filter-group">{children}</div>
     </div>
+  );
+}
+
+function HeaderWithSource({
+  label,
+  source,
+}: {
+  label: string;
+  source: string;
+}) {
+  return (
+    <span className="sap-header-source">
+      <span>{label}</span>
+      <small>{source}</small>
+    </span>
+  );
+}
+
+function FieldWithSource({
+  label,
+  source,
+  children,
+}: {
+  label: string;
+  source: string;
+  children: ReactNode;
+}) {
+  return (
+    <>
+      <span>{label}</span>
+      <small className="sap-source-note">{source}</small>
+      <strong>{children}</strong>
+    </>
   );
 }
 
@@ -509,72 +594,127 @@ function FragmentRow({
             <div className="sap-detail-panel">
               <div className="sap-detail-grid">
                 <div>
-                  <span>Almacen</span>
-                  <strong>{fmt(article.warehouse)}</strong>
+                  <FieldWithSource
+                    label="Almacen"
+                    source={SAP_COLUMNS.warehouse}
+                  >
+                    {fmt(article.warehouse)}
+                  </FieldWithSource>
                 </div>
                 <div>
-                  <span>Grupo SAP</span>
-                  <strong>
+                  <FieldWithSource
+                    label="Grupo SAP"
+                    source={SAP_COLUMNS.itemGroup}
+                  >
                     {fmt(metadata.itemGroupName || article.itemGroupCode)}
-                  </strong>
+                  </FieldWithSource>
                 </div>
                 <div>
-                  <span>Categoria SAP</span>
-                  <strong>{fmt(metadata.category || article.category)}</strong>
+                  <FieldWithSource
+                    label="Categoria SAP"
+                    source={SAP_COLUMNS.category}
+                  >
+                    {fmt(metadata.category || article.category)}
+                  </FieldWithSource>
                 </div>
                 <div>
-                  <span>Codigo barras</span>
-                  <strong>{fmt(article.barcode ?? metadata.barcode)}</strong>
+                  <FieldWithSource
+                    label="Codigo barras"
+                    source={SAP_COLUMNS.barcode}
+                  >
+                    {fmt(article.barcode ?? metadata.barcode)}
+                  </FieldWithSource>
                 </div>
                 <div>
-                  <span>MPN suplidor</span>
-                  <strong>{fmt(metadata.manufacturerCatalogNumber)}</strong>
+                  <FieldWithSource
+                    label="MPN suplidor"
+                    source={SAP_COLUMNS.manufacturerCatalogNumber}
+                  >
+                    {fmt(metadata.manufacturerCatalogNumber)}
+                  </FieldWithSource>
                 </div>
                 <div>
-                  <span>Marca SAP</span>
-                  <strong>{fmt(metadata.manufacturerCode)}</strong>
+                  <FieldWithSource
+                    label="Marca SAP"
+                    source={SAP_COLUMNS.manufacturerCode}
+                  >
+                    {fmt(metadata.manufacturerCode)}
+                  </FieldWithSource>
                 </div>
                 <div>
-                  <span>Unidad venta</span>
-                  <strong>{fmt(metadata.salesUnit)}</strong>
+                  <FieldWithSource
+                    label="Unidad venta"
+                    source={SAP_COLUMNS.salesUnit}
+                  >
+                    {fmt(metadata.salesUnit)}
+                  </FieldWithSource>
                 </div>
                 <div>
-                  <span>Unid. paquete</span>
-                  <strong>{fmt(metadata.unitsPerPackage)}</strong>
+                  <FieldWithSource
+                    label="Unid. paquete"
+                    source={SAP_COLUMNS.unitsPerPackage}
+                  >
+                    {fmt(metadata.unitsPerPackage)}
+                  </FieldWithSource>
                 </div>
                 <div>
-                  <span>Peso</span>
-                  <strong>{fmt(metadata.weight)}</strong>
+                  <FieldWithSource label="Peso" source={SAP_COLUMNS.weight}>
+                    {fmt(metadata.weight)}
+                  </FieldWithSource>
                 </div>
                 <div>
-                  <span>Imagen SAP</span>
-                  <strong>{fmt(metadata.pictureName)}</strong>
+                  <FieldWithSource
+                    label="Imagen SAP"
+                    source={SAP_COLUMNS.pictureName}
+                  >
+                    {fmt(metadata.pictureName)}
+                  </FieldWithSource>
                 </div>
                 <div>
-                  <span>Ruta imagen SAP</span>
-                  <strong>{fmt(metadata.imageDir)}</strong>
+                  <FieldWithSource
+                    label="Ruta imagen SAP"
+                    source={SAP_COLUMNS.imageDir}
+                  >
+                    {fmt(metadata.imageDir)}
+                  </FieldWithSource>
                 </div>
                 <div>
-                  <span>QryGroup64</span>
-                  <strong>{fmt(article.prestashopVisibility)}</strong>
+                  <FieldWithSource
+                    label="QryGroup64"
+                    source={SAP_COLUMNS.prestashopVisibility}
+                  >
+                    {fmt(article.prestashopVisibility)}
+                  </FieldWithSource>
                 </div>
                 <div>
-                  <span>Visible en PrestaShop</span>
-                  <strong>
+                  <FieldWithSource
+                    label="Visible en PrestaShop"
+                    source={SAP_COLUMNS.prestashopVisibility}
+                  >
                     {article.shouldShowInPrestashop ? "Si" : "No"}
-                  </strong>
+                  </FieldWithSource>
                 </div>
                 <div>
-                  <span>Nombre extranjero</span>
-                  <strong>{fmt(metadata.foreignName)}</strong>
+                  <FieldWithSource
+                    label="Nombre extranjero"
+                    source={SAP_COLUMNS.foreignName}
+                  >
+                    {fmt(metadata.foreignName)}
+                  </FieldWithSource>
                 </div>
               </div>
               <div className="sap-detail-text">
                 <span>Descripcion larga SAP</span>
+                <small className="sap-source-note">
+                  {SAP_COLUMNS.longDescription}
+                </small>
                 <p>{fmt(metadata.longDescription)}</p>
               </div>
               <div className="sap-detail-text">
                 <span>Descripcion corta / logistica SAP</span>
+                <small className="sap-source-note">
+                  {SAP_COLUMNS.shortDescription}
+                </small>
                 <p>{fmt(metadata.shortDescription)}</p>
               </div>
             </div>

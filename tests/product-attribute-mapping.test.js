@@ -79,6 +79,11 @@ test("permite mapear un campo SAP como caracteristica custom", () => {
 test("expone y controla la subida de imagen desde el mapeo", () => {
   const catalog = mappingCatalog();
   assert.ok(catalog.targets.some((target) => target.key === "image"));
+  assert.equal(
+    catalog.sources.find((source) => source.key === "metadata.pictureName")
+      ?.column,
+    "OITM.PicturName",
+  );
   assert.ok(
     catalog.defaults.entries.some((entry) => entry.prestaTarget === "image"),
   );
