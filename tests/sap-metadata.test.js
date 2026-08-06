@@ -228,6 +228,10 @@ test("usa QryGroup64 para determinar visibilidad PrestaShop", () => {
     hiddenArticle,
   );
   assert.equal(createPayload.payload.product.active, 0);
+  assert.match(
+    createPayload.payloadSummary,
+    /activeSource=OITM\.QryGroup64:N/,
+  );
 });
 
 test("usa la descripcion logistica como fallback visible si SAP no trae UserText", () => {

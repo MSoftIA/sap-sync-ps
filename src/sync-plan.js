@@ -37,6 +37,12 @@ function shouldShowInPrestashop(article) {
   );
 }
 
+function getSapPrestashopVisibilityValue(article) {
+  return String(article?.prestashopVisibility || "")
+    .trim()
+    .toUpperCase();
+}
+
 function buildCreatePayload(article, defaults) {
   const metadata = buildProductMetadata(article);
 
@@ -106,7 +112,7 @@ function buildUpdatePayload(row, article, defaults) {
   return payload;
 }
 
-function buildPayloadSummary(action, payload) {
+function buildPayloadSummary(action, payload, article) {
   if (action === "skip_no_change") {
     return "sin cambios";
   }
@@ -133,6 +139,10 @@ function buildPayloadSummary(action, payload) {
     }
     if (payload.product.active !== undefined) {
       parts.push("active=" + payload.product.active);
+      parts.push(
+        "activeSource=OITM.QryGroup64:" +
+          (getSapPrestashopVisibilityValue(article) || "-"),
+      );
     }
     if (payload.product.defaultCategoryId !== undefined) {
       parts.push("defaultCategoryId=" + payload.product.defaultCategoryId);
@@ -205,7 +215,7 @@ function buildActionPayload(row, article) {
 
   return {
     payload,
-    payloadSummary: buildPayloadSummary(row.action, payload),
+    payloadSummary: buildPayloadSummary(row.action, payload, article),
     blockedReason,
   };
 }

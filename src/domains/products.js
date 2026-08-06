@@ -286,6 +286,8 @@ function buildMetadataReportFields(article) {
     sapBarcode: metadata.barcode || article.barcode || "",
     sapPictureName: metadata.pictureName || "",
     sapImageDir: metadata.imageDir || "",
+    sapPrestashopVisibility: article.prestashopVisibility || "",
+    sapPrestashopVisibilityColumn: "OITM.QryGroup64",
   };
 }
 
@@ -650,6 +652,13 @@ async function runProductDomain(log) {
           syncName: row.syncName,
           syncMetadata: row.syncMetadata,
           syncImage: row.syncImage,
+          visibilityFromSap: {
+            column: row.sapPrestashopVisibilityColumn,
+            value: row.sapPrestashopVisibility || "",
+            currentPrestaShopActive: inspection.active,
+            desiredPrestaShopActive: row.actionPayload?.product?.active,
+            willSyncActive: row.syncActive,
+          },
           metadataFromSap: {
             longDescription: hasMetadataValue(row.sapLongDescription),
             shortDescription: hasMetadataValue(row.sapShortDescription),
@@ -681,6 +690,10 @@ async function runProductDomain(log) {
           status: row.execution.status,
           details: row.execution.details,
           payloadSummary: row.payloadSummary,
+          visibilityFromSap: {
+            column: row.sapPrestashopVisibilityColumn,
+            value: row.sapPrestashopVisibility || "",
+          },
           productId: row.productId || row.execution.productId || null,
         });
         return row;
